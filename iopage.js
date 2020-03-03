@@ -1,4 +1,4 @@
-// Javascript PDP 11/70 Emulator v1.8
+// Javascript PDP 11/70 Emulator v2.0
 // written by Paul Nankervis
 // Please send suggestions, fixes and feedback to paulnank@hotmail.com
 // I'm particularly interested in hearing from anyone with real experience on a PDP 11/70 front panel
@@ -9,90 +9,105 @@
 //
 // Disk routines need a clean up - specifically the RP11 stuff needs rewriting :-(
 //
-// Map an 18 bit unibus address to a 22 bit memory address via the unibus map (if active)
-//
-//
-function mapUnibus(unibusAddress) {
-    var idx = (unibusAddress >> 13) & 0x1f;
-    if (idx < 31) {
-        if (CPU.MMR3 & 0x20) {
-            unibusAddress = (CPU.unibusMap[idx] + (unibusAddress & 0x1fff)) & 0x3fffff;
-        }
-    } else {
-        unibusAddress |= IOBASE_22BIT; // top page always maps to unibus i/o page - apparently.
-    }
-    return unibusAddress;
-}
+const
+    IO_BLOCKSIZE = 1024 * 1024; // 1 Mb request size. Larger reduces number of requests but increases count
 
 // =========== Disk I/O support routines ===========
 
+// extractXHR() copies the XMLHttpRequest response to disk cache returning
+// 0 on success or -1 on error
+
+function extractXHR(xhr, cache, block) {
+    "use strict";
+    var dataView, dataLength, dataIndex, blockIndex;
+    switch (xhr.status) {
+        case 416: // Out of range - make empty cache block
+            dataLength = 0;
+            break;
+        case 200: // Whole file response - fill cache from beginning
+            block = 0; // Note case fall thru!
+        case 0: // Local response - have to assume we got appropriate response
+        case 206: // Partial response - use what is there
+            dataView = new Uint8Array(xhr.response);
+            dataLength = dataView.length;
+            break;
+        default: // Error - signal and exit
+            return -1; // Return error
+    }
+
+    if (dataLength != IO_BLOCKSIZE) {
+        console.log("Strange debug data length "+dataLength);
+    }
+
+    dataIndex = 0; // Start copy to cache at the beginning
+    do {
+        if (typeof cache[block] === "undefined") {
+            cache[block] = new Uint8Array(IO_BLOCKSIZE); // Creates zero filled cache block
+            for (blockIndex = 0; blockIndex < IO_BLOCKSIZE && dataIndex < dataLength; ) {
+                cache[block][blockIndex++] = dataView[dataIndex++] & 0xff;
+            }
+        } else {
+            dataIndex += IO_BLOCKSIZE; // Skip any existing cache blocks
+        }
+        block++;
+    } while (dataIndex < dataLength);
+
+    return 0; // Return success
+}
+
 // getData() is called at the completion of an XMLHttpRequest request to GET disk data.
-// It extracts the received data and stores it in the appropriate disk cache.
+// It extracts the received data and stores it in the appropriate disk cache, then resumes
+// the pending IO (which may trigger more transfers).
 
 function getData(xhr, operation, meta, position, address, count) {
-    var arrayBuffer, byteArray, block, word, base;
-    arrayBuffer = xhr.response;
-    if ((xhr.status != 0 && xhr.status != 206) || !arrayBuffer) {
-        meta.postProcess(1, meta, position, address, count); // NXD - read error?
+    "use strict";
+    if (extractXHR(xhr, meta.cache, ~~(position / IO_BLOCKSIZE)) < 0) {
+        meta.postProcess(1, meta, position, address, count); // NXD - invoke error callback
     } else {
-        byteArray = new Uint8Array(arrayBuffer);
-        block = ~~(position / meta.blockSize);
-        for (base = 0; base < byteArray.length;) {
-            if (typeof meta.cache[block] !== "undefined") {
-                base += meta.blockSize << 1;
-            } else {
-                meta.cache[block] = [];
-                for (word = 0; word < meta.blockSize; word++) {
-                    if (base < byteArray.length) {
-                        meta.cache[block][word] = (byteArray[base] & 0xff) | ((byteArray[base + 1] << 8) & 0xff00);
-                    } else {
-                        meta.cache[block][word] = 0;
-                    }
-                    base += 2;
-                }
-            }
-            block++;
-        }
-        diskIO(operation, meta, position, address, count);
+        diskIO(operation, meta, position, address, count); // Resume I/O
     }
 }
 
 // diskIO() moves data between memory and the disk cache. If cache blocks are undefined then
-// an XMLHttpRequest request is kicked off to get the appropriate disk data from the server. 
+// an XMLHttpRequest request is kicked off to get the appropriate disk data from the server.
 // Operations supported are:  1: Write, 2: Read, 3: Check (corresponds with RK function codes :-) )
-// position is in words and count in bytes (an allowance for tape which can do byte IO)
+// all units are in bytes (an allowance for tape which can do byte IO)
 
 function diskIO(operation, meta, position, address, count) {
-    var block, word, data, xhr;
-    block = ~~(position / meta.blockSize);
+    "use strict";
+    var block, offset, data;
+    block = ~~(position / IO_BLOCKSIZE); // Disk cache block
     if (typeof meta.cache[block] !== "undefined") {
-        word = position % meta.blockSize;
+        offset = position % IO_BLOCKSIZE;
         while (count > 0) {
             switch (operation) {
                 case 1: // Write: write from memory to cache
                 case 3: // Check: compare memory with disk cache
                     data = readWordByAddr((meta.mapped ? mapUnibus(address) : address));
                     if (data < 0) {
-                        meta.postProcess(2, meta, block * meta.blockSize + word, address, count); // NXM
+                        meta.postProcess(2, meta, block * IO_BLOCKSIZE + offset, address, count); // NXM
                         return;
                     }
                     if (operation == 1) { // write: put data into disk cache
-                        meta.cache[block][word] = data;
+                        meta.cache[block][offset] = data & 0xff;
+                        meta.cache[block][offset + 1] = (data >>> 8) & 0xff;
                     } else { // check: compare memory with disk cache
-                        if (meta.cache[block][word] != data) {
-                            meta.postProcess(3, meta, block * meta.blockSize + word, address, count); // mismatch
+                        if (data != (meta.cache[block][offset + 1] << 8) | meta.cache[block][offset]) {
+                            meta.postProcess(3, meta, block * IO_BLOCKSIZE + offset, address, count); // mismatch
                             return;
                         }
                     }
                     //if (meta.increment) {
                     address += 2;
                     //}
-                    count -= 2; // bytes to go.... (currently all write operations are whole words)
+                    count -= 2; // bytes to go.... (currently all write operations are whole offsets)
+                    offset += 2;
                     break;
                 case 2: // Read: read to memory from cache
+                    data = (meta.cache[block][offset + 1] << 8) | meta.cache[block][offset];
                     if (count > 1) { // tape can read odd number of bytes - of course it can. :-(
-                        if (writeWordByAddr((meta.mapped ? mapUnibus(address) : address), meta.cache[block][word]) < 0) {
-                            meta.postProcess(2, meta, block * meta.blockSize + word, address, count); // NXM
+                        if (writeWordByAddr((meta.mapped ? mapUnibus(address) : address), data) < 0) {
+                            meta.postProcess(2, meta, block * IO_BLOCKSIZE + offset, address, count); // NXM
                             return;
                         }
                         //if (meta.increment) {
@@ -100,8 +115,8 @@ function diskIO(operation, meta, position, address, count) {
                         //}
                         count -= 2; // bytes to go....
                     } else {
-                        if (writeByteByAddr((meta.mapped ? mapUnibus(address) : address), data) < 0) {
-                            meta.postProcess(2, meta, block * meta.blockSize + word, address, count); // NXM
+                        if (writeByteByAddr((meta.mapped ? mapUnibus(address) : address), data & 0xff) < 0) {
+                            meta.postProcess(2, meta, block * IO_BLOCKSIZE + offset, address, count); // NXM
                             return;
                         }
                         //if (meta.increment) {
@@ -109,35 +124,43 @@ function diskIO(operation, meta, position, address, count) {
                         //}
                         --count; // bytes to go....
                     }
+                    offset += 2;
                     break;
                 case 4: // accumulate a record count into the address field for tape operations
-                    address = (meta.cache[block][word] << 16) | (address >> 16);
+                    data = (meta.cache[block][offset + 1] << 8) | meta.cache[block][offset];
+                    address = (data << 16) | (address >> 16);
                     count -= 2; // bytes to go....
+                    offset += 2;
+                    break;
+                case 5: // read one lousy byte (for PTR) - result also into address field!!!!
+                    address = meta.cache[block][offset++];
+                    count = 0; // force end!
                     break;
                 default:
                     panic(); // invalid operation - how did we get here?
             }
-            if (++word >= meta.blockSize) {
-                word = 0;
+            if (offset >= IO_BLOCKSIZE) {
+                offset = 0;
                 block++;
                 if (typeof meta.cache[block] === "undefined") break;
             }
         }
-        position = block * meta.blockSize + word;
+        position = block * IO_BLOCKSIZE + offset;
     }
     if (count > 0) { // I/O not complete so we need to get some data
-        word = (~~(position / meta.blockSize)) * meta.blockSize; // Start word
-        data = (~~((position + (count >> 1) + meta.blockSize - 1) / meta.blockSize)) * meta.blockSize; // End word
-        xhr = new XMLHttpRequest();
-        xhr.open("GET", meta.url, true);
-        xhr.setRequestHeader("Range", "bytes=" + (word << 1) + "-" + ((data << 1) - 1));
-        xhr.responseType = "arraybuffer";
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState == xhr.DONE) {
-                getData(xhr, operation, meta, position, address, count);
+        if (typeof meta.xhr == "undefined") {
+            meta.xhr = new XMLHttpRequest();
+        }
+        meta.xhr.open("GET", meta.url, true);
+        meta.xhr.responseType = "arraybuffer";
+        meta.xhr.onreadystatechange = function() {
+            if (meta.xhr.readyState == meta.xhr.DONE) {
+                getData(meta.xhr, operation, meta, position, address, count);
             }
         };
-        xhr.send(null);
+        block = ~~(position / IO_BLOCKSIZE);
+        meta.xhr.setRequestHeader("Range", "bytes=" + (block * IO_BLOCKSIZE) + "-" + ((block + 1) * IO_BLOCKSIZE - 1));
+        meta.xhr.send(null);
         return;
     }
     meta.postProcess(0, meta, position, address, count); // success
@@ -159,33 +182,54 @@ var rk11 = {
     SECTORS: [12, 12, 12, 12, 12, 12, 12, 12]
 };
 
-function rk11_seekEnd(drive) {
-    rk11.rkds = (drive << 13) | (rk11.rkds & 0x1ff0);
-    rk11.rkcs |= 0x2000;
-    return rk11.rkcs & 0x40;
-}
-
-function rk11_commandEnd(drive) {
-    rk11.rkds = (drive << 13) | (rk11.rkds & 0x1ff0);
-    rk11.rkcs = (rk11.rkcs & 0xfffe) | 0x80; // turn off go & set done
-    return rk11.rkcs & 0x40;
-}
-
-function rk11_finish(drive) {
-    if (rk11.rkcs & 0x40) {
-        interrupt(0, 10, 5 << 5, 0220, rk11_commandEnd, drive);
-    } else { // if interrupt not enabled just mark completed
-        rk11_commandEnd(drive);
-    }
-}
-
 function rk11_init() {
-    rk11.rkds = 04700; // Set bits 6, 7, 8, 11  
+    rk11.rkds = 04700; // Set bits 6, 7, 8, 11
     rk11.rker = 0; //
     rk11.rkcs = 0200;
     rk11.rkwc = 0;
     rk11.rkba = 0;
     rk11.rkda = 0;
+}
+
+function rk11_seekEnd(drive) {
+    if (!(rk11.rkcs & 0x80)) { // If controller busy then requeue this request until later...
+        interrupt(0, 64, 5 << 5, 0220, rk11_seekEnd, drive);
+        return 0; // Kill current interrupt
+    }
+    rk11.rkds = (drive << 13) | (rk11.rkds & 0x1ff0); // Insert drive number into status
+    rk11.rkcs |= 0x2000; // Set read/write/search complete
+    return rk11.rkcs & 0x40; // Return IE enabled (or not)
+}
+
+function rk11_commandEnd(drive) {
+    rk11.rkds = (drive << 13) | (rk11.rkds & 0x1ff0);
+    rk11.rkcs |= 0x80; // Set done
+    return rk11.rkcs & 0x40; // Return IE
+}
+
+function rk11_end(err, meta, position, address, count) {
+    rk11.rkba = address & 0xffff;
+    rk11.rkcs = (rk11.rkcs & ~0x30) | ((address >> 12) & 0x30);
+    rk11.rkcs |= 0x2000; // Set read/write/search complete
+    rk11.rkwc = (0x10000 - (count >> 1)) & 0xffff;
+    position = ~~(position / 512);
+    rk11.rkda = (rk11.rkda & 0xe000) | ((~~(position / rk11.SECTORS[meta.drive])) << 4) | (position % rk11.SECTORS[meta.drive]);
+    switch (err) {
+        case 1: // read error
+            rk11.rker |= 0x8100; // Report TE (Timing error)
+            rk11.rkcs |= 0xc000;
+            if (rk11.rker & 0x7fc0) rk11.rkcs |= 0x4000;
+            break;
+        case 2: // NXM
+            rk11.rker |= 0x8400; // NXM
+            rk11.rkcs |= 0xc000;
+            break;
+        case 3: // compare error
+            rk11.rker |= 0x8001; // Report TE (Write check error)
+            rk11.rkcs |= 0x8000;
+            break;
+    }
+    interrupt(0, 10, 5 << 5, 0220, rk11_commandEnd, meta.drive); // queue command end
 }
 
 function rk11_go() {
@@ -194,7 +238,6 @@ function rk11_go() {
     if (typeof rk11.meta[drive] === "undefined") {
         rk11.meta[drive] = {
             "cache": [],
-            "blockSize": 65536,
             "postProcess": rk11_end,
             "drive": drive,
             "mapped": 1,
@@ -202,17 +245,19 @@ function rk11_go() {
             "url": "rk" + drive + ".dsk"
         };
     }
-    rk11.rkcs &= ~0x2080; // turn off done bit & search complete
-    rk11.rker &= ~0x03; // turn off soft errors
     if (rk11.TRACKS[drive] == 0) {
         rk11.rker |= 0x8080; // NXD
     } else {
-        sector = (((rk11.rkda >> 4) & 0x1ff) * rk11.SECTORS[drive] + (rk11.rkda & 0xf));
-        address = (((rk11.rkcs & 0x30)) << 12) | rk11.rkba;
-        count = (0x10000 - rk11.rkwc) & 0xffff;
         switch ((rk11.rkcs >> 1) & 7) { // function code
             case 0: // controller reset
-                interrupt(1, -1, 5 << 5, 0220);
+                interrupt(1, -1, 5 << 5, 0220); // clear any pending interrupts (-1 -> no interrupt queued)
+                for (var i = 0; i < 8; i++) {
+                    if (typeof rk11.meta[drive] !== "undefined") {
+                        if (typeof rk11.meta[drive].xhr !== "undefined") {
+                            rk11.meta[drive].xhr.abort();
+                        }
+                    }
+                }
                 rk11_init();
                 break;
             case 1: // write
@@ -226,24 +271,21 @@ function rk11_go() {
                     rk11.rker |= 0x8020; // NXS
                     break;
                 }
+                rk11.rkcs &= ~0x2000; // Clear search complete - reset by rk11_end
                 sector = (((rk11.rkda >> 4) & 0x1ff) * rk11.SECTORS[drive] + (rk11.rkda & 0xf));
                 address = (((rk11.rkcs & 0x30)) << 12) | rk11.rkba;
                 count = (0x10000 - rk11.rkwc) & 0xffff;
-                diskIO((rk11.rkcs >> 1) & 7, rk11.meta[drive], sector * 256, address, count << 1);
+                diskIO((rk11.rkcs >> 1) & 7, rk11.meta[drive], sector * 512, address, count << 1);
                 return;
-            case 4: // Seek - complete immediately
-                rk11.rkcs |= 0x2000; // Set search complete
-                interrupt(0, 20, 5 << 5, 0220, rk11_seekEnd, drive);
+            case 6: // Drive Reset - falls through to be finished as a seek
+                rk11.rker = 0; //
+                rk11.rkda &= 0xe000; // keep drive number
+            case 4: // Seek (and drive reset) - complete immediately
+                rk11.rkcs &= ~0x2000; // Clear search complete - reset by rk11_seekEnd
+                rk11.rkcs |= 0x80; // set done - ready to accept new command
+                interrupt(0, 64, 5 << 5, 0220, rk11_seekEnd, drive);
                 break;
             case 5: // Read Check
-                break;
-            case 6: // Drive Reset
-                rk11.rkds = 04700 | (drive << 13);
-                rk11.rker = 0; //
-                rk11.rkcs = 0200;
-                rk11.rkda &= 0xe000; // keep drive number
-                interrupt(0, 20, 5 << 5, 0220, rk11_seekEnd, drive);
-                //rk11.rkcs |= 0x2000; // Set search complete
                 break;
             case 7: // Write Lock - not implemented :-(
                 break;
@@ -251,28 +293,8 @@ function rk11_go() {
                 break;
         }
     }
-    rk11_finish(drive);
-}
-
-
-function rk11_end(err, meta, position, address, count) {
-    rk11.rkba = address & 0xffff;
-    rk11.rkcs = (rk11.rkcs & ~0x30) | ((address >> 12) & 0x30);
-    rk11.rkwc = (0x10000 - (count >> 1)) & 0xffff;
-    position = ~~(position / 256);
-    rk11.rkda = (rk11.rkda & 0xe000) | ((~~(position / rk11.SECTORS[meta.drive])) << 4) | (position % rk11.SECTORS[meta.drive]);
-    switch (err) {
-        case 1: // read error
-            rk11.rker |= 0x8100; // Report TE (Timing error)
-            break;
-        case 2: // NXM
-            rk11.rker |= 0x8400; // NXM
-            break;
-        case 3: // compare error
-            rk11.rker |= 0x8001; // Report TE (Write check error)
-            break;
-    }
-    rk11_finish(meta.drive);
+    interrupt(0, 10, 5 << 5, 0220, rk11_commandEnd, drive); // command end
+    return 0; // If called by interrupt callback then result is to delete without further processing
 }
 
 
@@ -286,27 +308,18 @@ function accessRK11(physicalAddress, data, byteFlag) {
             result = rk11.rker;
             break;
         case 017777404: // rk11.rkcs
-            rk11.rkcs &= 0x3fff;
-            if (rk11.rker & 0x7fff) rk11.rkcs |= 0x8000;
-            if (rk11.rker & 0x7fc0) rk11.rkcs |= 0x4000;
             result = insertData(rk11.rkcs, physicalAddress, data, byteFlag);
-            if (data >= 0 && result >= 0) {
+            if (data >= 0 && result >= 0) { // writing rkcs?
                 if ((rk11.rkcs ^ result) & 0x40) { // Has IE bit changed?
-                    if (result & 0x40) {
-                        if (!(result & 1)) {
-                            interrupt(1, 0, 5 << 5, 0220);
-                        }
-                    } else {
-                        rk11.rkcs = (rk11.rkcs & 0xfffe) | 0x80; // turn off go & set done
-                        interrupt(1, -1, 5 << 5, 0220);
+                    if ((result & 0x40)) { // If IE bit now set then interrupt
+                        //                      interrupt(0, 0, 5 << 5, 0220); //  Interrupt!
                     }
                 }
                 rk11.rkcs = (result & ~0xf080) | (rk11.rkcs & 0xf080); // Bits 7 and 12 - 15 are read only
-                if (rk11.rkcs & 1) {
-                    rk11.rkcs &= ~0x2080; // turn off done bit & search complete
-                    rk11.rker &= ~0x03; // turn off soft errors
-                    rk11_go();
-                    //setTimeout(rk11_go, 10); 
+                if ((rk11.rkcs & 0x81) == 0x81) { // If done & go are both set then kick off new work...
+                    rk11.rkcs &= ~0x81; // Turn off done & go bits (done is RO and go is WO)
+                    rk11.rker &= ~0x03; // Turn off soft errors
+                    interrupt(0, 20, 0, 220, rk11_go, 0); // Wait DOS 10 can't handle instant I/O
                 }
             }
             break;
@@ -328,9 +341,9 @@ function accessRK11(physicalAddress, data, byteFlag) {
             break;
         default:
             CPU.CPU_Error |= 0x10;
-            return trap(4, 134);
+            return trap(4, 202);
     }
-    //console.log("RK11 Access "+physicalAddress.toString(8)+" "+data.toString(8)+" "+byteFlag.toString(8)+" -> "+result.toString(8));
+    //console.log("RK11 " + physicalAddress.toString(8) + " " + byteFlag + " " + data.toString(8) + " => " + result.toString(8) + " @" + CPU.registerVal[7].toString(8));
     return result;
 }
 
@@ -369,7 +382,6 @@ function rl11_go() {
     if (typeof rl11.meta[drive] === "undefined") {
         rl11.meta[drive] = {
             "cache": [],
-            "blockSize": 65536,
             "postProcess": rl11_end,
             "drive": drive,
             "mapped": 1,
@@ -411,7 +423,7 @@ function rl11_go() {
             sector = ((rl11.dar >> 6) * rl11.SECTORS[drive]) + (rl11.dar & 0x3f);
             address = rl11.bar | ((rl11.csr & 0x30) << 12);
             count = (0x10000 - rl11.mpr) & 0xffff;
-            diskIO(1, rl11.meta[drive], sector * 128, address, count << 1);
+            diskIO(1, rl11.meta[drive], sector * 256, address, count << 1);
             return;
             break;
         case 6: // read
@@ -427,7 +439,7 @@ function rl11_go() {
             sector = ((rl11.dar >> 6) * rl11.SECTORS[drive]) + (rl11.dar & 0x3f);
             address = rl11.bar | ((rl11.csr & 0x30) << 12);
             count = (0x10000 - rl11.mpr) & 0xffff;
-            diskIO(2, rl11.meta[drive], sector * 128, address, count << 1);
+            diskIO(2, rl11.meta[drive], sector * 256, address, count << 1);
             return;
             break;
     }
@@ -437,7 +449,7 @@ function rl11_go() {
 
 
 function rl11_end(err, meta, position, address, count) {
-    var sector = ~~(position / 128);
+    var sector = ~~(position / 256);
     rl11.bar = address & 0xffff;
     rl11.csr = (rl11.csr & ~0x30) | ((address >> 12) & 0x30);
     rl11.dar = ((~~(sector / rl11.SECTORS[meta.drive])) << 6) | (sector % rl11.SECTORS[meta.drive]);
@@ -491,8 +503,9 @@ function accessRL11(physicalAddress, data, byteFlag) {
             break;
         default:
             CPU.CPU_Error |= 0x10;
-            return trap(4, 134);
+            return trap(4, 204);
     }
+    //console.log("RL11 " + physicalAddress.toString(8) + " " + byteFlag + " " + data.toString(8) + " => " + result.toString(8) + " @" + CPU.registerVal[7].toString(8));
     return result;
 }
 
@@ -500,7 +513,7 @@ function accessRL11(physicalAddress, data, byteFlag) {
 // =========== RP11 routines ===========
 
 var rp11 = {
-    DTYPE: [020022, 020022, 020020, 020020, 020022, 020020, 020022, 020042], // Drive type rp06, rp06, rp04, rp04...
+    DTYPE: [020022, 020022, 020020, 020020, 020020, 020020, 020022, 020042], // Drive type rp06, rp06, rp04, rp04...
     SECTORS: [22, 22, 22, 22, 22, 22, 22, 50], // sectors per track
     SURFACES: [19, 19, 19, 19, 19, 19, 19, 32], //
     CYLINDERS: [815, 815, 815, 815, 815, 411, 815, 630],
@@ -510,7 +523,7 @@ var rp11 = {
     rpba: 0, // rpba & rpbae
     rpda: [0, 0, 0, 0, 0, 0, 0, 0], // Massbus 05
     rpcs2: 0,
-    rpds: [0x1180, 0x1180, 0x1180, 0x1180, 0, 0, 0, 0], // Massbus 01 Read only
+    rpds: [0x1180, 0x1180, 0x1180, 0x1180, 0x1180, 0, 0, 0], // Massbus 01 Read only
     rper1: [0, 0, 0, 0, 0, 0, 0, 0], // Massbus 02
     // rpas: 0, // Massbus 04???
     rpla: [0, 0, 0, 0, 0, 0, 0, 0], // Massbus 07 Read only
@@ -532,7 +545,7 @@ var rp11 = {
 function rp11_init() {
     rp11.rpcs1 = 0x880;
     rp11.rpcs2 = 0;
-    rp11.rpds = [0x11c0, 0x11c0, 0x11c0, 0x11c0, 0, 0, 0, 0];
+    rp11.rpds = [0x11c0, 0x11c0, 0x11c0, 0x11c0, 0x11c0, 0, 0, 0];
     rp11.rpda = [0, 0, 0, 0, 0, 0, 0, 0];
     rp11.rpdc = [0, 0, 0, 0, 0, 0, 0, 0];
     rp11.rper1 = [0, 0, 0, 0, 0, 0, 0, 0];
@@ -563,7 +576,6 @@ function rp11_go() {
     if (typeof rp11.meta[drive] === "undefined") {
         rp11.meta[drive] = {
             "cache": [],
-            "blockSize": 65536 * 4, //256, // 32768, // 65536 * 4,
             "postProcess": rp11_end,
             "drive": drive,
             "mapped": 0,
@@ -616,7 +628,7 @@ function rp11_go() {
             rp11.rpcs2 &= ~0x800; // Turn off NEM (NXM)
             rp11.rpds[drive] &= ~0x480; // Turn off LST & DRY
             sector = (rp11.rpdc[drive] * rp11.SURFACES[drive] + (rp11.rpda[drive] >> 8)) * rp11.SECTORS[drive] + (rp11.rpda[drive] & 0xff);
-            diskIO(1, rp11.meta[drive], sector * 256, rp11.rpba, ((0x10000 - rp11.rpwc) & 0xffff) << 1);
+            diskIO(1, rp11.meta[drive], sector * 512, rp11.rpba, ((0x10000 - rp11.rpwc) & 0xffff) << 1);
             return;
             break;
         case 071: // read
@@ -631,7 +643,7 @@ function rp11_go() {
             rp11.rpcs2 &= ~0x800; // Turn off NEM (NXM)
             rp11.rpds[drive] &= ~0x480; // Turn off LST & DRY
             sector = (rp11.rpdc[drive] * rp11.SURFACES[drive] + (rp11.rpda[drive] >> 8)) * rp11.SECTORS[drive] + (rp11.rpda[drive] & 0xff);
-            diskIO(2, rp11.meta[drive], sector * 256, rp11.rpba, ((0x10000 - rp11.rpwc) & 0xffff) << 1);
+            diskIO(2, rp11.meta[drive], sector * 512, rp11.rpba, ((0x10000 - rp11.rpwc) & 0xffff) << 1);
             return;
             break;
         default:
@@ -649,7 +661,7 @@ function rp11_go() {
 
 
 function rp11_end(err, meta, position, address, count) {
-    var sector, block = ~~((position + 255) / 256);
+    var sector, block = ~~((position + 511) / 512);
     rp11.rpwc = (0x10000 - (count >> 1)) & 0xffff;
     rp11.rpba = address & 0x3fffff;
     sector = ~~(block / rp11.SECTORS[meta.drive]);
@@ -793,7 +805,7 @@ function accessRP11(physicalAddress, data, byteFlag) {
                         break;
                     case 017776734: // rp11.rpdc  Desired cylinder
                         result = insertData(rp11.rpdc[idx], physicalAddress, data, byteFlag);
-                        if (result >= 0) rp11.rpdc[idx] = result & 0x1ff;
+                        if (result >= 0) rp11.rpdc[idx] = result & 0x3ff;
                         break;
                     case 017776736: // rp11.rpcc  Current cylinder read only - lie and used desired cylinder
                         result = rp11.rpdc[idx];
@@ -812,7 +824,7 @@ function accessRP11(physicalAddress, data, byteFlag) {
                         break;
                     default:
                         CPU.CPU_Error |= 0x10;
-                        return trap(4, 132);
+                        return trap(4, 206);
                 }
             } else {
                 rp11.rpcs2 |= 0x1000; // NED
@@ -823,6 +835,7 @@ function accessRP11(physicalAddress, data, byteFlag) {
                 result = 0;
             }
     }
+    //console.log("RP11 " + physicalAddress.toString(8) + " " + byteFlag + " " + data.toString(8) + " => " + result.toString(8) + " @" + CPU.registerVal[7].toString(8));
     return result;
 }
 
@@ -857,12 +870,13 @@ function tm11_finish() {
 function tm11_end(err, meta, position, address, count) {
     if (err == 0 && meta.command > 0) {
         if (address == 0 || address > 0x80000000) { // tape mark
-            meta.position = position;
+            meta.position = (position + 1) & ~1;
             tm11.mts |= 0x4000; // set EOF bit
         } else {
             switch (meta.command) {
                 case 1: // read
-                    meta.position = position + 2 + ((address + 1) >> 1);
+                    //meta.position = position + 2 + ((address + 1) >> 1);
+                    meta.position = (position + 4 + address + 1) & ~1;
                     meta.command = 0;
                     count = (0x10000 - tm11.mtbrc) & 0xffff;
                     if (count >= address || count == 0) {
@@ -877,7 +891,8 @@ function tm11_end(err, meta, position, address, count) {
                     // calculate meta.position set count to reduced amount
                     return;
                 case 4: // space forward
-                    position = position + 2 + ((address + 1) >> 1);
+                    //position = position + 2 + ((address + 1) >> 1);
+                    position = (position + 4 + address + 1) & ~1;
                     meta.position = position;
                     tm11.mtbrc = (tm11.mtbrc + 1) & 0xffff;
                     if (tm11.mtbrc) {
@@ -886,12 +901,13 @@ function tm11_end(err, meta, position, address, count) {
                     }
                     break;
                 case 5: // space reverse
-                    position = position - 4 - ((address + 1) >> 1);
+                    //position = position - 4 - ((address + 1) >> 1);
+                    position = (position - 8 - address + 1) & ~1;
                     meta.position = position;
                     tm11.mtbrc = (tm11.mtbrc + 1) & 0xffff;
                     if (tm11.mtbrc) {
                         if (position > 0) {
-                            diskIO(4, meta, position - 2, 0, 4);
+                            diskIO(4, meta, position - 4, 0, 4);
                             return;
                         }
                     }
@@ -936,7 +952,6 @@ function tm11_go() {
     if (typeof tm11.meta[drive] === "undefined") {
         tm11.meta[drive] = {
             "cache": [],
-            "blockSize": 65536,
             "postProcess": tm11_end,
             "drive": drive,
             "mapped": 1,
@@ -963,7 +978,8 @@ function tm11_go() {
             return;
         case 5: // space reverse
             if (tm11.meta[drive].position > 0) {
-                diskIO(4, tm11.meta[drive], tm11.meta[drive].position - 2, 0, 4);
+                //diskIO(4, tm11.meta[drive], tm11.meta[drive].position - 2, 0, 4);
+                diskIO(4, tm11.meta[drive], tm11.meta[drive].position - 4, 0, 4);
                 return;
             }
             break;
@@ -1026,9 +1042,279 @@ function accessTM11(physicalAddress, data, byteFlag) {
             break;
         default:
             CPU.CPU_Error |= 0x10;
-            return trap(4, 134);
+            return trap(4, 208);
     }
-    //console.log("TM11 Access "+physicalAddress.toString(8)+" "+data.toString(8)+" "+byteFlag.toString(8)+" -> "+result.toString(8));
+    //console.log("TM11 " + physicalAddress.toString(8) + " " + byteFlag + " " + data.toString(8) + " => " + result.toString(8) + " @" + CPU.registerVal[7].toString(8));
+    return result;
+}
+
+// =========== PTR routines =========== CSR 017777550 Vector 70 BR4
+
+var ptr11 = {
+    prs: 0, // Done bit set
+    pdb: 0,
+    name: ""
+};
+
+function ptr11_init() {
+    ptr11.prs = 0; // No prs bits set
+    ptr11.name = document.getElementById("ptr").value;
+    if (ptr11.name == "") {
+        ptr11.prs = 0x8000; // Set Error
+    }
+    if (typeof ptr11.meta !== "undefined") {
+        delete ptr11.meta; // Forget any existing tape details
+    }
+
+}
+
+function ptr11_end(err, meta, position, address, count) {
+    meta.position = position;
+    ptr11.pdb = address & 0xff; // diskIO function 5 stores a byte in address
+    ptr11.prs &= ~0x800; // Clear BUSY
+    if (ptr11.prs & 0x40) {
+        interrupt(0, 6, 4 << 5, 070);
+    }
+    if (err == 0) {
+        ptr11.prs |= 0x80; // Set DONE
+    } else {
+        ptr11.prs |= 0x8000; // Set ERROR
+    }
+}
+
+function accessPTR11(physicalAddress, data, byteFlag) {
+    var result;
+    switch (physicalAddress & 6) {
+        case 0: //  ptr11.prs  017777550
+            result = insertData(ptr11.prs, physicalAddress, data, byteFlag);
+            if (result >= 0 && data > 0) {
+                if ((result & 0x40) && !(ptr11.prs & 0x40) && (ptr11.prs & 0x8080)) {
+                    interrupt(0, 6, 4 << 5, 070);
+                }
+                if (!(ptr11.prs & 0x8800) && (result & 1)) { // If not ERROR or BUSY and setting GO...
+                    if (typeof ptr11.meta === "undefined") { // Make metadata if not there
+                        ptr11.meta = {
+                            "cache": [],
+                            "postProcess": ptr11_end,
+                            "mapped": 0,
+                            "position": 0,
+                            "url": ptr11.name
+                        };
+                    }
+                    ptr11.prs = (ptr11.prs & ~0xc0) | (result & 0x40) | 0x800; // Clear DONE, write IE, and set BUSY
+                    result = ptr11.prs;
+                    diskIO(5, ptr11.meta, ptr11.meta.position, 017777552, 1); // Read a byte!
+                }
+            }
+            break;
+        case 2: // ptr11.pdb  017777552
+            result = insertData(ptr11.pdb, physicalAddress, data, byteFlag);
+            ptr11.prs = ptr11.prs & ~0x80; // Clear DONE,
+    }
+    //console.log("PTR11 " + physicalAddress.toString(8) + " " + byteFlag + " " + data.toString(8) + " => " + result.toString(8) + " @" + CPU.registerVal[7].toString(8));
+    return result;
+}
+
+// =========== LP11 routines ===========
+
+var lp11 = {
+    lpcs: 0,
+    lpdb: 0
+};
+
+function lp11_init() {
+    lp11.lpcs = 0x80; // set done bit
+}
+
+function lp11_initialize() {
+    document.getElementById("lp11").innerHTML = '<p>printer<br /><textarea id=lp11_id cols=132 rows=24 spellcheck=false style="font-family:Liberation Mono,Monaco,Courier New,Lucida Console,Consolas,DejaVu Sans Mono,Bitstream Vera Sans Mono,monospace"></textarea><br /><button onclick="document.getElementById(' + "'lp11_id'" + ').value=' + "''" + ';">Clear</button></p>';
+    lp11.textElement = document.getElementById("lp11_id");
+}
+
+
+// =========== DL11 data (includes console as unit 0) ===========
+
+var DL11 = {
+    textElement: [],
+    rbufQueue: [
+        []
+    ],
+    rbuf: [0],
+    rcsr: [0],
+    xbuf: [0],
+    xcsr: [0200],
+    vector: [0],
+    delCode: 127,
+    del: 0
+};
+
+function dl11_init() {
+    DL11.rbufQueue = [
+        []
+    ];
+    DL11.rcsr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    DL11.xcsr = [0200, 0200, 0200, 0200, 0200, 0200, 0200, 0200, 0200, 0200, 0200, 0200, 0200, 0200, 0200, 0200, 0200];
+}
+
+
+function dl11_initialize(unit, vector) {
+    var divElement;
+    if (unit != 0) {
+        divElement = document.createElement('div');
+        divElement.innerHTML = '<p>tty' + unit + '<br /><textarea id=' + unit + ' cols=132 rows=24 spellcheck=false style="font-family:Liberation Mono,Monaco,Courier New,Lucida Console,Consolas,DejaVu Sans Mono,Bitstream Vera Sans Mono,monospace"></textarea><br /></p>';
+        document.getElementById('dl11').appendChild(divElement);
+    }
+    DL11.vector[unit] = vector;
+    DL11.rbufQueue[unit] = [];
+    DL11.rcsr[unit] = 0;
+    DL11.xcsr[unit] = 0200;
+    DL11.textElement[unit] = document.getElementById(unit);
+    DL11.textElement[unit].onkeydown = dl11_keydown;
+    DL11.textElement[unit].onkeypress = dl11_read;
+    DL11.textElement[unit].onpaste = dl11_paste;
+}
+
+function dl11_input(unit, ascii) {
+    DL11.rbufQueue[unit].push(ascii);
+    if (!(DL11.rcsr[unit] & 0x80)) {
+        dl11_rbuf(unit);
+    }
+    DL11.textElement[unit].focus();
+}
+
+function dl11_keydown(event) {
+    var code = event.charCode || event.keyCode;
+    if (event.ctrlKey && code > 64 && code < 96) {
+        dl11_input(event.target.id, event.keyCode - 64);
+    } else {
+        if (event.code == "Escape") {
+            dl11_input(event.target.id, 27);
+        } else {
+            if (event.code == "Tab") {
+                dl11_input(event.target.id, 9);
+            } else {
+                if (code == 8 || code == 127) {
+                    dl11_input(event.target.id, DL11.delCode);
+                    DL11.del = 1;
+                } else {
+                    return true; // too hard to decode - let it go to keypress
+                }
+            }
+        }
+    }
+    return false;
+}
+
+function dl11_read(event) {
+    var code = event.charCode || event.keyCode;
+    dl11_input(event.target.id, code);
+    return false;
+}
+
+function dl11_paste(event) {
+    var i, cb = event.clipboardData.getData('text/plain') || window.clipboardData.getData('Text');
+    if (cb && cb.length > 0) {
+        for (i = 0; i < cb.length; i++) {
+            if (cb.charCodeAt(i) != 015) dl11_input(event.target.id, cb.charCodeAt(i));
+        }
+    }
+    return false;
+}
+
+function dl11_putchar(unit, data) {
+    switch (data) {
+        case 0:
+        case 015:
+            if (DL11.textElement[unit].value.length > 12000) {
+                DL11.textElement[unit].value = DL11.textElement[unit].value.substring(DL11.textElement[unit].value.length - 4000);
+            }
+            break;
+        case 010:
+            if (1 || !DL11.del) {
+                DL11.textElement[unit].value = DL11.textElement[unit].value.substring(0, DL11.textElement[unit].value.length - 1);
+            }
+            break;
+        default:
+            DL11.textElement[unit].value += String.fromCharCode(data);
+            if (data == 012) {
+                DL11.textElement[unit].scrollTop = DL11.textElement[unit].scrollHeight;
+            }
+    }
+    DL11.del = 0;
+}
+
+
+function dl11_rbuf(unit) {
+    if (!(DL11.rcsr[unit] & 0x80)) {
+        if (DL11.rbufQueue[unit].length > 0) {
+            DL11.rbuf[unit] = DL11.rbufQueue[unit].shift();
+            DL11.rcsr[unit] |= 0x80;
+            if (DL11.rcsr[unit] & 0x40) interrupt(1, 0, 4 << 5, DL11.vector[unit]);
+        }
+    }
+}
+
+
+function accessDL11(physicalAddress, data, byteFlag, unit, vector) {
+    var result;
+    switch (physicalAddress & 0x6) {
+        case 06: // DL xbuf
+            result = insertData(DL11.xbuf[unit], physicalAddress, data, byteFlag);
+            if (data >= 0 && result >= 0) {
+                DL11.xbuf[unit] = result &= 0x7f;
+                if (result >= 010 && result < 127) {
+                    dl11_putchar(unit, result);
+                }
+                if (DL11.xcsr[unit] & 0x40) {
+                    DL11.xcsr[unit] &= ~0x80; // Turn off Done until interrupt
+                    interrupt(1, 4, 4 << 5, DL11.vector[unit] + 4, function() {
+                        DL11.xcsr[unit] |= 0x80;
+                        return (DL11.xcsr[unit] & 0x40);
+                    });
+                }
+            }
+            break;
+        case 04: // DL xcsr
+            result = insertData(DL11.xcsr[unit], physicalAddress, data, byteFlag);
+            if (data >= 0 && result >= 0) {
+                if (typeof DL11.textElement[unit] === "undefined") {
+                    dl11_initialize(unit, vector);
+                }
+                if (((DL11.xcsr[unit] ^ result) & 0x40)) { // IE changed state?
+                    if (result & 0x40) {
+                        DL11.xcsr[unit] = 0xc0; // Set done as well in case an interrupt was pending
+                        interrupt(1, 5, 4 << 5, DL11.vector[unit] + 4);
+                    } else {
+                        DL11.xcsr[unit] &= 0x80; // Keep Done but clear IE
+                        interrupt(1, -1, 4 << 5, DL11.vector[unit] + 4); // Clean interrupts from queue
+                    }
+                }
+            }
+            break;
+        case 02: // DL rbuf
+            result = insertData(DL11.rbuf[unit], physicalAddress, data, byteFlag);
+            if (result >= 0 && data < 0) {
+                if (DL11.rcsr[unit] & 0x80) {
+                    DL11.rcsr[unit] &= ~0x80;
+                    if (DL11.rbufQueue[unit].length > 0) {
+                        setTimeout(dl11_rbuf, 55, unit);
+                    }
+                }
+            }
+            break;
+        case 00: // DL rcsr
+            result = insertData(DL11.rcsr[unit], physicalAddress, data, byteFlag);
+            if (result >= 0 && data >= 0) {
+                if (((DL11.rcsr[unit] ^ result) & 0x40)) { // IE change?
+                    if (!(result & 0x40)) {
+                        interrupt(1, -1, 4 << 5, DL11.vector[unit]);
+                    }
+                }
+                DL11.rcsr[unit] = (DL11.rcsr[unit] & 0x80) | (result & 0x40);
+            }
+            break;
+    }
+    //console.log("DL11 " + physicalAddress.toString(8) + " " + byteFlag + " " + data.toString(8) + " => " + result.toString(8) + " @" + CPU.registerVal[7].toString(8));
     return result;
 }
 
@@ -1036,45 +1322,32 @@ function accessTM11(physicalAddress, data, byteFlag) {
 // =========== KW11 routines ===========
 
 var kw11 = {
-    init: 0,
-    csr: 0
+    csr: 0,
+    timerId: null,
+    interruptTime: 0
 };
 
-
-function kw11_interrupt() { // Every 20 ms (50 Hz) set clock flag and schedule an interrupt
-    kw11.csr |= 0x80; // If halted don't interrupt as console commands would always be doing clock stuff
-    if ((CPU.runState != STATE.HALT) && (kw11.csr & 0x40)) {
-        interrupt(1, 0, 6 << 5, 0100);
-    }
+function kw11_init() {
+    kw11.csr = 0x80;
 }
 
-// =========== Console (tty) data ===========
-
-var tty = {
-    rbufQueue: [],
-    rbuf: 0,
-    rcsr: 0,
-    xbuf: 0,
-    xcsr: 0200,
-    delCode: 127,
-    del: 0
-};
-
-function tty_xcsr() {
-    tty.xcsr |= 0x80;
-    if (tty.xcsr & 0x40) return true;
-    return false;
-}
-
-function tty_rbuf() {
-    if (!(tty.rcsr & 0x80)) {
-        if (tty.rbufQueue.length > 0) {
-            tty.rbuf = tty.rbufQueue.shift();
-            tty.rcsr |= 0x80;
-            if (tty.rcsr & 0x40) interrupt(1, 0, 4 << 5, 060);
+function kw11_interrupt() { // Every 20 ms (50 Hz) check whether time exhausted (used only in WAIT state)
+    var timeNow;
+    if (CPU.runState == STATE_WAIT) {
+        timeNow = Date.now();
+        if (timeNow >= kw11.interruptTime) {
+            kw11.csr |= 0x80; //Set DONE
+            if (kw11.csr & 0x40) {
+                interrupt(1, 0, 6 << 5, 0100);
+            } else {
+                kw11.interruptTime = timeNow;
+            }
+            kw11.interruptTime += 20;
         }
     }
 }
+
+
 
 // Initialize unibus things for a reset instruction
 
@@ -1086,10 +1359,10 @@ function reset_iopage() {
     CPU.MMR0 = CPU.MMR3 = CPU.mmuEnable = 0;
     CPU.MMR3Mask[0] = CPU.MMR3Mask[1] = CPU.MMR3Mask[3] = 7;
     CPU.mmuLastPage = 0;
-    tty.rcsr = 0;
-    tty.xcsr = 0200;
-    tty.rbufQueue = [];
-    kw11.csr = 0;
+    dl11_init();
+    ptr11_init();
+    lp11_init();
+    kw11_init();
     rk11_init();
     rl11.csr = 0x80;
     rp11_init();
@@ -1097,12 +1370,28 @@ function reset_iopage() {
 
 }
 
+
+// Map an 18 bit unibus address to a 22 bit memory address via the unibus map (if active)
+//
+//
+function mapUnibus(unibusAddress) {
+    var idx = (unibusAddress >> 13) & 0x1f;
+    if (idx < 31) {
+        if (CPU.MMR3 & 0x20) {
+            unibusAddress = (CPU.unibusMap[idx] + (unibusAddress & 0x1fff)) & 0x3fffff;
+        }
+    } else {
+        unibusAddress |= IOBASE_22BIT; // top page always maps to unibus i/o page - apparently.
+    }
+    return unibusAddress;
+}
+
 // Update a word with new byte or word data allowing for odd addressing
 
 function insertData(original, physicalAddress, data, byteFlag) {
     if (physicalAddress & 1) {
         if (!byteFlag) {
-            return trap(4, 122); // trap word access to odd addresses
+            return trap(4, 212); // trap word access to odd addresses
         }
         if (data >= 0) {
             data = ((data << 8) & 0xff00) | (original & 0xff);
@@ -1121,12 +1410,12 @@ function insertData(original, physicalAddress, data, byteFlag) {
     return data;
 }
 
-// Access to the unibus page - data is positive for a write or negative for a read
+// Access to the 4K unibus I/O page - data is positive for a write or negative for a read
 
-function access_iopage(physicalAddress, data, byteFlag) {
+function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() handles all I/O page requests
     var result, idx;
-    switch (physicalAddress & ~077) {
-        case 017777700: // 017777700 - 017777777
+    switch (physicalAddress & ~077) { // Break addressing up into blocks with common lower 6 bits
+        case 017777700: // 017777700 - 017777777 First block is highest addresses including PSW, stack limit, PIR, etc
             switch (physicalAddress & ~1) {
                 case 017777776: // PSW
                     result = insertData(readPSW(), physicalAddress, data, byteFlag);
@@ -1161,23 +1450,35 @@ function access_iopage(physicalAddress, data, byteFlag) {
                     }
                     break;
                 case 017777766: // CPU error
-                    if (CPU.cpuType !== 70) return trap(4, 222);
-                    result = insertData(CPU.CPU_Error, physicalAddress, data, byteFlag);
-                    if (result >= 0 && data >= 0) {
-                        result = CPU.CPU_Error = 0; // Always writes as zero?
+                    if (CPU.cpuType !== 70) {
+                        result = trap(4, 214);
+                    } else {
+                        result = insertData(CPU.CPU_Error, physicalAddress, data, byteFlag);
+                        if (result >= 0 && data >= 0) {
+                            result = CPU.CPU_Error = 0; // Always writes as zero?
+                        }
                     }
                     break;
                 case 017777764: // System I/D
-                    if (CPU.cpuType !== 70) return trap(4, 224);
-                    result = insertData(1, physicalAddress, data, byteFlag);
+                    if (CPU.cpuType !== 70) {
+                        result = trap(4, 218);
+                    } else {
+                        result = insertData(1, physicalAddress, data, byteFlag);
+                    }
                     break;
                 case 017777762: // Upper size
-                    if (CPU.cpuType !== 70) return trap(4, 226);
-                    result = insertData(0, physicalAddress, data, byteFlag);
+                    if (CPU.cpuType !== 70) {
+                        result = trap(4, 222);
+                    } else {
+                        result = insertData(0, physicalAddress, data, byteFlag);
+                    }
                     break;
                 case 017777760: // Lower size
-                    if (CPU.cpuType !== 70) return trap(4, 228);
-                    result = insertData((MAX_MEMORY >> 6) - 1, physicalAddress, data, byteFlag);
+                    if (CPU.cpuType !== 70) {
+                        result = trap(4, 224);
+                    } else {
+                        result = insertData((MAX_MEMORY >> 6) - 1, physicalAddress, data, byteFlag);
+                    }
                     break;
                 case 017777770: // Microprogram break
                     if (data >= 0 && !(physicalAddress & 1)) data &= 0xff; // Required for KB11-CM without MFPT instruction
@@ -1189,14 +1490,17 @@ function access_iopage(physicalAddress, data, byteFlag) {
                 case 017777744: // Memory system error
                 case 017777742: // High error address
                 case 017777740: // Low error address
-                    if (CPU.cpuType !== 70) return trap(4, 232);
-                    idx = (physicalAddress - 017777740) >> 1;
-                    result = insertData(CPU.controlReg[idx], physicalAddress, data, byteFlag);
-                    if (result >= 0) {
-                        if ((physicalAddress & 1) == 017777746) result = 017;
-                        if ((physicalAddress & 1) == 017777742) result = 03;
-                        if ((physicalAddress & 1) == 017777740) result = 0177740;
-                        CPU.controlReg[idx] = result;
+                    if (CPU.cpuType !== 70) {
+                        result = trap(4, 228);
+                    } else {
+                        idx = (physicalAddress - 017777740) >> 1;
+                        result = insertData(CPU.controlReg[idx], physicalAddress, data, byteFlag);
+                        if (result >= 0) {
+                            if ((physicalAddress & 1) == 017777746) result = 017;
+                            if ((physicalAddress & 1) == 017777742) result = 03;
+                            if ((physicalAddress & 1) == 017777740) result = 0177740;
+                            CPU.controlReg[idx] = result;
+                        }
                     }
                     break;
                 case 017777716: // User and Super SP - note the use of odd word addresses requiring return
@@ -1258,7 +1562,7 @@ function access_iopage(physicalAddress, data, byteFlag) {
                     return result; // special exit to allow for odd address word access
                 default:
                     CPU.CPU_Error |= 0x10;
-                    return trap(4, 124);
+                    result = trap(4, 232);
             }
             break;
         case 017777600: // 017777600 - 017777677 MMU user mode 3 Map
@@ -1299,9 +1603,9 @@ function access_iopage(physicalAddress, data, byteFlag) {
                         CPU.mmuLastPage = (result >> 1) & 0x3f;
                         if (result & 0x101) {
                             if (result & 0x1) {
-                                CPU.mmuEnable = READ_MODE | WRITE_MODE;
+                                CPU.mmuEnable = MMU_READ | MMU_WRITE;
                             } else {
-                                CPU.mmuEnable = WRITE_MODE;
+                                CPU.mmuEnable = MMU_WRITE;
                             }
                         } else {
                             CPU.mmuEnable = 0;
@@ -1317,85 +1621,96 @@ function access_iopage(physicalAddress, data, byteFlag) {
                     }
                     break;
                 case 017777566: // console tty xbuf
-                    result = insertData(tty.xbuf, physicalAddress, data, byteFlag);
-                    if (result >= 0 & data >= 0) {
-                        tty.xbuf = result &= 0x7f;
-                        if (result) {
-                            putchar(result);
-                        }
-                        if (tty.xcsr & 0x40) {
-                            tty.xcsr &= ~0x80;
-                            interrupt(1, 10, 4 << 5, 064, tty_xcsr);
-                        } else {
-                            tty.xcsr |= 0x80;
-                        }
-                    }
-                    break;
                 case 017777564: // console tty xcsr
-                    result = insertData(tty.xcsr, physicalAddress, data, byteFlag);
-                    if (result >= 0 && data >= 0) {
-                        if (((tty.xcsr ^ result) & 0x40)) { // IE change?
-                            if (result & 0x40) {
-                                if (tty.xcsr & 0x80) {
-                                    interrupt(1, 0, 4 << 5, 064);
-                                }
-                            } else {
-                                tty.xcsr |= 0x80;
-                                interrupt(1, -1, 4 << 5, 064);
-                            }
-                            tty.xcsr = (tty.xcsr & 0x80) | (result & 0x40);
-                        }
-                    }
-                    break;
                 case 017777562: // console tty rbuf
-                    result = insertData(tty.rbuf, physicalAddress, data, byteFlag);
-                    if (result >= 0 && data < 0) {
-                        if (tty.rcsr & 0x80) {
-                            tty.rcsr &= ~0x80;
-                            if (tty.rbufQueue.length > 0) {
-                                setTimeout(tty_rbuf, 55);
-                            }
-                        }
-                    }
-                    break;
                 case 017777560: // console tty rcsr
-                    result = insertData(tty.rcsr, physicalAddress, data, byteFlag);
-                    if (result >= 0 && data >= 0) {
-                        if (((tty.rcsr ^ result) & 0x40)) { // IE change?
-                            if (!(result & 0x40)) {
-                                interrupt(1, -1, 4 << 5, 060);
-                            }
-                        }
-                        tty.rcsr = (tty.rcsr & 0x80) | (result & 0x40);
-                    }
+                    result = accessDL11(physicalAddress, data, byteFlag, 0, 060);
+                    break;
+                case 017777550: // PTR psr
+                case 017777552: // PTR pdb
+                    result = accessPTR11(physicalAddress, data, byteFlag);
                     break;
                 case 017777546: // kw11.csr
                     result = insertData(kw11.csr, physicalAddress, data, byteFlag);
-                    if (result >= 0 && data >= 0) {
-                        kw11.csr = result & ~0200;
-                        if (!(kw11.csr & 0x40)) {
-                            interrupt(1, -1, 6 << 5, 0100);
+                    if (data >= 0 && result >= 0) {
+                        result &= 0x40;
+                        if ((result ^ kw11.csr) & 0x40) { // Is IE changing?
+                            if (result & 0x40) { // If turning on interrupt now for diags (otherwise timing is too slow)
+                                if (kw11.timerId == null) { // If not initialized set timer for every 20ms (50Hz)
+                                    kw11.timerId = setInterval(kw11_interrupt, 20);
+                                }
+                                kw11.interruptTime = Date.now() + 20;
+                                result |= 0x80;
+                                interrupt(1, 0, 6 << 5, 0100);
+                            } else {
+                                interrupt(1, -1, 6 << 5, 0100); // Clear anything already in queue
+                            }
                         }
-                        if (kw11.init < 1) {
-                            kw11.init = 1;
-                            setInterval(kw11_interrupt, 20); // initialize interrupts for every 20ms (50Hz)
+                        kw11.csr = result;
+                    }
+                    //console.log("KW11 " + result.toString(8) + " " + physicalAddress.toString(8) + " " + data.toString(8));
+                    break;
+                case 017777516: // line printer lpdb buffer
+                    result = insertData(lp11.lpdb, physicalAddress, data, byteFlag);
+                    if (data >= 0 && result >= 0) {
+                        if (typeof lp11.textElement == "undefined") {
+                            lp11_initialize();
+                        }
+                        lp11.lpdb = result & 0x7f;
+                        if (lp11.lpdb >= 012 && lp11.lpdb != 015) {
+                            lp11.textElement.value += String.fromCharCode(lp11.lpdb);
+                        }
+                        if (lp11.lpcs & 0x40) {
+                            lp11.lpcs &= ~0x80; // Turn off Done until interrupt
+                            interrupt(1, 10, 4 << 5, 0200, function() {
+                                lp11.lpcs |= 0x80;
+                                return (lp11.lpcs & 0x40);
+                            });
+                        }
+                    }
+                    break;
+                case 017777514: // line printer lpcs control register
+                    result = insertData(lp11.lpcs, physicalAddress, data, byteFlag);
+                    if (data >= 0 && result >= 0) {
+                        if ((result ^ lp11.lpcs) & 0x40) { // IE changed state?
+                            if (result & 0x40) {
+                                lp11.lpcs = 0xc0; // Set done as well in case an interrupt was pending
+                                interrupt(1, 0, 4 << 5, 0200);
+                            } else {
+                                lp11.lpcs &= 0x80; // Keep Done but clear IE
+                            }
                         }
                     }
                     break;
                 default:
+
+                    result = accessDL11(physicalAddress, data, byteFlag, idx + 1, idx * 8 + 0300);
                     CPU.CPU_Error |= 0x10;
-                    return trap(4, 126);
+                    result = trap(4, 234);
             }
             break;
         case 017777400: // 017777400 - 017777477 rk11 controller
             result = accessRK11(physicalAddress, data, byteFlag);
             break;
-        case 017776700: // 017777600 - 017777677 rp11 controller
+        case 017776700: // 017776700 - 017776777 rp11 controller
             if (physicalAddress <= 017776753) {
                 result = accessRP11(physicalAddress, data, byteFlag);
             } else {
+                if (typeof accessADCR !== 'undefined') {
+                    result = accessADCR(physicalAddress, data, byteFlag);
+                } else {
+                    CPU.CPU_Error |= 0x10;
+                    result = trap(4, 238);
+                }
+            }
+            break;
+        case 017776500: // 017776500 - 017776577 dl11 controller
+            if (physicalAddress >= 017776500 && physicalAddress <= 017776527) {
+                idx = (physicalAddress - 017776500) >> 3;
+                result = accessDL11(physicalAddress, data, byteFlag, idx + 1, idx * 8 + 0300);
+            } else {
                 CPU.CPU_Error |= 0x10;
-                return trap(4, 134);
+                result = trap(4, 236);
             }
             break;
         case 017774400: // 017774400 - 017774477 rl11 controller
@@ -1452,31 +1767,42 @@ function access_iopage(physicalAddress, data, byteFlag) {
             }
             break;
         case 017772000: // 017772000 - 017772006 vt11 display
-			if (typeof accessVT11 !== 'undefined') {
-				result = accessVT11(physicalAddress, data, byteFlag);
-			} else {	
-				CPU.CPU_Error |= 0x10;
-				return trap(4, 140);
-			}
+            if (typeof accessVT11 !== 'undefined') {
+                result = accessVT11(physicalAddress, data, byteFlag);
+            } else {
+                CPU.CPU_Error |= 0x10;
+                result = trap(4, 242);
+            }
             break;
         case 017770300: // 017770300 - 017770377 Unibus Map
         case 017770200: // 017770200 - 017770277 Unibus Map
-            if (CPU.cpuType != 70) return trap(4, 234);
-            idx = (physicalAddress >> 2) & 0x1f;
-            result = CPU.unibusMap[idx];
-            if (physicalAddress & 02) result = (result >> 16) & 0x803f; // Low six bits plus top bit (!)
-            result = insertData(result & 0xffff, physicalAddress, data, byteFlag);
-            if (result >= 0 && data >= 0) {
-                if (physicalAddress & 02) {
-                    CPU.unibusMap[idx] = ((result & 0x803f) << 16) | (CPU.unibusMap[idx] & 0xfffe);
-                } else {
-                    CPU.unibusMap[idx] = (CPU.unibusMap[idx] & 0x803f0000) | (result & 0xfffe);
+            if (CPU.cpuType != 70) {
+                result = trap(4, 244);
+            } else {
+                idx = (physicalAddress >> 2) & 0x1f;
+                result = CPU.unibusMap[idx];
+                if (physicalAddress & 02) result = (result >> 16) & 0x803f; // Low six bits plus top bit (!)
+                result = insertData(result & 0xffff, physicalAddress, data, byteFlag);
+                if (result >= 0 && data >= 0) {
+                    if (physicalAddress & 02) {
+                        CPU.unibusMap[idx] = ((result & 0x803f) << 16) | (CPU.unibusMap[idx] & 0xfffe);
+                    } else {
+                        CPU.unibusMap[idx] = (CPU.unibusMap[idx] & 0x803f0000) | (result & 0xfffe);
+                    }
                 }
+            }
+            break;
+        case 017767700: // 017767700 - 017767777 vg11 display
+            if (typeof accessVG11 !== 'undefined') {
+                result = accessVG11(physicalAddress, data, byteFlag);
+            } else {
+                CPU.CPU_Error |= 0x10;
+                result = trap(4, 246);
             }
             break;
         default:
             CPU.CPU_Error |= 0x10;
-            return trap(4, 142);
+            result = trap(4, 248);
     }
     if (byteFlag && result >= 0) { // Make any required byte adjustment to the return result
         if ((physicalAddress & 1)) {
@@ -1484,6 +1810,10 @@ function access_iopage(physicalAddress, data, byteFlag) {
         } else {
             result &= 0xff;
         }
+    }
+    if (result < 0) { // on failure set Address Error light
+        CPU.statusLights |= 0x400; // Set ADRS ERR light
+        console.log("IOPAGE nxm failure " + physicalAddress.toString(8) + " " + data.toString(8) + " @" + CPU.registerVal[7].toString(8));
     }
     return result;
 }

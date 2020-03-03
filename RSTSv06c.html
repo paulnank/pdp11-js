@@ -9,13 +9,13 @@
 <h2>Installing RSTS V6</h2>
 <p>
 <img src='RSTSv06c.jpg' align=right>
-Most of my experiences with RSTS were with versions 5 and 6 on a PDP 11/45. So I thought that it would be nice if I could set up a RSTS V5 or V6 system for my PDP 11/70 emulator. I assumed that this would be a simple enough task.
+Most of my experiences with RSTS have been with versions 5 and 6 on a PDP 11/45. So I thought that it would be nice if I could set up a RSTS V5 or V6 system for my PDP 11/70 emulator. I assumed that this would be a simple enough task.
 <p>
-I did some reading of release notes and discovered that V6 was the first RSTS version to support the PDP 11/70, and also to be able to boot from a non-zero drive unit - ie DK2 instead of DK0. I didn't really need full PDP 11/70 support but I have found that many PDP operating systems prefer or require a zero disk unit number. As a result zero drive numbers have become a premium on my emulated system - so V6 seemed preferable to V5.
+I started by reading release notes and discovered that V6 was the first RSTS version to support the PDP 11/70, and also to be able to boot from a non-zero drive unit - ie DK2 instead of DK0. I didn't really need full PDP 11/70 support but I have found that many PDP operating systems prefer or require a zero disk unit number. As a result zero drive numbers have become a premium on my emulated system - so V6 seemed preferable to V5.
 <p>
 I looked around and managed to find a V6C installation tape for download at RSTS.ORG. Interestingly I could find no other V5 or V6 distributions anywhere. I did find some old postings from other people who expressed a similar desire to find one.
 <p>
-I grabbed the one V6C tape I could find and began an install to an RK05 disk image using SIMH. It let me initialize the disk but when I went to copy files onto it is failed with a disk index error.
+I grabbed the V6C tape from RSTS.ORG and began an install it to an RK05 disk image using SIMH. It let me initialize the disk but when I went to copy files to disk it failed with a disk index error as below:-
 <p>
 <pre>
 Option: <b>COpy</b>
@@ -24,19 +24,19 @@ Fatal RSTS/E system initialization error!
 Option:
 </pre>
 <p>	
-Hmmm I thought, I'm doing something wrong. So I checked the manual and the examples there showed nothing different to what I was doing. I experimented with doing things in a different order, different types of output disk, and different SIMH machine configurations. None of the things I tried seemed to work.
+From this I assumed that I was doing something wrong. I checked the installation manual and the examples showed nothing different to what I was doing. I also experimented with doing things in a different order, different types of output disk, and different SIMH machine configurations. None of the things I tried seemed to work.
 <p>
-I contacted Brett Bump from RSTS.ORG and asked about the error. He advised that the tape copy I was using had always had this problem... as far back as 1984 when it generated the same error on a real PDP 11/45. Ouch!
+I contacted Brett Bump from RSTS.ORG and asked about the error. He advised that the tape copy I was using had always had this problem, as far back as 1984 when it generated the same error on a real PDP 11/45. Ouch!
 <p>
-So I repeated my earlier web searches for a RSTS V5 or V6 distribution or disk image. Nothing. In deperation I posted to alt.sys.pdp11 and asked if anyone out there had one. I have not yet received any response to that. I also noticed a photo of a DECTape V6 distribution at the Wolford Witch Project so I fired off an email to ask about obtaining a copy of that, but sadly no response. Even if there was still an intact tape somewhere there was probably going to be a real battle to find hardware to read it.
+I then repeated my earlier web searches for a RSTS V5 or V6 distribution or disk image. Nothing. In deperation I posted to alt.sys.pdp11 and asked if anyone out there had one. To date I still have had no response. I also noticed a photo of a DECTape V6 distribution at the Wolford Witch Project, so I fired off an email to ask about obtaining a copy of that, but sadly no response. Even if there was still an intact tape somewhere there was probably going to be a real battle to find any hardware to read it.
 <p>
-Reconsidering the one distribution tape I had I wondered if the tape problems could be minor - perhaps with just a bit or two flipped from what they should be. I thought if I looked at the code maybe I could see if there was an obvious problem, and even if not perhaps I could work around the fault and manually cause it to copy the files I needed. After all it only had to successfully install RSTS once. 
+Reconsidering the one distribution tape I had I wondered if the tape problems could be minor - perhaps with just a bit or two flipped. I thought if I looked at the code maybe I could see if there was an obvious problem, and even if not perhaps I could work around the fault and manually cause it to copy the files I needed. After all it only had to successfully install RSTS once. 
 <p>
-Using SIMH I examined the failing installation code and could see that it was indeed checking some sort of device index at the point of the error message, but because the value was negative it was triggering the error that I was seeing. I examined the code further and determined that for an RK05 the device index should be 6, which I validated after some experimentation. However even by patching in the correct index value other types of strange errors resulted.
+Using SIMH I examined the failing installation code and could see that it was indeed checking some sort of device index at the point of the error message, but because the value was negative it was triggering the error that I was seeing. I examined the code further and determined that for an RK05 the device index should be 6, which I validated after some experimentation. However even by patching in the correct index value other strange errors resulted.
 <p>
 I wondered if I could work around the problem by using a RSTS V7 installation to read the RSTS V6 tape, after all RSTS V7 is the closest thing I could find to the failing code. I tried a number of test set ups but this approach never looked like working.
 <p>
-Going back to debugging the failing V6 code I managed to find the command dispatch routine - this was important for understanding what the code was trying to do. Here I could see where a different routine was being called for each of the possible installation commands. Using this it was possible to trace and compare the operation of each individual command. Most worked by calling a common subroutine with a differnt parameter block. Oddly the failing copy routine did not use the common subroutine. The command dispatch is implemented as a JMP instruction to index into a jump table with R0 as an offset for each different command:
+Going back to debugging the failing V6 code I managed to find the command dispatch routine - this was important for understanding what the code was trying to do. Here I could see where a different routine was being called for each of the possible installation commands. Using this it was possible to trace and compare the operation of each individual command. Most work by calling a common subroutine with a differnt parameter block. Oddly the failing copy routine did not use the common subroutine. The command dispatch is implemented as a JMP instruction to index into a jump table using R0 as an offset for each different command:-
 <p>
 <pre>
 Option: <b>COpy</b>
@@ -46,11 +46,11 @@ sim>
 <p>
 I wondered if I could somehow use the V7 code to understand more deeply what was going on - so I looked in the V7 installation for a similar command dispatch routine. After much searching I determined that V7 is structured completely differently and has no equivalent dispatch or jump table. Further it appeared that the V7 copy routine is rolled into a common subroutine with other commands unlike the V6 code. Perhaps this meant that the V6 command table was simply corrupt? However my exploration down that path yielded nothing useful.
 <p>
-During my code exploration I had disassembled a lot of code and it occured to me to try searching for a subroutine which seemed to have similar input registers and do similar initialization to the working disk initization routine. I found one - which was similar enough that it even called some of the same subroutines, including one to get the date and time. This is something that some of the commands like disk INitialise and COpy do. However there was nothing to reference this orphaned code, and in any case it would not run successfully when I tried to manually execute it.
+During my code exploration I had disassembled a lot of code and it occured to me to try searching for a subroutine which seemed to have similar input registers and do similar initialization to the working disk initization routine. I found one - which was similar enough that it even called some of the same subroutines, including one to get the date and time. This is something that some of the other commands like disk INitialise and COpy do. However there was nothing to reference this orphaned code, and in any case it would not run successfully when I tried to manually execute it.
 <p>
-A few days later I was tracing the code again and determined that the disk COpy routine really started to go wrong when it jumps to an address at 124000. The code there immediately expects to use register R4 which has not previously been initialized. I experimented with various options, maybe R4 was supposed to be a different register, or perhaps address 124000 was corrupted with the lower byte being zeroed. After playing around with various permutations I realized that the code I had earlier suspected of being the COpy code was located at address 123000, exactly one tape block in length away. I immediately grabbed a binary file editor and inserted a dummy tape block before the code at 123000 - relocating it to address 124000.
+A few days later I was tracing the code again and determined that the disk COpy routine really started to go wrong when it jumps to an address at 124000. The code there immediately expects to use register R4 which has not previously been initialized. I experimented with various options, maybe R4 was supposed to be a different register, or perhaps address 124000 was corrupted with the lower byte being zeroed. After playing around with various permutations I realized that the code I had earlier suspected of being the COpy code was located at address 123000, exactly one tape block in length away. I immediately grabbed a binary file editor and inserted a dummy tape block before the code at 123000 -which relocated it in memory to address 124000.
 <p>
-Start of code for disk INitialise which works and which is similar in function to disk Copy:
+Below is the beginning of code for disk INitialise which works and which is similar in function to disk Copy:
 <pre>
 sim> <b>ex -m 104002-104100</b>
 104002: MOV #12,R0
@@ -63,7 +63,7 @@ sim> <b>ex -m 104002-104100</b>
 104030: CLRB 42677
 </pre>
 <p>
-Similar orphaned code elswhere in memory at address 123000:
+Here is suspiciously similar orphaned code found elswhere in memory at address 123000:
 <pre>
 sim> <b>ex -m 123000-123100</b>
 123000: MOV #12,R0
@@ -75,7 +75,7 @@ sim> <b>ex -m 123000-123100</b>
 123022: JSR PC,@#43620
 </pre>
 <p>
-Failing code called by disk COpy at address 124000 (uses R4 which has not been set)
+And finally the failing code which is nothing similar at the disk COpy address of 124000 (uses R4 which has not been set)
 <pre>
 sim> <b>ex -m 124000-12410</b>
 124000: MOV R2,52(R4)
@@ -86,7 +86,7 @@ sim> <b>ex -m 124000-12410</b>
 124024: JSR PC,@#46774
 </pre>
 <p>
-Success! Adding the dummy tape block relocated the above orphaned code to a memory location now invoked by the COpy command, which worked and copied files without error. Yipee! As a minor downside the previously working disk INitialise command now failed with errors about a file called BADB.SYS missing. I used the V7 installation tape to initialize a disk and then the V6 COpy command to put files onto it. It looked like I might actually be able to get an installation working.
+Adding the dummy block was a success! It relocated the above orphaned code to the memory location invoked by the COpy command, which cause the installation to work by copying files without error.  As a minor downside the previously working disk INitialise command now failed with an error about a file called BADB.SYS missing. I used the V7 installation tape to initialize a disk and then the V6 COpy command to put files onto it. It looked like I might actually be able to get a V6 installation working.
 <p>
 But alas the next step to build the key RSTS.SIL operating system load image failed. When reviewing the installation log it appeared that the Macro assembler used to build the image had simply not produced any output object files. No errors or messages were reported. One possibility was that the disk initialized by V7 was causing some sort of problem for the V6 system.
 <p>
@@ -96,9 +96,9 @@ So back to building my RSTS V6 system files. Still no success, the Macro assembl
 <p>
 Figuring that perhaps the MACRO assembler had been corrupted I took all of the V6 source files to a RSTS V7 system and tried to build the files there. Unfortunately this had exactly the same problem  - no output files and no error messages. How could that be?
 <p>
-I checked that my RSTS V7 system could properly build itself from its own source files. It did at least confirming that the Macro assembler there was fine. I began comparing the source macro files from V6 and V7. They have some parts in common but others are very different - as you would expect with files from different versions.
+I checked that my RSTS V7 system could properly build itself from its own source files. It did at least confirming that the Macro assembler was fine. I began comparing the source macro files from V6 and V7. They have some parts in common but others are very different - just as you would expect with files from different versions.
 <p>
-By experimenting with dummy input files I got to a point where I convinced myself that the problem was in a particular source file called KERNEL.MAC. When comparing V6 file differences with the V7 KERNEL.MAC I noticed that V6 contained an incomplete defintion for a macro - essentially the last part of the multi-line definition was missing. When I corrected that by including content borrowewd from the V7 source the V6 modules built successfully. I was able to generate the V6 RSTS.SIL image file and go on to complete the installation of RSTS V06C-03.
+By experimenting with dummy input files I got to a point where I convinced myself that the problem was in a particular source file called KERNEL.MAC. When comparing V6 file differences with the V7 KERNEL.MAC I noticed that V6 contained an incomplete defintion for a macro - essentially the last part of a multi-line definition was missing. When I corrected that by including content borrowewd from the V7 source the V6 modules built successfully. I was able to generate the V6 RSTS.SIL image file and go on to complete the installation of RSTS V06C-03.
 <p>
 It appears that when the RSTS macro assembler encounters a multi-line macro without an end it assumes all of the remaining source file is part of the definition. At least until something overflows and it crashes without displaying any indication of error. My V6 Macro assembler was not corrupt - just the macro in the file KERNEL.MAC.
 <p>
@@ -106,13 +106,13 @@ I decided to see if I could edit the missing section of the KERNEL.MAC macro dir
 <p>
 I think we can safely say that the installation tape has at least two completely missing blocks.
 <p>
-While comparing files I noticed another difference - the heading of another file called COMMON.MAC is missing it's copyright statement - I'm going to guess it is about one block in length and appears at the start of a tape block. I didn't bother correcting this as so far it hasn't caused any problems.
+While comparing files I noticed another difference - the heading of another file called COMMON.MAC is missing it's copyright statement - I'm going to guess it is about one block in length and that it appears at the start of a tape block. I didn't bother correcting this error as so far it hasn't caused any problems.
 <p>
 With just two insertions of tape blocks the V6 installation tape now allows me to completely install and configure a working RSTS V06C-03 system. It runs like a charm even though I will never completely trust it, as there is no realistic way to detect when random bits are missing. If any vital part not recoverable from another source had been zapped then I suspect RSTS V6 would have been lost forever.
 <p>
 As it stands I am unaware of any other working RSTS V5 or V6 systems. Oddly most of the V5 and V6 documentation is still available on bitsavers, just none of the distribution tapes.
 <p>
-It is nostalgic to look at this system and consider the different era which it is from. Lots of programmers cut their teeth in similar enviroments. I am hopeful that I can set the system up so that the system utilities written which are written in Basic can be viewed to give a greater understanding of how it was all put together.
+It is nostalgic to look at this system and consider the different era which it is from. Lots of programmers cut their teeth on similar enviroments. I am hopeful that I can set the system up so that the system utilities written which are written in Basic can be viewed to give a greater understanding of how it was all put together.
 <p>
 I hope that you take the time to boot up and run a copy of RSTS V06C-03 (boot rk2 at <a href="http://skn.noip.me/pdp11/pdp11.html">http://skn.noip.me/pdp11/pdp11.html</a>). Maybe even log into 11,70 with a password of PDP and play a game of ACEY.BAS to see how long it takes to win $500. 
 <p>
@@ -125,6 +125,7 @@ http://skn.noip.me/pdp11/ <br>
 <pre>
 BOOT&gt; <b>boot tm1</b>
 
+
 Enabling only console, disks, and tapes.
 
 
@@ -133,8 +134,8 @@ RSTS V06C (MT1)
 
 Option: <b>DS</b>
 
-13-Mar-76?
-06:42 AM?
+DD-MMM-YY? <b>13-MAR-76</b>
+12:00 PM? <b>6:42</b>
 
 Disk? <b>DK0</b>
 Pack ID? <b>SYSGEN</b>
@@ -176,7 +177,7 @@ Patterns? <b>1</b>
 Proceed (Y or N)? <b>Y</b>
 
 Pattern # 1
-</b>
+
 Option: <b>CO</b>
 
 13-Mar-76?
@@ -196,8 +197,6 @@ Option: <b>IN</b>
   Rebooting . . .
 
 
-
-
 RSTS V06C (DK0)
 
 
@@ -213,15 +212,13 @@ Option: <b>HA</b>
   Rebooting . . .
 
 
-
-
 RSTS V06C (DK0)
 
 
 Option: <b>RE</b>
 
 13-Mar-76?
-06:43 AM?
+06:44 AM?
 
 Disk? <b>DK0</b>
 
@@ -283,8 +280,8 @@ Installation name? <b>Vixen</b>
 
      0K: 00000000 - 00117777 (  20K) : EXEC
     20K: 00120000 - 00137777 (   4K) : RTS (RT11)
-    24K: 00140000 - 03777777 ( 488K) : USER
-   512K: 04000000 - End              : NXM
+    24K: 00140000 - 13777777 (1512K) : USER
+  1536K: 14000000 - End              : NXM
 
 
   Table suboption?
@@ -316,7 +313,7 @@ Any memory allocation changes? <b>N</b>
 You currently have crash dump disabled.
 
 13-Mar-76?
-06:47 AM? <b>6:42</b>
+06:45 AM?
 BUFF.SYS not found or too small - DECtape disabled
 DF0: disabled - no RF: controller
 DS0: disabled - no RS: controller
@@ -325,11 +322,8 @@ DM0: disabled - no RM: controller
 DM1: disabled - no RM: controller
 DP0: disabled - no RP: controller
 DP1: disabled - no RP: controller
-DR0: disabled - no RR: controller
-DR1: disabled - no RR: controller
 DB0: disabled - no RB: controller
 DB1: disabled - no RB: controller
-LP0: disabled - no LP0: controller
 MM0: disabled - no TU: controller
 MM1: disabled - no TU: controller
 DT0: disabled - no TC: controller
@@ -337,7 +331,7 @@ DT1: disabled - no TC: controller
 DX0: disabled - no RX0: controller
 DX1: disabled - no RX0: controller
 
-18 devices disabled
+15 devices disabled
 
 ?Can't find file or account
 .<b>R MT1:CREATE</b>
@@ -373,20 +367,12 @@ DX1: disabled - no RX0: controller
   .R LOGOUT
   Confirm: Y
   Saved all disk files; 357 blocks in use
-  Job 2 User 1,2 logged off KB1 at 13-Mar-76 06:42 AM
+  Job 2 User 1,2 logged off KB1 at 13-Mar-76 06:45 AM
   1 other user still logged in under this account
   System RSTS V06C-03 Vixen
   Run time was 0 seconds
   Elapsed time was 0 minutes
   Good morning
-
-
-
-
-
-
-
-
 
 
 
@@ -413,7 +399,7 @@ Pack ID ?                       #??#    <b>VIXEN</b>
 
 Delete files ?                  #NO#
 
-LP for SYSGEN ?                 *NO*
+LP for SYSGEN ?                 *Y *    <b>N</b>
 
 Generate monitor ?              #Y #    <b>Y/L</b>
 
@@ -434,7 +420,7 @@ Now you must specify the  hardware  con-
 figuration  on  which this RSTS/E system
 will run.
 
-KL11,LC11,DL11A,DL11B's ?       *01*
+KL11,LC11,DL11A,DL11B's ?       *05*
 
 DL11C, DL11D's ?                *00*
 
@@ -468,9 +454,9 @@ RK06's ?                        *00*
 
 RP02/RP03's ?                   *00*
 
-RM03's ?                        *00*
+RM03's ?                        *08*    <b>0</b>
 
-RP04/RP05/RP06's ?              *00*
+RP04/RP05/RP06's ?              *00*    
 
 TU16/TE16/TU45's ?              *00*
 
@@ -478,7 +464,7 @@ TU10/TE10/TS03's ?              #08#
 
 DECtapes ?                      *00*
 
-Printers ?                      *00*
+Printers ?                      *01*
 
 RX01's ?                        *00*
 
@@ -520,9 +506,7 @@ Resident catalog/lookup ?       #NO#    <b>Y</b>
 The  following  questions  deal with the
 BASIC-PLUS run-time system
 
-FPP ?                           *NO*
-
-FIS ?                           *NO*
+FPP ?                           *Y *
 
 Math precision ?                #02#    <b>4</b>
 
@@ -570,8 +554,8 @@ MOUNT AP-2773F-BC OR AP-2772F-BC ON A MAGTAPE DRIVE
 
 WITH NO "WRITE RING" AND SET TO "ON LINE"
 
-Mount MT1:"SYSGNF"-write locked
-Unit ? <b>0</b>
+Mount MT:"SYSGNF"-write locked
+Unit ? <b>1</b>
   .ASSIGN  MT1: .DOS
 
   .ASSIGN  MT1: TAPE
@@ -703,8 +687,8 @@ MOUNT AP-2773F-BC OR AP-2772F-BC ON A MAGTAPE DRIVE
 
 WITH NO "WRITE RING" AND SET TO "ON LINE"
 
-Mount MT1:"SYSGNF"-write locked
-Unit ? <b>0</b>
+Mount MT:"SYSGNF"-write locked
+Unit ? <b>1</b>
   *^C
 
   .ASSIGN  MT1: .DOS
@@ -724,9 +708,9 @@ Dismount MT1:
 
   .R LINK.SAV
   *BASIC/Z,BASIC/A/W,BASIC=IN:RTS,DK:$ERR.STB/X/H:#177776/U:#4000/C
-  *IN:MA4/C
-  *IN:XL4/C
-  *IN:XT4/C
+  *IN:MA4F/C
+  *IN:XL4F/C
+  *IN:XT4F/C
   *IN:IO/C
   *IN:PU/C
   *IN:MX/C
@@ -776,11 +760,11 @@ Dismount DK2:
 
   .R LOGOUT
   Confirm: Y
-  Saved all disk files; 3977 blocks in use
-  Job 2 User 1,2 logged off KB1 at 13-Mar-76 06:44 AM
+  Saved all disk files; 4004 blocks in use
+  Job 2 User 1,2 logged off KB1 at 13-Mar-76 06:49 AM
   1 other user still logged in under this account
   System RSTS V06C-03 Vixen
-  Run time was 8.1 seconds
+  Run time was 9.1 seconds
   Elapsed time was 0 minutes
   Good morning
 
@@ -796,7 +780,8 @@ Dismount DK2:
 Batch job completed.
 
 .
-BOOT&gt; <b>boot rk2</b>
+
+BOOT&gt; <b>b rk2</b>
 
 Enabling only console, disks, and tapes.
 
@@ -835,7 +820,7 @@ RSTS V06C (DK2)
 Option: <b>RE</b>
 
 DD-MMM-YY? <b>13-MAR-76</b>
-12:00 PM? <b>6:42</b>
+12:00 PM? <b>6:43</b>
 
 Disk? <b>DK2</b>
 
@@ -895,10 +880,10 @@ Installation name? <b>Vixen</b>
 
   Memory allocation table:
 
-     0K: 00000000 - 00147777 (  26K) : EXEC
-    26K: 00150000 - 00247777 (  16K) : RTS (BASIC)
-    42K: 00250000 - 03777777 ( 470K) : USER
-   512K: 04000000 - End              : NXM
+     0K: 00000000 - 00153777 (  27K) : EXEC
+    27K: 00154000 - 00253777 (  16K) : RTS (BASIC)
+    43K: 00254000 - 13777777 (1493K) : USER
+  1536K: 14000000 - End              : NXM
 
 
   Table suboption?
@@ -926,16 +911,16 @@ You currently have: JOB MAX = 31, SWAP MAX = 28K.
 You currently have crash dump disabled.
 
 13-Mar-76?
-06:43 AM?
+06:45 AM?
 ?Can't find file or account
 ?Program lost-Sorry
 
 Ready
 
-<b>RUN MT1:BUILD</b>
+RUN <b>MT1:BUILD</b>
 BUILD   V06C-03 RSTS V06C-03 Vixen
-System Build &lt;No&gt;? Y
-Source Input Device &lt;SY:&gt;? <b>MT1:</b>
+System Build &lt;No&gt;? <b>Y</b>
+Source Input Device &lt;MT1:/DENSITY:800/PARITY:ODD&gt;? <b>MT1:</b>
 Library Output Device &lt;SY:&gt;?
 Target System Device &lt;SY0:&gt;?
 Library Account &lt;[1,2]&gt;?
@@ -972,7 +957,7 @@ BUILD Detaching...
 ^C
 HELLO
 
-RSTS V06C-03 Vixen  Job 2  KB0  13-Mar-76  06:43 AM
+RSTS V06C-03 Vixen  Job 2  KB0  13-Mar-76  06:45 AM
 #1/2
 Password:
 Job 1 is detached under this account
@@ -1367,7 +1352,7 @@ Ready
 
 HELLO
 
-RSTS V06C-03 Vixen  Job 2  [1,2]  KB0  13-Mar-76  06:45 AM
+RSTS V06C-03 Vixen  Job 2  [1,2]  KB0  13-Mar-76  06:47 AM
 Job 1 is detached under this account
 Job number to attach to? 1
 Attaching to job 1
@@ -1379,7 +1364,7 @@ Ready
 <b>RUN MT1:BUILD</b>
 BUILD   V06C-03 RSTS V06C-03 Vixen
 System Build &lt;No&gt;?
-Source Input Device &lt;SY:&gt;? <b>MT1:</b>
+Source Input Device &lt;MT1:/DENSITY:800/PARITY:ODD&gt;? <b>MT1:</b>
 Library Output Device &lt;SY:&gt;?
 Library Account &lt;[1,2]&gt;?
 Control File is? <b>MT1:RSXBLD.CTL</b>
@@ -1392,7 +1377,7 @@ BUILD Detaching...
 ^C
 HELLO
 
-RSTS V06C-03 Vixen  Job 2  KB0  13-Mar-76  06:46 AM
+RSTS V06C-03 Vixen  Job 2  KB0  13-Mar-76  06:48 AM
 #1/2
 Password:
 Job 1 is detached under this account
@@ -1556,7 +1541,7 @@ Ready
 
 HELLO
 
-RSTS V06C-03 Vixen  Job 2  [1,2]  KB0  13-Mar-76  06:47 AM
+RSTS V06C-03 Vixen  Job 2  [1,2]  KB0  13-Mar-76  06:49 AM
 Job 1 is detached under this account
 Job number to attach to? 1
 Attaching to job 1
@@ -1568,7 +1553,7 @@ Ready
 <b>RUN MT1:BUILD</b>
 BUILD   V06C-03 RSTS V06C-03 Vixen
 System Build &lt;No&gt;?
-Source Input Device &lt;SY:&gt;? <b>MT1:</b>
+Source Input Device &lt;MT1:/DENSITY:800/PARITY:ODD&gt;? <b>MT1:</b>
 Library Output Device &lt;SY:&gt;?
 Library Account &lt;[1,2]&gt;?
 Control File is? <b>MT1:RMSBLD.CTL</b>
@@ -1581,7 +1566,7 @@ BUILD Detaching...
 ^C
 HELLO
 
-RSTS V06C-03 Vixen  Job 2  KB0  13-Mar-76  06:48 AM
+RSTS V06C-03 Vixen  Job 2  KB0  13-Mar-76  06:50 AM
 #1/2
 Password:
 Job 1 is detached under this account
@@ -1729,7 +1714,7 @@ Ready
 
 HELLO
 
-RSTS V06C-03 Vixen  Job 2  [1,2]  KB0  13-Mar-76  06:49 AM
+RSTS V06C-03 Vixen  Job 2  [1,2]  KB0  13-Mar-76  06:51 AM
 Job 1 is detached under this account
 Job number to attach to? 1
 Attaching to job 1
@@ -1741,7 +1726,7 @@ Ready
 <b>RUN MT1:BUILD</b>
 BUILD   V06C-03 RSTS V06C-03 Vixen
 System Build &lt;No&gt;?
-Source Input Device &lt;SY:&gt;? <b>MT1:</b>
+Source Input Device &lt;MT1:/DENSITY:800/PARITY:ODD&gt;? <b>MT1:</b>
 Library Output Device &lt;SY:&gt;?
 Library Account &lt;[1,2]&gt;?
 Control File is? <b>MT1:$TECBLD.CTL</b>
@@ -1754,7 +1739,7 @@ BUILD Detaching...
 ^C
 HELLO
 
-RSTS V06C-03 Vixen  Job 2  KB0  13-Mar-76  06:50 AM
+RSTS V06C-03 Vixen  Job 2  KB0  13-Mar-76  06:52 AM
 #1/2
 Password:
 Job 1 is detached under this account
@@ -1856,7 +1841,7 @@ Ready
 
 HELLO
 
-RSTS V06C-03 Vixen  Job 2  [1,2]  KB0  13-Mar-76  06:51 AM
+RSTS V06C-03 Vixen  Job 2  [1,2]  KB0  13-Mar-76  06:53 AM
 Job 1 is detached under this account
 Job number to attach to? 1
 Attaching to job 1
@@ -1880,8 +1865,8 @@ Terminal characteristics program
 Ready
 
 <b>run pip</b>
-*<b>notice.txt=tt:</b>
-<b>
+*<b>notice.txt=tt:
+
 Welcome to RSTS V06C-03 time sharing
 
 This system was installed from a tape with missing blocks!!
@@ -1898,7 +1883,6 @@ good old days.
 Paul Nankervis
 paulnank@hotmail.com
 http://skn.noip.me/pdp11/pdp11.html
-
 ^Z</b>
 *<b>^Z</b>
 
@@ -1950,19 +1934,11 @@ Please wait for system to re-boot itself
 
 
 
-
-
-
-
-
-
-
-
-
 RSTS V06C-03 Vixen (DK2)
 
 
 Option:
+
 </pre>
 
 
