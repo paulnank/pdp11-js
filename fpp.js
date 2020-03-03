@@ -15,19 +15,19 @@
 //
 // This is the second version of FPP emulation for the above Javascript emulator. When the
 // emulator encounters a FPP instruction it simply calls the function executeFPP() contained
-// below. The main emulator routines have no knowledge of FPP functions except that the
-// function getVirtualByMode() is able to handle operand lengths of 4 (real) and 8 (double)
-// in addition to the usual 1 (byte) and 2 (word) operands, and that CPU.trapMask can cause a
-// floating point exception when needed.
+// below. The main emulator routines have no other knowledge of FPP functions except that the
+// function getVirtualByMode() is able to handle operand lengths of 4 (real) and 8 (double),
+// in addition to the usual 1 (byte) and 2 (word) byte operands, and that CPU.trapMask can
+// cause a floating point exception when needed.
 //
 // The first version of these routines simply converted PDP 11 floating point values into
 // Javascript numbers, and all PDP 11 operations were performed using native Javascript.
 // This was very fast, but unfortunately Javascript numbers have slightly less precision
-// than PDP 11 double length (although with a larger range), making it impossible to pass
-// the full range of PDP 11 diagnostics, resulting in low confidence they were correct.
+// than PDP 11 double length (although with a larger range). This made it impossible to pass
+// the full range of PDP 11 diagnostics which resulted in low confidence they were correct.
 // This version stores all floating point values as an array of up to four 16 bits words.
-// This matches very closely with PDP 11 storage, however it needs a lot of Javascript code
-// doing obscure bit manipulation.
+// It matches very closely with PDP 11 storage, however it involves a lot of Javascript
+// code which does rather obscure bit manipulation (cross word bit shifts rule!).
 //
 // Standard PDP 11 floating point data formats used by FPP instructions are:-
 // Integer formats:-
@@ -41,19 +41,19 @@
 // Zero = sign=0 & exponent=0 (exact zero is all zero's but any number with an exponent of zero is treated as zero)
 // NaN  = sign=1 & exponent=0 (undefined variable usually traps on read from memory but generally treated as zero)
 //
-// In this code double floating point PDP 11 numbers stored as an array of four 16 bit
+// In this code double floating point PDP 11 numbers are stored as an array of four 16 bit
 // Javascript numbers. Real numbers are kept in an array of two 16 bit numbers. In both cases
 // array element 0 contains the sign, then 8 bits of the exponent (biased by +128), then the
 // first 7 bits of the fraction, including an assumed hidden bit. The remaining array elements
-// contain additional fraction bits.
+// contain any additional fraction bits.
 //
 // In Javascript the exact zero PDP 11 double FPP number would be represented by [0, 0, 0, 0]
 // Similarly 1 is represented as [16512,0,0,0], -7 as [49632,0,0,0] and 3.14159 as [16713,4047,32988,13168]
 //
 // Addresses of floating point numbers are stored as virtual addresses (17 bit I/D), unlike
 // words and bytes in the main emulator modules which use 22 bit physical addresses.
-// This is because floating point numbers may be up to eight bytes in length
-// and cross page boundaries which may not be contiguous in physical memory. The extra length
+// This is because floating point numbers may be up to eight bytes in length and cross virtual
+// memory page boundaries, which may not be contiguous in physical memory. The extra length
 // also means floating point autoincrement and autodecrement addressing may increment and decrement
 // registers by 8, 4 or 2 bytes. Note also that immediate mode {(R7)+ and -(R7)} always assume an
 // operand length of two bytes - the PC is incremented by 2 regardless of data type, probably for
@@ -160,7 +160,7 @@ var FPP = {
         [0, 0, 0, 0],
         [0, 0, 0, 0],
         [0, 0, 0, 0]
-    ] // The six FPP accumulators
+    ] // The six FPP accumulators AC[0]... AC[5]
 };
 
 function FPP_INSTRUCTION(a, b, c) { // Console logging function for debugging
@@ -504,7 +504,7 @@ function fppAdd(number, operand) { // Add two FPP numbers (number = number + ope
             number[0] = (number[0] & FPPfractionMask) | FPPhiddenMask;
             operand[0] = (operand[0] & FPPfractionMask) | FPPhiddenMask;
             if (!(numberSign ^ operandSign)) { // Same sign so ADD the two fractions
-                if (numberExp != operandExp) { // Different magnitude - need shift
+                if (numberExp != operandExp) { // Different magnitude - need shift to align
                     if (numberExp < operandExp) {
                         guardBit = fppShiftRight(number, operandExp - numberExp);
                         numberExp = operandExp;
@@ -531,7 +531,7 @@ function fppAdd(number, operand) { // Add two FPP numbers (number = number + ope
                         fppTest(number);
                         return;
                     }
-                } else { // Different magntitude - need shift
+                } else { // Different magntitude - need shift to align
                     if (numberExp < operandExp) {
                         guardBit = fppShiftRight(number, operandExp - numberExp);
                         numberExp = operandExp;
@@ -1017,7 +1017,7 @@ function executeFPP(instruction) { // Main entry point call by mainline emulatio
         result,
         dstAddr,
         virtualAddress;
-    //var mmrUnwind = 0;
+    //var mmrUnwind = 0;  // DEBUG code to help validate CPU.MMR1 works correctly
     //if (!(CPU.MMR0 & 0xe000)) {
     //    mmrUnwind = 1;
     //}
@@ -1041,9 +1041,9 @@ function executeFPP(instruction) { // Main entry point call by mainline emulatio
                             //FPP_INSTRUCTION(instruction, 2, "SETI");
                             FPP.FPS &= 0xffbf;
                             break;
-                            //case 3: // 003 LDUP
-                            //    //FPP_INSTRUCTION(instruction, 2, "LDUP");
-                            //    break;
+                        //case 3: // 003 LDUP - not valid on all systems
+                        //    //FPP_INSTRUCTION(instruction, 2, "LDUP");
+                        //    break;
                         case 9: // 011 SETD Set Floating Double Mode
                             //FPP_INSTRUCTION(instruction, 2, "SETD");
                             FPP.FPS |= 0x80;
