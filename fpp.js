@@ -8,7 +8,7 @@
 // http://skn.noip.me/pdp11/pdp11.html
 //
 // Note: PDF listings of PDP 11 FPP diagnistics can be found at:
-//			http://bitsavers.org/pdf/dec/pdp11/microfiche/ftp.j-hoppe.de/bw/gh/
+//          http://bitsavers.org/pdf/dec/pdp11/microfiche/ftp.j-hoppe.de/bw/gh/
 //
 // This is a work in progress - but surely most things now work?
 //
@@ -31,15 +31,15 @@
 //
 // Standard PDP 11 floating point data formats used by FPP instructions are:-
 // Integer formats:-
-//	2 byte: (usual PDP 11 word containing bits 15 - 0) 16 bits with signing via 2's complement
-//	4 byte: Word 1 High half (bits 31 - 16), Word 2 Low half (bits 15 - 0) 32 bits with signing by 2's complement
+//  2 byte: (usual PDP 11 word containing bits 15 - 0) 16 bits with signing via 2's complement
+//  4 byte: Word 1 High half (bits 31 - 16), Word 2 Low half (bits 15 - 0) 32 bits with signing by 2's complement
 // Real formats:- (sign bit always first followed by 8 bits of exponent - which has a bias of +128)
-//	2 byte: Immediate mode	 Sign (1 bit 15) Exponent (8 bits 14 - 7)  Fraction (7 bits 6 - 0) + hidden bit
-//	4 byte: Single precision Sign (1 bit 31) Exponent (8 bits 30 - 23) Fraction (23 bits 22 - 0) + hidden bit
-//	8 byte: Double precision Sign (1 bit 63) Exponent (8 bits 62 - 55) Fraction (55 bits 54 - 0) + hidden bit
+//  2 byte: Immediate mode   Sign (1 bit 15) Exponent (8 bits 14 - 7)  Fraction (7 bits 6 - 0) + hidden bit
+//  4 byte: Single precision Sign (1 bit 31) Exponent (8 bits 30 - 23) Fraction (23 bits 22 - 0) + hidden bit
+//  8 byte: Double precision Sign (1 bit 63) Exponent (8 bits 62 - 55) Fraction (55 bits 54 - 0) + hidden bit
 //
 // Zero = sign=0 & exponent=0 (exact zero is all zero's but any number with an exponent of zero is treated as zero)
-// NaN	= sign=1 & exponent=0 (undefined variable usually traps on read from memory but generally treated as zero)
+// NaN  = sign=1 & exponent=0 (undefined variable usually traps on read from memory but generally treated as zero)
 //
 // In this code double floating point PDP 11 numbers stored as an array of four 16 bit
 // Javascript numbers. Real numbers are kept in an array of two 16 bit numbers. In both cases
@@ -63,38 +63,38 @@
 //
 //
 // The FPP processor has its own registers:-
-//		FPS containing	various mode, status and condition code bits
-//		FEC containing an error code
-//		FEA which records the PC for error conditions
-//	 and six accumulators for FPP numbers (FPP registers)
+//      FPS containing  various mode, status and condition code bits
+//      FEC containing an error code
+//      FEA which records the PC for error conditions
+//   and six accumulators for FPP numbers (FPP registers)
 //
 //
 // FPS bits:-
-//	15: FER - floating point error
-//	14: FID - floating interrupt disable
-//	13: Not Used
-//	12: Not Used
-//	11: FIUV - Floating interrupt on undefined variable
-//	10: FIU - Floating interrupt on underflow
-//	 9: FIV - Floating interrupt on overflow
-//	 8: FIC - Floating interrupt on integer conversion
-//	 7: FD - Double precision mode
-//	 6: FL - Long integer mode
-//	 5: FT - Truncate (not round)
-//	 4: Not Used
-//	 3: FN - CC Negative
-//	 2: FZ - CC Zero
-//	 1: FV - CC Overflow
-//	 0: FC - CC Carry
+//  15: FER - floating point error
+//  14: FID - floating interrupt disable
+//  13: Not Used
+//  12: Not Used
+//  11: FIUV - Floating interrupt on undefined variable
+//  10: FIU - Floating interrupt on underflow
+//   9: FIV - Floating interrupt on overflow
+//   8: FIC - Floating interrupt on integer conversion
+//   7: FD - Double precision mode
+//   6: FL - Long integer mode
+//   5: FT - Truncate (not round)
+//   4: Not Used
+//   3: FN - CC Negative
+//   2: FZ - CC Zero
+//   1: FV - CC Overflow
+//   0: FC - CC Carry
 //
 // FEC values:-
-//	2 Floating OP code error
-//	4 Floating divide by zero
-//	6 Floating (or double) to integer conversion error
-//	8 Floating overflow
-//	10 Floating underflow
-//	12 Floating undefined variable
-//	14 Maintenance trap
+//  2 Floating OP code error
+//  4 Floating divide by zero
+//  6 Floating (or double) to integer conversion error
+//  8 Floating overflow
+//  10 Floating underflow
+//  12 Floating undefined variable
+//  14 Maintenance trap
 //
 //
 // The FPP design assures that the undefined variable (-0) will not be stored
@@ -164,7 +164,7 @@ var FPP = {
 };
 
 function FPP_INSTRUCTION(a, b, c) { // Console logging function for debugging
-    console.log("FPP " + (CPU.registerVal[7] - 2).toString(8) + "	" + a.toString(8) + "  " + c + " " + FPP.precisionLength);
+    console.log("FPP " + (CPU.registerVal[7] - 2).toString(8) + "   " + a.toString(8) + "  " + c + " " + FPP.precisionLength);
 }
 
 function incrementVirtual(virtualAddress) {
@@ -172,7 +172,7 @@ function incrementVirtual(virtualAddress) {
     return (virtualAddress & 0x10000) | ((virtualAddress + 2) & 0xffff);
 }
 
-function fppFlags() { // 8 - N,	 4 - Z,	 2 - V,	 1 - C Copy FPP flags to CPU flags
+function fppFlags() { // 8 - N,  4 - Z,  2 - V,  1 - C Copy FPP flags to CPU flags
     "use strict";
     CPU.flagN = FPP.FPS << 12;
     CPU.flagZ = (~FPP.FPS) & 4;
@@ -198,7 +198,7 @@ function fppCopy(number, operand) { // Copy a FPP number
 
 function fppTest(number) { // Test a FPP number (only Z or N can be set)
     "use strict";
-    FPP.FPS &= 0xfff0; //	8 - N,	4 - Z,	2 - V,	1 - C
+    FPP.FPS &= 0xfff0; //   8 - N,  4 - Z,  2 - V,  1 - C
     if (!(number[0] & FPPexpMask)) {
         FPP.FPS |= 4; // Z bit
     }
@@ -209,7 +209,7 @@ function fppTest(number) { // Test a FPP number (only Z or N can be set)
 
 function fppTestInt(operand) { // Test an integer operand (only Z or N can be set)
     "use strict";
-    FPP.FPS &= 0xfff0; //	8 - N,	4 - Z,	2 - V,	1 - C
+    FPP.FPS &= 0xfff0; //   8 - N,  4 - Z,  2 - V,  1 - C
     if (operand < 0) FPP.FPS |= 8; // N Bit
     if (operand == 0) FPP.FPS |= 4; // Z bit
 }
@@ -227,7 +227,7 @@ function fppTrap(code) { // Trap code called by individual trap functions
 
 function fppPack(number, numberExp, numberSign) { // Routine to pack sign and pre-biased exponent back into a number
     "use strict";
-    var condition = 0; //	8 - N,	4 - Z,	2 - V,	1 - C
+    var condition = 0; //   8 - N,  4 - Z,  2 - V,  1 - C
     if (numberExp <= 0) {
         numberExp &= 0xff;
         if (FPP.FPS & 0x400) { // FIU - Floating interrupt on underflow
@@ -424,9 +424,9 @@ function fppCopyRightShift(number, source, shift) { // Copy shifting fraction on
 
 function fppCopyRightBits(number, source, shift, end) { // Copy fraction only words right (no overlap) with limit
     "use strict";
-    var i, wordIndex, endhift, bitField = 0;
+    var i, wordIndex, endShift, bitField = 0;
     wordIndex = ~~(shift / FPPwordBits);
-    endhift = shift % FPPwordBits;
+    endShift = shift % FPPwordBits;
     end += shift;
     for (i = 0; i < FPP.precisionLength; i++) {
         if (end <= 0) {
@@ -437,9 +437,9 @@ function fppCopyRightBits(number, source, shift, end) { // Copy fraction only wo
             }
             end -= FPPwordBits;
             if (end < 0) {
-                bitField &= FPPwordMask << endhift - end;
+                bitField &= FPPwordMask << endShift - end;
             }
-            number[i] = (bitField >>> endhift) & FPPwordMask;
+            number[i] = (bitField >>> endShift) & FPPwordMask;
             bitField <<= FPPwordBits;
         }
     }
@@ -714,8 +714,8 @@ function fppMODF(number, whole, operand) { // number = fraction part of number x
         // From 64/32 bits we need to extract two 56/24 bit results which leaves 8 bits for result
         // extension and rounding, depending on the exponent value (where the decimal point lies).
         // As a result rounding will only kick in for a limited set of exponent ranges:-
-        //		1) Where the exponent <= 0 there is no integer component so do normal fraction rounding
-        //		2) Where the exponent < 8 then one of the extra precision bits can be used to determine rounding
+        //      1) Where the exponent <= 0 there is no integer component so do normal fraction rounding
+        //      2) Where the exponent < 8 then one of the extra precision bits can be used to determine rounding
         // For an exponent >= 8 we can't round because we don't use additional result bits for rounding guidance.
         if (!(FPP.FPS & 0x20)) { // FT - Truncate (not round)
             position = numberExp - FPPexpBias; // Note: numberExp has not been normalized yet so it is more "positional"
@@ -899,7 +899,7 @@ function fppSTCFI(number, addressMode) { // Store converting from floating to in
 
 function writeWordByVirtual(virtualAddress, data) { // Write word to a virtual address (17 bit I&D)
     "use strict";
-    if (virtualAddress >= MAX_ADDRESS) panic(12);
+    //if (virtualAddress >= MAX_ADDRESS) panic(12);
     return writeWordByAddr(mapVirtualToPhysical(virtualAddress, MMU_WRITE), data);
 }
 
@@ -1005,7 +1005,7 @@ function readFloatByMode(number, addressMode) { // Read FPP number by instructio
         }
     } else {
         if ((result = getFloatVirtualByMode(addressMode, MMU_READ)) >= 0) { // (mode sets FPP.modeLength)
-            result = readFloatByVirtual(number, result, 1); // Read from memory (uses FPP.modeLength)
+            result = readFloatByVirtual(number, result); // Read from memory (uses FPP.modeLength)
         }
     }
     return result;
@@ -1019,7 +1019,7 @@ function executeFPP(instruction) { // Main entry point call by mainline emulatio
         virtualAddress;
     //var mmrUnwind = 0;
     //if (!(CPU.MMR0 & 0xe000)) {
-    //	  mmrUnwind = 1;
+    //    mmrUnwind = 1;
     //}
     FPP.backupPC = CPU.registerVal[7];
     AC = (instruction >> 6) & 3;
@@ -1042,8 +1042,8 @@ function executeFPP(instruction) { // Main entry point call by mainline emulatio
                             FPP.FPS &= 0xffbf;
                             break;
                             //case 3: // 003 LDUP
-                            //	  //FPP_INSTRUCTION(instruction, 2, "LDUP");
-                            //	  break;
+                            //    //FPP_INSTRUCTION(instruction, 2, "LDUP");
+                            //    break;
                         case 9: // 011 SETD Set Floating Double Mode
                             //FPP_INSTRUCTION(instruction, 2, "SETD");
                             FPP.FPS |= 0x80;
@@ -1066,7 +1066,7 @@ function executeFPP(instruction) { // Main entry point call by mainline emulatio
                         if (!(FPP.FPS & 0x80)) { // FD - Double precision mode
                             FPP.precisionLength = 2; // Floating is two word precision
                         } else {
-                            FPP.precisionLength = 4; // Double is two word precision
+                            FPP.precisionLength = 4; // Double is four word precision
                         }
                     }
                     break;
@@ -1109,7 +1109,7 @@ function executeFPP(instruction) { // Main entry point call by mainline emulatio
                 case 2: // 02 ABSF Make Absolute Floating/Double
                     //FPP_INSTRUCTION(instruction, 2, "ABSF");
                     if ((virtualAddress = getFloatVirtualByMode(instruction, MMU_READ | MMU_WRITE)) >= 0) {
-                        if (readFloatByVirtual(FPP.scratch, virtualAddress, 0) != -1) { // Allow for undefined variable trap (-2)
+                        if (readFloatByVirtual(FPP.scratch, virtualAddress) != -1) { // Allow for undefined variable trap (-2)
                             if (!(FPP.scratch[0] & FPPexpMask)) {
                                 fppZero(FPP.scratch);
                             } else {
@@ -1124,7 +1124,7 @@ function executeFPP(instruction) { // Main entry point call by mainline emulatio
                 case 3: // 03 NEGF Negate Floating/Double
                     //FPP_INSTRUCTION(instruction, 2, "NEGF");
                     if ((virtualAddress = getFloatVirtualByMode(instruction, MMU_READ | MMU_WRITE)) >= 0) {
-                        if (readFloatByVirtual(FPP.scratch, virtualAddress, 0) != -1) { // Allow for undefined variable trap (-2)
+                        if (readFloatByVirtual(FPP.scratch, virtualAddress) != -1) { // Allow for undefined variable trap (-2)
                             if (!(FPP.scratch[0] & FPPexpMask)) {
                                 fppZero(FPP.scratch);
                             } else {
@@ -1175,7 +1175,7 @@ function executeFPP(instruction) { // Main entry point call by mainline emulatio
             break;
         case 0x700: // 0003400 CMPF Compare Floating/Double
             //FPP_INSTRUCTION(instruction, 2, "CMPF");
-            if (readFloatByMode(FPP.scratch, instruction, 1) >= 0) {
+            if (readFloatByMode(FPP.scratch, instruction) >= 0) {
                 fppCompare(FPP.scratch, FPP.AC[AC]);
             }
             break;
@@ -1258,13 +1258,13 @@ function executeFPP(instruction) { // Main entry point call by mainline emulatio
             break;
     }
     //if ((CPU.MMR0 & 0xe000) && mmrUnwind) {
-    //	  if ((CPU.MMR1 & 0xf8) && (CPU.MMR1 & 7) != 7) {
-    //		  if (CPU.MMR1 & 0x80) {
-    //			  CPU.registerVal[CPU.MMR1 & 7] += (0x80 - (CPU.MMR1 & 0x78)) >>> 3;
-    //		  } else {
-    //			  CPU.registerVal[CPU.MMR1 & 7] -= ((CPU.MMR1 & 0x78) >>> 3);
-    //		  }
-    //	  }
-    //	  CPU.MMR1 = 0;
+    //    if ((CPU.MMR1 & 0xf8) && (CPU.MMR1 & 7) != 7) {
+    //        if (CPU.MMR1 & 0x80) {
+    //            CPU.registerVal[CPU.MMR1 & 7] += (0x80 - (CPU.MMR1 & 0x78)) >>> 3;
+    //        } else {
+    //            CPU.registerVal[CPU.MMR1 & 7] -= ((CPU.MMR1 & 0x78) >>> 3);
+    //        }
+    //    }
+    //    CPU.MMR1 = 0;
     //}
 }
