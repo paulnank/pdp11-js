@@ -35,10 +35,6 @@ function extractXHR(xhr, cache, block) {
             return -1; // Return error
     }
 
-    if (dataLength != IO_BLOCKSIZE) {
-        console.log("Strange debug data length "+dataLength);
-    }
-
     dataIndex = 0; // Start copy to cache at the beginning
     do {
         if (typeof cache[block] === "undefined") {

@@ -614,6 +614,17 @@ function fppMultiply(number, operand) { // Multiply two FPP numbers (number = nu
     }
 }
 
+// The division algorithm used here is adapted from the paper:
+// "Multiple-Length Division Revisited: A Tour of the Minefield"   by Per Brinch Hansen
+// See: https://surface.syr.edu/cgi/viewcontent.cgi?article=1162&context=eecs_techreports
+//
+// The significant feature of this algorithm is the proof that the qhat digit estimated
+// at each step will be out by at most 1 (1 too big). Other algorithms often generate a
+// slightly less accurate qhat estimate that require a greater adjustment. In this code
+// we simply plough ahead using the more accurate estimated value, and if we discover
+// that a carry results at the end of subtraction (of qhat x divisor), then we correct
+// by adding back a copy of the divisor and subtracting 1 from qhat.
+
 function fppDivide(number, operand) { // Divide two FPP numbers (number = number / operand)
     "use strict";
     var o, i, carry, divisor, qhat, numberExp, operandExp, numberSign;
@@ -631,7 +642,7 @@ function fppDivide(number, operand) { // Divide two FPP numbers (number = number
             number[0] = (number[0] & FPPfractionMask) | FPPhiddenMask;
             operand[0] = (operand[0] & FPPfractionMask) | FPPhiddenMask;
             for (i = FPP.result.length - 1; i >= 0; i--) {
-                FPP.result[i] = 0; // Initialize result
+                FPP.result[i] = 0; // Initialize result area (importantly the words beyond the current precision)
             }
             if (fppCompareWords(number, operand) < 0) { // Shift number left and ensure it is larger than operand
                 fppCopyShiftLeft(FPP.result, number, 8);
@@ -639,28 +650,27 @@ function fppDivide(number, operand) { // Divide two FPP numbers (number = number
                 fppCopyShiftLeft(FPP.result, number, 7);
                 numberExp++;
             }
-            divisor = (operand[0] * FPPwordBase + operand[1]);
+            divisor = (operand[0] * FPPwordBase + operand[1]); // Algorithm estimates qhat from 3 digits of remainder and two of divisor
+            qhat = ~~((FPP.result[0] * FPPwordBase + FPP.result[1]) / divisor); // First qhat has no previous digit requirement
             for (o = 0; o < FPP.precisionLength; o++) {
-                if (o == 0) {
-                    qhat = ~~((FPP.result[o] * FPPwordBase + FPP.result[o + 1]) / divisor);
-                } else {
+                if (o) { // First time through we already have a qhat
                     qhat = ~~(((FPP.result[o - 1] * FPPwordBase + FPP.result[o]) * FPPwordBase + FPP.result[o + 1]) / divisor);
                 }
-                if (qhat >= FPPwordBase) qhat = FPPwordBase - 1;
-                carry = 0; // multiplication carry forward & subtraction borrow
-                for (i = FPP.precisionLength - 1; i >= 0; i--) {
+                if (qhat >= FPPwordBase) qhat = FPPwordBase - 1; // Ensure qhat is in range
+                carry = 0; // Multiplication carry forward & subtraction borrow
+                for (i = FPP.precisionLength - 1; i >= 0; i--) { // Subtract qhat * operand from remainder
                     carry += FPP.result[o + i] - qhat * operand[i];
-                    FPP.result[o + i] = carry & FPPwordMask; // (FPPwordBase * FPPwordBase + carry) % FPPwordBase;
+                    FPP.result[o + i] = carry & FPPwordMask;
                     carry = ~~((carry - FPP.result[o + i]) / FPPwordBase);
                 }
-                if (carry) {
+                if (carry) { // Carry result from subtraction means that qhat was too big - need to adjust by one
                     if ((FPP.result[o - 1] += carry) != 0) {
-                        qhat--;
+                        qhat--; // Adjust qhat
                         carry = 0;
-                        for (i = FPP.precisionLength - 1; i >= 0; i--) {
+                        for (i = FPP.precisionLength - 1; i >= 0; i--) { // Add the value of operand back to the remainder
                             carry += FPP.result[o + i] + operand[i];
                             FPP.result[o + i] = carry & FPPwordMask;
-                            carry = (carry >>> FPPwordBits) & FPPwordMask; // carry = ~~(carry / FPPwordBase);
+                            carry = (carry >>> FPPwordBits) & FPPwordMask;
                         }
                     }
                 }
@@ -670,7 +680,7 @@ function fppDivide(number, operand) { // Divide two FPP numbers (number = number
                 qhat = ~~(((FPP.result[o - 1] * FPPwordBase + FPP.result[o]) * FPPwordBase + FPP.result[o + 1]) / divisor);
                 if (qhat >= FPPwordBase) qhat = FPPwordBase - 1;
                 if (qhat & 0x8000) {
-                    fppAddSmall(number, 1); //Round up
+                    fppAddSmall(number, 1); // Round up
                 }
             }
             fppPack(number, numberExp, numberSign);
