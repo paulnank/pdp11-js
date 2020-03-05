@@ -1327,19 +1327,20 @@ function kw11_init() {
     kw11.csr = 0x80;
 }
 
-function kw11_interrupt() { // Every 20 ms (50 Hz) check whether time exhausted (used only in WAIT state)
+function kw11_interrupt() { // Called every 20 ms (50 Hz) to check whether time exhausted
     var timeNow;
-    if (CPU.runState == STATE_WAIT) {
-        timeNow = Date.now();
-        if (timeNow >= kw11.interruptTime) {
-            kw11.csr |= 0x80; //Set DONE
-            if (kw11.csr & 0x40) {
-                interrupt(1, 0, 6 << 5, 0100);
-            } else {
-                kw11.interruptTime = timeNow;
-            }
-            kw11.interruptTime += 20;
-        }
+    if (CPU.runState != STATE_HALT) {
+		timeNow = Date.now();
+		if (timeNow >= kw11.interruptTime) { // Time checked in steps to prevent time loss
+			kw11.csr |= 0x80; //Set DONE
+			if (kw11.csr & 0x40) {
+				interrupt(1, 0, 6 << 5, 0100);
+			}
+			if (timeNow >= kw11.interruptTime + (60 * 50 * 20)) { // Give up exactness if more than a minute behind
+				kw11.interruptTime = timeNow;
+			}
+			kw11.interruptTime += 20;
+		}
     }
 }
 

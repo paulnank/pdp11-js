@@ -316,7 +316,7 @@ function interrupt(cleanFlag, delay, priority, vector, callback, callarg) {
         }
         if (CPU.runState == STATE_WAIT) { // if currently in wait then resume
             CPU.runState = STATE_RUN;
-            emulate(4000); // Kick start processor
+            emulate(1000); // Kick start processor
         }
     }
 }
@@ -1099,7 +1099,6 @@ function emulate(loopCount) {
         result = loopCount,
         virtualAddress, savePSW, reg;
     var CPU = window.CPU;
-    var loopTime = Date.now() + 10;
     var timeNow;
     if (CPU.runState != STATE_RUN) {
         return;
@@ -2150,12 +2149,13 @@ function emulate(loopCount) {
                     }
                     interrupt(1, 0, 6 << 5, 0100);
                 }
-                if (timeNow > kw11.interruptTime + (60 * 50 * 20)) { // Give up exactness if more than a minute behind
+                if (timeNow >= kw11.interruptTime + (30 * 50 * 20)) { // Give up exactness if more than 30 seconds behind
                     kw11.interruptTime = timeNow;
                 }
                 kw11.interruptTime += 20;
+				break;
             }
-            if (loopCount < 0 || timeNow >= loopTime) {
+            if (loopCount < 0) {
                 break;
             } else {
                 loopCount = 4000;
@@ -2171,7 +2171,7 @@ function emulate(loopCount) {
     }
 
     if (CPU.runState == STATE_RUN) {
-        setTimeout(emulate, 0, 6000); // immediately schedule another batch of instructions
+        setTimeout(emulate, 0, 1000); // immediately schedule another batch of instructions
     } else {
         if (CPU.runState == STATE_RESET) {
             CPU.runState = STATE_RUN;
