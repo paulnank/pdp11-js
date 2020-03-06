@@ -8,21 +8,22 @@
     <meta name="keywords" content="PDP,11,11/70,11/45,Console Panel,RSTS/E Idle Loop,Emulator,Emulation,JavaScript">
     <meta name="author" content="Paul Nankervis">
     <!--Send feedback, fixes and suggestions to Paul Nankervis at paulnank@hotmail.com-->
-    <!--I'm particularly interested in hearing from anyone with real experience on a PDP 11/45 front panel-->
+    <!--I'm particularly interested in hearing from anyone with real experience on a PDP 11/70 front panel-->
     <style type="text/css">
       .panel {
-        height: 304;
-        width: 720;
-        position: relative;
+        height: 304px;
+        width: 720px;
         color: white;
-        font-size: 5px;
+        font-size: 32%;
         font-family: palatino, verdana;
-        vertical-align: middle;
+        text-align: center;
         background-color: #202020;
+        position: relative;
+        float: left;
       }
       .base {
-        top: 0;
-        left: 0;
+        top: 0px;
+        left: 0px;
         height: 10px;
         width: 66px;
         background-color: #EA2020;
@@ -31,59 +32,52 @@
         float: left;
       }
       .ledpad {
-        top: 10;
+        top: 10px;
         height: 34px;
         width: 21px;
         background-color: black;
         border-bottom-left-radius: 6px;
         border-bottom-right-radius: 6px;
-        align: centre;
-        text-align: center;
-        vertical-align: middle;
         position: absolute;
         float: left;
       }
       .led {
-        top: 14;
-        left: 6;
+        top: 14px;
+        left: 6px;
         height: 9px;
         width: 9px;
         border-radius: 3px;
         background-color: red;
         position: absolute;
-        float: left;
       }
       .switch_background_top {
         height: 90px;
         width: 154px;
         border-radius: 5px;
-        position: absolute;
         background-color: #000000;
-        line-height: 7px;
+        position: absolute;
         float: left;
       }
       .switch_background_bottom {
         height: 44px;
         width: 154px;
         border-radius: 5px;
-        position: absolute;
         background-color: #000000;
-        line-height: 7px;
+        position: absolute;
         float: left;
       }
       .switch_pad {
         height: 28px;
         width: 21px;
+        background-color: #D01010;
         border-radius: 6px;
         position: absolute;
-        background-color: #D01010;
-        line-height: 28px;
         float: left;
       }
       .switchRed {
-        top: 0;
-        height: 2;
-        width: 9;
+        top: 0px;
+        height: 2px;
+        width: 9px;
         background: #E03030;
         position: absolute;
         border-top: 22px solid #e02020;
@@ -93,9 +87,9 @@
         transition: .4s;
       }
       .switchPurple {
-        top: 0;
-        height: 2;
-        width: 9;
+        top: 0px;
+        height: 2px;
+        width: 9px;
         background: #A010A0;
         position: absolute;
         border-top: 22px solid #871787;
@@ -138,7 +132,7 @@
         height: 12%;
         border-radius: 50%;
       }
-	  .lock {
+      .lock {
         position: absolute;
         border-radius: 50%;
         top: 20%;
@@ -146,8 +140,8 @@
         width: 60%;
         height: 60%;
         background: linear-gradient(45deg, #605050, #c0c0c7);
-		border: solid 1px #11100e;
-		box-shadow: 0 0 0 2px #404040;
+        border: solid 1px #11100e;
+        box-shadow: 0 0 0 2px #404040;
       }
       .keyBase {
         position: absolute;
@@ -161,7 +155,7 @@
       }
       .key {
         position: absolute;
-		border: solid 1px black;
+        border: solid 1px black;
         width: 6%;
         height: 90%;
         top: 0%;
@@ -172,487 +166,262 @@
       }
     </style>
   </head>
-  <body>
-    <div class="panel" style="font-size:5px;font-family:palatino,verdana;">
-      <div style="position:absolute;top:40;left:32;">
-        <div style="position:absolute;left:0;">
-          <div class="base" style="border-top-left-radius:4px;">
+  <body style="font-size:16px;">
+
+    <div class="panel">
+
+      <div style="position:absolute;top:42px;left:32px;">
+        <div style="position:absolute;top:0px;left:0px;">
+          <div style="position:absolute;left:0px;">
+            <div class="base"></div>
+            <div class="ledpad" style="left:0px;"><div id=a17 class=led></div></div>
+            <div class="ledpad" style="left:22px;"><div id=a16 class=led></div></div>
+            <div class="ledpad" style="left:44px;"><div id=a15 class=led></div></div>
           </div>
-          <div class="ledpad" style="left:0;">
-            <div id=a17 class=led>
-            </div>
+          <div style="position:absolute;left:66px;">
+            <div class="base" style="background-color:#701070;"></div>
+            <div class="ledpad" style="left:0px;"><div id=a14 class=led></div></div>
+            <div class="ledpad" style="left:22px;"><div id=a13 class=led></div></div>
+            <div class="ledpad" style="left:44px;"><div id=a12 class=led></div></div>
           </div>
-          <div class="ledpad" style="left:22;">
-            <div id=a16 class=led>
-            </div>
+          <div style="position:absolute;left:132px;">
+            <div class="base"></div>
+            <div class="ledpad" style="left:0px;"><div id=a11 class=led></div></div>
+            <div class="ledpad" style="left:22px;"><div id=a10 class=led></div></div>
+            <div class="ledpad" style="left:44px;"><div id=a9 class=led></div></div>
           </div>
-          <div class="ledpad" style="left:44;">
-            <div id=a15 class=led>
-            </div>
+          <div style="position:absolute;left:198px;">
+            <div class="base" style="background-color:#701070;"></div>
+            <div class="ledpad" style="left:0px;"><div id=a8 class=led></div></div>
+            <div class="ledpad" style="left:22px;"><div id=a7 class=led></div></div>
+            <div class="ledpad" style="left:44px;"><div id=a6 class=led></div></div>
           </div>
-        </div>
-        <div style="position:absolute;left:66;">
-          <div class="base" style="background-color:#701070;">
+          <div style="position:absolute;left:264px;">
+            <div class="base"></div>
+            <div class="ledpad" style="left:0px;"><div id=a5 class=led></div></div>
+            <div class="ledpad" style="left:22px;"><div id=a4 class=led></div></div>
+            <div class="ledpad" style="left:44px;"><div id=a3 class=led></div></div>
           </div>
-          <div class="ledpad" style="left:0;">
-            <div id=a14 class=led>
-            </div>
-          </div>
-          <div class="ledpad" style="left:22;">
-            <div id=a13 class=led>
-            </div>
-          </div>
-          <div class="ledpad" style="left:44;">
-            <div id=a12 class=led>
-            </div>
-          </div>
-        </div>
-        <div style="position:absolute;left:132;">
-          <div class="base">
-          </div>
-          <div class="ledpad" style="left:0;">
-            <div id=a11 class=led>
-            </div>
-          </div>
-          <div class="ledpad" style="left:22;">
-            <div id=a10 class=led>
-            </div>
-          </div>
-          <div class="ledpad" style="left:44;">
-            <div id=a9 class=led>
-            </div>
+          <div style="position:absolute;left:330px;">
+            <div class="base" style="background-color:#701070;font-size:130%;">ADDRESS &nbsp;</div>
+            <div class="ledpad" style="left:0px;"><div id=a2 class=led></div></div>
+            <div class="ledpad" style="left:22px;"><div id=a1 class=led></div></div>
+            <div class="ledpad" style="left:44px;"><div id=a0 class=led></div></div>
           </div>
         </div>
-        <div style="position:absolute;left:196;">
-          <div class="base" style="background-color:#701070;">
-          </div>
-          <div class="ledpad" style="left:0;">
-            <div id=a8 class=led>
+        <div style="position:absolute;top:0px;left:418px;font-size:110%;">
+          <div class="switch_background_top" style="width:240px;height:46px;border-radius:8px;">
+            <div style="display:table;text-align:left;border-spacing:4px;">
+              <div style="display:table-row;height:14px">
+                <div class=leddiv id=s21 style="display:table-cell;"></div>
+                <div style="display:table-cell;width:32px">USER I</div>
+                <div class=leddiv id=s19 style="display:table-cell;"></div>
+                <div style="display:table-cell;width:32px">SUPER I</div>
+                <div class=leddiv id=s17 style="display:table-cell;"></div>
+                <div style="display:table-cell;width:32px">KERNEL I</div>
+                <div class=leddiv id=s15 style="display:table-cell;"></div>
+                <div style="display:table-cell;width:32px">PROG PHY</div>
+              </div>
+              <div style="display:table-row;height:18px">
+                <div class=leddiv id=s20 style="display:table-cell;"></div>
+                <div style="display:table-cell;">USER D</div>
+                <div class=leddiv id=s18 style="display:table-cell;"></div>
+                <div style="display:table-cell">SUPER D</div>
+                <div class=leddiv id=s16 style="display:table-cell;"></div>
+                <div style="display:table-cell">KERNEL D</div>
+                <div class=leddiv id=s14 style="display:table-cell;"></div>
+                <div style="display:table-cell">CONS PHY</div>
+              </div>
             </div>
-          </div>
-          <div class="ledpad" style="left:22;">
-            <div id=a7 class=led>
-            </div>
-          </div>
-          <div class="ledpad" style="left:44;">
-            <div id=a6 class=led>
-            </div>
-          </div>
-        </div>
-        <div style="position:absolute;left:262;">
-          <div class="base">
-          </div>
-          <div class="ledpad" style="left:0;">
-            <div id=a5 class=led>
-            </div>
-          </div>
-          <div class="ledpad" style="left:22;">
-            <div id=a4 class=led>
-            </div>
-          </div>
-          <div class="ledpad" style="left:44;">
-            <div id=a3 class=led>
-            </div>
-          </div>
-        </div>
-        <div style="position:absolute;left:328;">
-          <div class="base" style="background-color:#701070;border-top-right-radius:4px;font-size:6px;">ADDRESS &nbsp;
-          </div>
-          <div class="ledpad" style="left:0;">
-            <div id=a2 class=led>
-            </div>
-          </div>
-          <div class="ledpad" style="left:22;">
-            <div id=a1 class=led>
-            </div>
-          </div>
-          <div class="ledpad" style="left:44;">
-            <div id=a0 class=led>
+            <div id=rotary0 class="rotary-switch" style="position:absolute;top:6px;right:7px;height:30px;width:30px" onclick="if (event && event.shiftKey) { if (--panel.rotary0 < 0) panel.rotary0 = 7; } else { if (++panel.rotary0 > 7) panel.rotary0 = 0; } rotary0.style.transform = 'rotate('+(panel.rotary0*45-45)+'deg)'; panel.autoIncr = 0;">
+              <div class="rotary-centre"></div>
             </div>
           </div>
         </div>
       </div>
-      <div style="position:absolute;top:40;left:450;font-size:6px;">
-        <div class="switch_background_top" style="width:240;height:46;border-radius:8;">
-          <div style="display:table;text-align:left;border-spacing:4px;">
-            <div style="display:table-row;height:14px">
-              <div class=leddiv id=s21 style="display:table-cell;">
-              </div>
-              <div style="display:table-cell;width:32">USER&nbsp;I
-              </div>
-              <div class=leddiv id=s19 style="display:table-cell;">
-              </div>
-              <div style="display:table-cell;width:32">SUPER&nbsp;I
-              </div>
-              <div class=leddiv id=s17 style="display:table-cell;">
-              </div>
-              <div style="display:table-cell;width:32">KERNEL&nbsp;I
-              </div>
-              <div class=leddiv id=s15 style="display:table-cell;">
-              </div>
-              <div style="display:table-cell;width:32">PROG&nbsp;PHY
-              </div>
-            </div>
-            <div style="display:table-row;height:18px">
-              <div class=leddiv id=s20 style="display:table-cell;">
-              </div>
-              <div style="display:table-cell;">USER&nbsp;D
-              </div>
-              <div class=leddiv id=s18 style="display:table-cell;">
-              </div>
-              <div style="display:table-cell">SUPER&nbsp;D
-              </div>
-              <div class=leddiv id=s16 style="display:table-cell;">
-              </div>
-              <div style="display:table-cell">KERNEL&nbsp;D
-              </div>
-              <div class=leddiv id=s14 style="display:table-cell;">
-              </div>
-              <div style="display:table-cell">CONS&nbsp;PHY
-              </div>
-            </div>
+
+      <div style="position:absolute;top:118px;left:32px;">
+        <div>
+          <div style="position:absolute;top:0px;left:0px;">POWER</div>
+          <div style="position:absolute;top:0px;left:28px;">LOCK</div>
+          <div style="position:absolute;top:38px;left:0px;">OFF</div>
+          <div style="position:absolute;top:6px;left:2px;height:32px;width:32px" onclick="if (event && event.shiftKey) { if (--panel.powerSwitch < -1) panel.powerSwitch = 1; } else { if (++panel.powerSwitch > 1) panel.powerSwitch = -1; } if (panel.powerSwitch < 0) { CPU.runState = STATE_HALT; } key.style.transform='rotate('+(panel.powerSwitch * 90 - 45)+'deg)';">
+            <div class="lock"></div>
+            <div class="keyBase"></div>
+            <div id=key class="key"></div>
           </div>
-          <div id=rotary0 class="rotary-switch" style="position:absolute;top:6;right:7;height:30px;width:30px" onclick="if (event && event.shiftKey) { if (--panel.rotary0 < 0) panel.rotary0 = 7; } else { if (++panel.rotary0 > 7) panel.rotary0 = 0; } rotary0.style.transform = 'rotate('+(panel.rotary0*45-45)+'deg)'; panel.autoIncr = 0;">
-            <div class="rotary-centre"> 
+        </div>
+
+        <div style="position:absolute;left:44px;">
+          <div style="position:absolute;left:0px;">
+            <div class="base" style="width:28px;"></div>
+            <div class="ledpad" style="left:0px;"><div id=d15 class=led></div></div>
+          </div>
+          <div style="position:absolute;left:22px;">
+            <div class="base" style="background-color:#701070;"></div>
+            <div class="ledpad" style="left:0px;"><div id=d14 class=led></div></div>
+            <div class="ledpad" style="left:22px;"><div id=d13 class=led></div></div>
+            <div class="ledpad" style="left:44px;"><div id=d12 class=led></div></div>
+          </div>
+          <div style="position:absolute;left:88px;">
+            <div class="base"></div>
+            <div class="ledpad" style="left:0px;"><div id=d11 class=led></div></div>
+            <div class="ledpad" style="left:22px;"><div id=d10 class=led></div></div>
+            <div class="ledpad" style="left:44px;"><div id=d9 class=led></div></div>
+          </div>
+          <div style="position:absolute;left:154px;">
+            <div class="base" style="background-color:#701070;"></div>
+            <div class="ledpad" style="left:0px;"><div id=d8 class=led></div></div>
+            <div class="ledpad" style="left:22px;"><div id=d7 class=led></div></div>
+            <div class="ledpad" style="left:44px;"><div id=d6 class=led></div></div>
+          </div>
+          <div style="position:absolute;left:220px;">
+            <div class="base"></div>
+            <div class="ledpad" style="left:0px;"><div id=d5 class=led></div></div>
+            <div class="ledpad" style="left:22px;"><div id=d4 class=led></div></div>
+            <div class="ledpad" style="left:44px;"><div id=d3 class=led></div></div>
+          </div>
+          <div style="position:absolute;left:286px;">
+            <div class="base" style="background-color:#701070;font-size:130%;">DATA &nbsp;</div>
+            <div class="ledpad" style="left:0px;"><div id=d2 class=led></div></div>
+            <div class="ledpad" style="left:22px;"><div id=d1 class=led></div></div>
+            <div class="ledpad" style="left:44px;"><div id=d0 class=led></div></div>
+          </div>
+        </div>
+        <div style="position:absolute;top:0px;left:418px;font-size:110%;">
+          <div class="switch_background_bottom" style="width:240px;height:46px;border-radius:8px;">
+            <div style="display:table;text-align:left;border-spacing:4px;">
+              <div style="display:table-row;height:14px">
+                <div class=leddiv id=s22 style="display:table-cell;"></div>
+                <div style="display:table-cell;width:64px">DATA PATHS</div>
+                <div class=leddiv id=s23 style="display:table-cell;"></div>
+                <div style="display:table-cell;width:46px">&micro; ADRS FPP/CPU</div>
+              </div>
+              <div style="display:table-row;height:14px">
+                <div class=leddiv id=s24 style="display:table-cell;"></div>
+                <div style="display:table-cell">BUS REGISTER</div>
+                <div class=leddiv id=s25 style="display:table-cell;"></div>
+                <div style="display:table-cell">DISPLAY REGISTER</div>
+              </div>
+            </div>
+            <div id=rotary1 class="rotary-switch" style="position:absolute;top:6px;right:7px;height:30px;width:30px" onclick="if (event && event.shiftKey) { if (--panel.rotary1 < 0) panel.rotary1 = 3; } else { if (++panel.rotary1 > 3) panel.rotary1 = 0; } rotary1.style.transform = 'rotate('+(panel.rotary1*45-45)+'deg)';">
+              <div class="rotary-centre"></div>
             </div>
           </div>
         </div>
       </div>
-      <div style="position:absolute;top:114;left:450;font-size:6px;">
-        <div class="switch_background_bottom" style="width:240;height:46;border-radius:8;">
-          <div style="display:table;text-align:left;border-spacing:4px;">
-            <div style="display:table-row;height:14px">
-              <div class=leddiv id=s22 style="display:table-cell;">
-              </div>
-              <div style="display:table-cell;width:64">DATA&nbsp;PATHS
-              </div>
-              <div class=leddiv id=s23 style="display:table-cell;">
-              </div>
-              <div style="display:table-cell;width:46">&micro;&nbsp;ADRS&nbsp;FPP/CPU
-              </div>
-            </div>
-            <div style="display:table-row;height:14px">
-              <div class=leddiv id=s24 style="display:table-cell;">
-              </div>
-              <div style="display:table-cell">BUS&nbsp;REGISTER
-              </div>
-              <div class=leddiv id=s25 style="display:table-cell;">
-              </div>
-              <div style="display:table-cell">DISPLAY&nbsp;REGISTER
-              </div>
-            </div>
-          </div>
-          <div id=rotary1 class="rotary-switch" style="position:absolute;top:6;right:7;height:30px;width:30px" onclick="if (event && event.shiftKey) { if (--panel.rotary1 < 0) panel.rotary1 = 3; } else { if (++panel.rotary1 > 3) panel.rotary1 = 0; } rotary1.style.transform = 'rotate('+(panel.rotary1*45-45)+'deg)';">
-            <div class="rotary-centre"> 
-            </div>
-          </div>
+
+      <div style="position:absolute;top:170px;left:32px;">
+        <img src="pdp11-45.svg" alt="pdp11-45" style="position:absolute;top:0px;left:0px;" width="132px">
+        <div style="position:absolute;top:0px;left:418px">
+          <div class="ledpad" style="left:0px;width:27px;">ADRS ERR<div id=s10 class=led style="left:9px;"></div></div>
+          <div class="ledpad" style="left:30px;width:27px;">RUN<div id=s9 class=led style="left:9px;"></div></div>
+          <div class="ledpad" style="left:60px;width:27px;">PAUSE<div id=s8 class=led style="left:9px;"></div></div>
+          <div class="ledpad" style="left:90px;width:27px;">MASTER<div id=s7 class=led style="left:9px;"></div></div>
+          <div class="ledpad" style="left:120px;width:27px;">USER<div id=s6 class=led style="left:9px;"></div></div>
+          <div class="ledpad" style="left:150px;width:27px;">SUPER<div id=s5 class=led style="left:9px;"></div></div>
+          <div class="ledpad" style="left:180px;width:27px;">KERNEL<div id=s4 class=led style="left:9px;"></div></div>
+          <div class="ledpad" style="left:210px;;width:27px;">DATA<div id=s3 class=led style="left:9px;"></div></div>
         </div>
       </div>
-      <div style="position:absolute;top:114;left:32;">
-        <div style="position:absolute;top:0;left:1;">POWER
-          </DIV>
-        <div style="position:absolute;top:0;left:26;">LOCK
-          </DIV>    
-		<div style="position:absolute;top:8;left:2;height:32px;width:32px"  onclick="if (event && event.shiftKey) { if (--panel.powerSwitch < -1) panel.powerSwitch = 1; } else { if (++panel.powerSwitch > 1) panel.powerSwitch = -1; } if (panel.powerSwitch < 0) { CPU.runState = STATE_HALT; } key.style.transform='rotate('+(panel.powerSwitch * 90 - 45)+'deg)';">
-			<div class="lock"> 
-			</div>
-			<div class="keyBase"> 
-			</div>
-			<div id=key class="key">
-			</div>
-		  </div>
-        <div style="position:absolute;top:46;left:4;">OFF
-          </DIV>
-        <div style="position:absolute;left:44;">
-          <div class="base" style="width:28;border-top-left-radius:4px;">
+
+      <div style="position:absolute;top:220px;left:32px;">
+        <div>
+          <div style="position:absolute;left:0px;">
+            <div class="switch_pad" style="left:0px;"><br style="line-height:10px;">17</div>
+            <div class="switch_pad" style="left:22px;"><br style="line-height:10px;">16</div>
+            <div class="switch_pad" style="left:44px;"><br style="line-height:10px;">15</div>
           </div>
-          <div class="ledpad" style="left:0;">
-            <div id=d15 class=led>
-            </div>
+          <div style="position:absolute;left:66px;">
+            <div class="switch_pad" style="left:0px;background-color:#701070;"><br style="line-height:10px;">14</div>
+            <div class="switch_pad" style="left:22px;background-color:#701070;"><br style="line-height:10px;">13</div>
+            <div class="switch_pad" style="left:44px;background-color:#701070;"><br style="line-height:10px;">12</div>
           </div>
-        </div>
-        <div style="position:absolute;left:66;">
-          <div class="base" style="background-color:#701070;">
+          <div style="position:absolute;left:132px;">
+            <div class="switch_pad" style="left:0px;"><br style="line-height:10px;">11</div>
+            <div class="switch_pad" style="left:22px;"><br style="line-height:10px;">10</div>
+            <div class="switch_pad" style="left:44px;"><br style="line-height:10px;">9</div>
           </div>
-          <div class="ledpad" style="left:0;">
-            <div id=d14 class=led>
-            </div>
+          <div style="position:absolute;left:198px;">
+            <div class="switch_pad" style="left:0px;background-color:#701070;"><br style="line-height:10px;">8</div>
+            <div class="switch_pad" style="left:22px;background-color:#701070;"><br style="line-height:10px;">7</div>
+            <div class="switch_pad" style="left:44px;background-color:#701070;"><br style="line-height:10px;">6</div>
           </div>
-          <div class="ledpad" style="left:22;">
-            <div id=d13 class=led>
-            </div>
+          <div style="position:absolute;left:264px;">
+            <div class="switch_pad" style="left:0px;"><br style="line-height:10px;">5</div>
+            <div class="switch_pad" style="left:22px;"><br style="line-height:10px;">4</div>
+            <div class="switch_pad" style="left:44px;"><br style="line-height:10px;">3</div>
           </div>
-          <div class="ledpad" style="left:44;">
-            <div id=d12 class=led>
-            </div>
+          <div style="position:absolute;left:330px;">
+            <div class="switch_pad" style="left:0px;background-color:#701070;"><br style="line-height:10px;">2</div>
+            <div class="switch_pad" style="left:22px;background-color:#701070;"><br style="line-height:10px;">1</div>
+            <div class="switch_pad" style="left:44px;background-color:#701070;"><br style="line-height:10px;">0</div>
           </div>
-        </div>
-        <div style="position:absolute;left:132;">
-          <div class="base">
-          </div>
-          <div class="ledpad" style="left:0;">
-            <div id=d11 class=led>
-            </div>
-          </div>
-          <div class="ledpad" style="left:22;">
-            <div id=d10 class=led>
-            </div>
-          </div>
-          <div class="ledpad" style="left:44;">
-            <div id=d9 class=led>
-            </div>
+          <div style="position:absolute;left:396px;">
+            <div class="switch_pad" style="left:22px;"><br style="line-height:10px;">LOAD<br>ADRS</div>
+            <div class="switch_pad" style="left:44px;background-color:#701070;"><br style="line-height:10px;">EXAM</div>
+            <div class="switch_pad" style="left:66px;"><br style="line-height:10px;">CONT</div>
+            <div class="switch_pad" style="left:88px;background-color:#701070;"><br style="line-height:10px;">ENABLE<br>HALT</div>
+            <div class="switch_pad" style="left:110px;"><br style="line-height:10px;">S INST<br>S BUS</div>
+            <div class="switch_pad" style="left:132px;background-color:#701070;"><br style="line-height:10px;">START</div>
+            <div class="switch_pad" style="left:176px;"><br style="line-height:10px;">DEP</div>
+            <div class="switch_pad" style="left:220px;background-color:#701070;"><br style="line-height:10px;">REG<br>EXAM</div>
+            <div class="switch_pad" style="left:242px;"><br style="line-height:10px;">REG<br>DEP</div>
           </div>
         </div>
-        <div style="position:absolute;left:196;">
-          <div class="base" style="background-color:#701070;">
+        <div style="position:absolute;top:32px;left:0px;">
+          <div style="position:absolute;left:0px;">
+            <div id=sw17 class="switchRed" style="left:0px;" onclick="setSwitch('sw17',131072);"></div>
+            <div id=sw16 class="switchRed" style="left:22px;" onclick="setSwitch('sw16',65536);"></div>
+            <div id=sw15 class="switchRed" style="left:44px;" onclick="setSwitch('sw15',32768);"></div>
           </div>
-          <div class="ledpad" style="left:0;">
-            <div id=d8 class=led>
-            </div>
+          <div style="position:absolute;left:66px;">
+            <div id=sw14 class="switchPurple" style="left:0px;" onclick="setSwitch('sw14',16384);"></div>
+            <div id=sw13 class="switchPurple" style="left:22px;" onclick="setSwitch('sw13',8192);"></div>
+            <div id=sw12 class="switchPurple" style="left:44px;" onclick="setSwitch('sw12',4096);"></div>
           </div>
-          <div class="ledpad" style="left:22;">
-            <div id=d7 class=led>
-            </div>
+          <div style="position:absolute;left:132px;">
+            <div id=sw11 class="switchRed" style="left:0px;" onclick="setSwitch('sw11',2048);"></div>
+            <div id=sw10 class="switchRed" style="left:22px;" onclick="setSwitch('sw10',1024);"></div>
+            <div id=sw9 class="switchRed" style="left:44px;" onclick="setSwitch('sw9',512);"></div>
           </div>
-          <div class="ledpad" style="left:44;">
-            <div id=d6 class=led>
-            </div>
+          <div style="position:absolute;left:198px;">
+            <div id=sw8 class="switchPurple" style="left:0px;" onclick="setSwitch('sw8',256);"></div>
+            <div id=sw7 class="switchPurple" style="left:22px;" onclick="setSwitch('sw7',128);"></div>
+            <div id=sw6 class="switchPurple" style="left:44px;" onclick="setSwitch('sw6',64);"></div>
           </div>
-          <div class="bytediv">&nbsp;
+          <div style="position:absolute;left:264px;">
+            <div id=sw5 class="switchRed" style="left:0px;" onclick="setSwitch('sw5',32);"></div>
+            <div id=sw4 class="switchRed" style="left:22px;" onclick="setSwitch('sw4',16);"></div>
+            <div id=sw3 class="switchRed" style="left:44px;" onclick="setSwitch('sw3',8);"></div>
           </div>
-        </div>
-        <div style="position:absolute;left:262;">
-          <div class="base">
-          </div>
-          <div class="ledpad" style="left:0;">
-            <div id=d5 class=led>
-            </div>
-          </div>
-          <div class="ledpad" style="left:22;">
-            <div id=d4 class=led>
-            </div>
-          </div>
-          <div class="ledpad" style="left:44;">
-            <div id=d3 class=led>
-            </div>
+          <div style="position:absolute;left:330px;">
+            <div id=sw2 class="switchPurple" style="left:0px;" onclick="setSwitch('sw2',4);"></div>
+            <div id=sw1 class="switchPurple" style="left:22px;" onclick="setSwitch('sw1',2);"></div>
+            <div id=sw0 class="switchPurple" style="left:44px;;" onclick="setSwitch('sw0',1);"></div>
           </div>
         </div>
-        <div style="position:absolute;left:328;">
-          <div class="base" style="background-color:#701070;border-top-right-radius:4px;font-size:6px;">DATA
-          </div>
-          <div class="ledpad" style="left:0;">
-            <div id=d2 class=led>
-            </div>
-          </div>
-          <div class="ledpad" style="left:22;">
-            <div id=d1 class=led>
-            </div>
-          </div>
-          <div class="ledpad" style="left:44;">
-            <div id=d0 class=led>
-            </div>
-          </div>
-        </div>
-        <div style="position:absolute;top:56;left:0;">
-          <img src="pdp11-45.svg" alt="pdp11-45" width="120">
-        </div>
-        <div style="position:absolute;top:56;left:392;">
-          <div class="ledpad" style="left:27;width:27;">ADRS ERR
-            <div id=s10 class=led style="left:9;">
-            </div>
-          </div>
-          <div class="ledpad" style="left:57;width:27;">RUN
-            <div id=s9 class=led style="left:9;">
-            </div>
-          </div>
-          <div class="ledpad" style="left:87;width:27;">PAUSE
-            <div id=s8 class=led style="left:9;">
-            </div>
-          </div>
-          <div class="ledpad" style="left:117;width:27;">MASTER
-            <div id=s7 class=led style="left:9;">
-            </div>
-          </div>
-          <div class="ledpad" style="left:147;width:27;">USER
-            <div id=s6 class=led style="left:9;">
-            </div>
-          </div>
-          <div class="ledpad" style="left:177;width:27;">SUPER
-            <div id=s5 class=led style="left:9;">
-            </div>
-          </div>
-          <div class="ledpad" style="left:207;width:27;">KERNEL
-            <div id=s4 class=led style="left:9;">
-            </div>
-          </div>
-          <div class="ledpad" style="left:237;width:27;">DATA
-            <div id=s3 class=led style="left:9;">
-            </div>
-          </div>
-        </div>
-      </div>
-      <div align="center" style="position:absolute;top:220;left:32;">
-        <div style="position:absolute;left:0;">
-          <div class="switch_pad" style="left:0;">17
-          </div>
-          <div class="switch_pad" style="left:22;">16
-          </div>
-          <div class="switch_pad" style="left:44;">15
-          </div>
-        </div>
-        <div style="position:absolute;left:66;">
-          <div class="switch_pad" style="left:0;background-color:#701070;">14
-          </div>
-          <div class="switch_pad" style="left:22;background-color:#701070;">13
-          </div>
-          <div class="switch_pad" style="left:44;background-color:#701070;">12
-          </div>
-        </div>
-        <div style="position:absolute;left:132;">
-          <div class="switch_pad" style="left:0;">11
-          </div>
-          <div class="switch_pad" style="left:22;">10
-          </div>
-          <div class="switch_pad" style="left:44;">9
-          </div>
-        </div>
-        <div style="position:absolute;left:198;">
-          <div class="switch_pad" style="left:0;background-color:#701070;">8
-          </div>
-          <div class="switch_pad" style="left:22;background-color:#701070;">7
-          </div>
-          <div class="switch_pad" style="left:44;background-color:#701070;">6
-          </div>
-        </div>
-        <div style="position:absolute;left:264;">
-          <div class="switch_pad" style="left:0;">5
-          </div>
-          <div class="switch_pad" style="left:22;">4
-          </div>
-          <div class="switch_pad" style="left:44;">3
-          </div>
-        </div>
-        <div style="position:absolute;left:330;">
-          <div class="switch_pad" style="left:0;background-color:#701070;">2
-          </div>
-          <div class="switch_pad" style="left:22;background-color:#701070;">1
-          </div>
-          <div class="switch_pad" style="left:44;background-color:#701070;">0
-          </div>
-        </div>
-        <div style="position:absolute;left:396;">
-          <div class="switch_pad" style="left:22;line-height:9px;">
-            <br>LOAD
-            <br>ADRS
-          </div>
-          <div class="switch_pad" style="left:44;background-color:#701070;">EXAM
-          </div>
-          <div class="switch_pad" style="left:66;">CONT
-          </div>
-          <div class="switch_pad" style="left:88;line-height:9px;background-color:#701070;">
-            <br>ENABLE
-            <br>HALT
-          </div>
-          <div class="switch_pad" style="left:110;line-height:9px;">
-            <br>S INST
-            <br>S BUS
-          </div>
-          <div class="switch_pad" style="left:132;background-color:#701070;">START
-          </div>
-          <div class="switch_pad" style="left:176;">DEP
-          </div>
-          <div class="switch_pad" style="left:220;background-color:#701070;line-height:9px;">
-            <br>REG
-            <br>EXAM
-          </div>
-          <div class="switch_pad" style="left:242;line-height:9px;">
-            <br>REG
-            <br>DEP
-          </div>
-        </div>
-      </div>
-      <div style="position:absolute;top:252;left:32;width:720;">
-        <div style="position:absolute;left:0;">
-          <div id=sw17 class="switchRed" style="left:0;" onclick="setSwitch('sw17',131072);">
-          </div>
-          <div id=sw16 class="switchRed" style="left:22;" onclick="setSwitch('sw16',65536);">
-          </div>
-          <div id=sw15 class="switchRed" style="left:44;" onclick="setSwitch('sw15',32768);">
-          </div>
-        </div>
-        <div style="position:absolute;left:66;">
-          <div id=sw14 class="switchPurple" style="left:0;" onclick="setSwitch('sw14',16384);">
-          </div>
-          <div id=sw13 class="switchPurple" style="left:22;" onclick="setSwitch('sw13',8192);">
-          </div>
-          <div id=sw12 class="switchPurple" style="left:44;" onclick="setSwitch('sw12',4096);">
-          </div>
-        </div>
-        <div style="position:absolute;left:132;">
-          <div id=sw11 class="switchRed" style="left:0;" onclick="setSwitch('sw11',2048);">
-          </div>
-          <div id=sw10 class="switchRed" style="left:22;" onclick="setSwitch('sw10',1024);">
-          </div>
-          <div id=sw9 class="switchRed" style="left:44;" onclick="setSwitch('sw9',512);">
-          </div>
-        </div>
-        <div style="position:absolute;left:198;">
-          <div id=sw8 class="switchPurple" style="left:0;" onclick="setSwitch('sw8',256);">
-          </div>
-          <div id=sw7 class="switchPurple" style="left:22;" onclick="setSwitch('sw7',128);">
-          </div>
-          <div id=sw6 class="switchPurple" style="left:44;" onclick="setSwitch('sw6',64);">
-          </div>
-        </div>
-        <div style="position:absolute;left:264;">
-          <div id=sw5 class="switchRed" style="left:0;" onclick="setSwitch('sw5',32);">
-          </div>
-          <div id=sw4 class="switchRed" style="left:22;" onclick="setSwitch('sw4',16);">
-          </div>
-          <div id=sw3 class="switchRed" style="left:44;" onclick="setSwitch('sw3',8);">
-          </div>
-        </div>
-        <div style="position:absolute;left:330;">
-          <div id=sw2 class="switchPurple" style="left:0;" onclick="setSwitch('sw2',4);">
-          </div>
-          <div id=sw1 class="switchPurple" style="left:22;" onclick="setSwitch('sw1',2);">
-          </div>
-          <div id=sw0 class="switchPurple" style="left:44;;" onclick="setSwitch('sw0',1);">
-          </div>
-        </div>
-        <div style="position:absolute;left:396;">
-          <div id=lt class="switchRed" style="left:0;background-color: #D0D0D0;border-top-color:#C0C0C0;border-bottom-color:#606060;" onclick="panel.lampTest = 1 - panel.lampTest; moveSwitch('lt', (panel.lampTest ? 36 : 22)); if (!panel.powerSwitch) { if (panel.lamp) panel.lamp = 1; }">
-          </div>
-          <div id=load class="switchRed" style="left:22;" onclick="moveSwitch('load', 36); setTimeout(function() {moveSwitch('load', 22);},300); if (!panel.powerSwitch) { CPU.displayAddress = CPU.switchRegister; if (panel.rotary0 > 1) CPU.displayAddress &= 0xffff; panel.autoIncr = 0; }">
-          </div>
-          <div id=examine class="switchPurple" style="left:44;" onclick="moveSwitch('examine', 36); setTimeout(function() {moveSwitch('examine', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) examineDeposit(-1); }">
-          </div>
-          <div id=continue class="switchPurple" style="left:66;" onclick="moveSwitch('continue', 36); setTimeout(function() {moveSwitch('continue', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) { CPU.runState = STATE_RUN; if (panel.halt) {  emulate(0); CPU.runState = STATE_HALT; } else emulate(1000);}}">
-          </div>
-          <div id=halt class="switchPurple" style="left:88;" onclick="panel.halt = 1 - panel.halt; moveSwitch('halt', (panel.halt ? 36 : 22)); if (!panel.powerSwitch) { if (panel.halt && CPU.runState != STATE_HALT) { CPU.runState = STATE_HALT; }}">
-          </div>
-          <div id=step class="switchRed" style="left:110;" onclick="panel.step = 1 - panel.step; moveSwitch('step', (panel.step ? 36 : 22));">
-          </div>
-          <div id=start class="switchRed" style="left:132;" onclick="moveSwitch('start', 36); setTimeout(function() {moveSwitch('start', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) {reset_iopage(); CPU.registerVal[7] = CPU.displayAddress & 0xffff; if (!panel.halt) {CPU.runState = STATE_RUN; emulate(1000);}}}">
-          </div>
-          <div class="switchRed" style="left:154;background-color: #D0D0D0;border-top-color:#C0C0C0;border-bottom-color:#606060;">
-          </div>
-          <div id=deposit class="switchRed" style="left:176;"  onclick="moveSwitch('deposit', 8); setTimeout(function() {moveSwitch('deposit', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) examineDeposit(CPU.switchRegister); }">
-          </div>
-          <div class="switchRed" style="left:198;background-color: #D0D0D0;border-top-color:#C0C0C0;border-bottom-color:#606060;">
-          </div>
-          <div id=regExam class="switchPurple" style="left:220;" onclick="moveSwitch('regExam', 36); setTimeout(function() {moveSwitch('regExam', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) regExamineDeposit(-1); }">
-          </div>
-          <div id=regDeposit class="switchRed" style="left:242;" onclick="moveSwitch('regDeposit', 8); setTimeout(function() {moveSwitch('regDeposit', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) regExamineDeposit(CPU.switchRegister); }">
-          </div>
+        <div style="position:absolute;top:32px;left:396px;">
+          <div id=lt class="switchRed" style="left:0px;background-color: #D0D0D0;border-top-color:#C0C0C0;border-bottom-color:#606060;" onclick="panel.lampTest = 1 - panel.lampTest; moveSwitch('lt', (panel.lampTest ? 36 : 22)); if (!panel.powerSwitch) { if (panel.lamp) panel.lamp = 1; }"></div>
+          <div id=load class="switchRed" style="left:22px;" onclick="moveSwitch('load', 36); setTimeout(function() {moveSwitch('load', 22);},300); if (!panel.powerSwitch) { CPU.displayAddress = CPU.switchRegister; if (panel.rotary0 > 1) CPU.displayAddress &= 0xffff; panel.autoIncr = 0; }"></div>
+          <div id=examine class="switchPurple" style="left:44px;" onclick="moveSwitch('examine', 36); setTimeout(function() {moveSwitch('examine', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) examineDeposit(-1); }"></div>
+          <div id=continue class="switchPurple" style="left:66px;" onclick="moveSwitch('continue', 36); setTimeout(function() {moveSwitch('continue', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) { CPU.runState = STATE_RUN; if (panel.halt) {  emulate(0); CPU.runState = STATE_HALT; } else emulate(1000);}}"></div>
+          <div id=halt class="switchPurple" style="left:88px;" onclick="panel.halt = 1 - panel.halt; moveSwitch('halt', (panel.halt ? 36 : 22)); if (!panel.powerSwitch) { if (panel.halt && CPU.runState != STATE_HALT) { CPU.runState = STATE_HALT; }}"></div>
+          <div id=step class="switchRed" style="left:110px;" onclick="panel.step = 1 - panel.step; moveSwitch('step', (panel.step ? 36 : 22));"></div>
+          <div id=start class="switchRed" style="left:132px;" onclick="moveSwitch('start', 36); setTimeout(function() {moveSwitch('start', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) {reset_iopage(); CPU.registerVal[7] = CPU.displayAddress & 0xffff; if (!panel.halt) {CPU.runState = STATE_RUN; emulate(1000);}}}"></div>
+          <div class="switchRed" style="left:154px;background-color: #D0D0D0;border-top-color:#C0C0C0;border-bottom-color:#606060;"></div>
+          <div id=deposit class="switchRed" style="left:176px;"  onclick="moveSwitch('deposit', 8); setTimeout(function() {moveSwitch('deposit', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) examineDeposit(CPU.switchRegister); }"></div>
+          <div class="switchRed" style="left:198px;background-color: #D0D0D0;border-top-color:#C0C0C0;border-bottom-color:#606060;"></div>
+          <div id=regExam class="switchPurple" style="left:220px;" onclick="moveSwitch('regExam', 36); setTimeout(function() {moveSwitch('regExam', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) regExamineDeposit(-1); }"></div>
+          <div id=regDeposit class="switchRed" style="left:242px;" onclick="moveSwitch('regDeposit', 8); setTimeout(function() {moveSwitch('regDeposit', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) regExamineDeposit(CPU.switchRegister); }"></div>
         </div>
       </div>
     </div>
-    <p>console
-      <br />
-      <textarea id=0 cols=132 rows=24 spellcheck=false style="font-family:Liberation Mono,Monaco,Courier New,Lucida Console,Consolas,DejaVu Sans Mono,Bitstream Vera Sans Mono,monospace">
-      </textarea>
-      <br />
+
+    <p style="clear:both">console
+      <br>
+      <textarea id=0 cols=132 rows=24 style='"font-family:Courier New,Lucida Console,Monaco,Consolas,Courier"' autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+      <br>
       <button onclick="dl11_input(0,3)">Ctrl/C
       </button>
       <button onclick="dl11_input(0,4)">Ctrl/D
@@ -679,29 +448,25 @@
       <button onclick="dl11_putchar(0,10);boot();">REBOOT
       </button>
     </p>
-	 <p><label>Paper tape reader file</label>
-	 <select id = "ptr" onchange="ptr11_init();">
-	   <option value = "">none</option>
-	   <option value = "DEC-11-AJPB-PB.ptap">BASIC-11 V007A</option>
-	   <option value = "DEC-11-O2PA-PB.ptap">ODT-11X-V004A</option>
-	   <option value = "ED-11-V004B-8K.ptap">ED-11-V004B</option>
-	 </select></label></p>
-    <br />
-    <div id="vt11"> 
-    </div>
-    <br />
-    <div id="vg11"> 
-    </div>
-    <br />
-    <div id="dl11"> 
-    </div>
-    <div id="lp11"> 
-    </div>
-    <br />
+     <p><label>Paper tape reader file</label>
+     <select id = "ptr" onchange="ptr11_init();">
+       <option value = "">none</option>
+       <option value = "DEC-11-AJPB-PB.ptap">BASIC-11 V007A</option>
+       <option value = "DEC-11-O2PA-PB.ptap">ODT-11X-V004A</option>
+       <option value = "ED-11-V004B-8K.ptap">ED-11-V004B</option>
+     </select></p>
+    <br>
+    <div id="vt11"></div>
+    <br>
+    <div id="vg11"></div>
+    <br>
+    <div id="dl11"></div>
+    <div id="lp11"></div>
+    <br>
     <h3>PDP 11/45 Emulator - February 2020
     </h3>
     <p>
-      This is a PDP 11/45 version of the 
+      This is a PDP 11/45 version of the
       <a href="pdp11.html">PDP 11/70
       </a> emulator. Because a PDP 11/45 has less memory it is not able to run some of the software a PDP 11/70 can.
     </p>
@@ -709,7 +474,7 @@
       The PDP 11/45 was released in 1972 and is an older less powerful version of the PDP 11/70 which was released in 1975. It is the second implementation of the PDP 11 following on from the PDP 11/20, which had an odd coupling of a 16 address bit processor to an 18 address bit bus. Naturally then, the PDP 11/45 had to include some form of memory management!
     </p>
     <p>
-      The PDP 11/45 has the same processor as the PDP 11/70 but lacks 22 bit addressing, restricting it to 124KW of physical memory instead of 4MB. It also lacks unibus mapping and a number of the PDP 11/70's special control registers. But still it has three addressing modes (Kernel, Supervisor, and User) and implements split Instruction and Data addressing. Split I&amp;D cause Instruction memory references based on the the use of the program counter to map seperately from general addressing. As a result a program can have 32768 words of instruction memory 
+      The PDP 11/45 has the same processor as the PDP 11/70 but lacks 22 bit addressing, restricting it to 124KW of physical memory instead of 4MB. It also lacks unibus mapping and a number of the PDP 11/70's special control registers. But still it has three addressing modes (Kernel, Supervisor, and User) and implements split Instruction and Data addressing. Split I&amp;D cause Instruction memory references based on the the use of the program counter to map seperately from general addressing. As a result a program can have 32768 words of instruction memory
       <b>AND
       </b> 32768 words of data. Some of the newer operating systems such as BSD require this capability to fit programs into memory. Sadly a PDP 11/45 can't run BSD because the system maximum memory limit of 124KW is not sufficient to load the entire operating system.
     </p>
@@ -740,21 +505,21 @@ Address Data    Code        Switch commands
 HALT, 140000, LOAD ADDRESS, START
 </pre>
     <p>
-      There are many PDP emulators out there and I have never seen what I consider to be a complete list. Some of the really interesting ones can be found by googling terms such as "vhdl pdp 11". However the gold standard seems to be SIMH at 
+      There are many PDP emulators out there and I have never seen what I consider to be a complete list. Some of the really interesting ones can be found by googling terms such as "vhdl pdp 11". However the gold standard seems to be SIMH at
       <a href='http://simh.trailing-edge.com'>Trailing Edge
-      </a>. A different approach to Javascript PDP 11 emulation can be found at 
+      </a>. A different approach to Javascript PDP 11 emulation can be found at
       <a href="http://www.pcjs.org/devices/pdp11/">www.pcjs.org
       </a>.
     </p>
     <p>
-      I believe that the first PDP 11 emulator would be SIM-11 written in FORTRAN before the first PDP 11/20 hardware was even built - see 
+      I believe that the first PDP 11 emulator would be SIM-11 written in FORTRAN before the first PDP 11/20 hardware was even built - see
       <a href="http://www.hampage.hu/pdp-11/birth.html"> How the PDP-11 Was Born
-      </a>. There is more PDP 11 history at  
+      </a>. There is more PDP 11 history at
       <a href="http://www.hampage.hu/pdp-11/main.html">www.hampage.hu
       </a>.
     </p>
     <p>
-      Of course if you want your own PDP 11/70 front panel you might consider a 
+      Of course if you want your own PDP 11/70 front panel you might consider a
       <a href="http://obsolescence.wixsite.com/obsolescence/pidp-11">PiDP-11
       </a>.
     </p>
@@ -786,11 +551,11 @@ HALT, 140000, LOAD ADDRESS, START
           <b>RK0
           </b>
         </td>
-        <td>Unix V5      
+        <td>Unix V5
         </td>
-        <td>Boot using: 
+        <td>Boot using:
           <b>unix
-          </b>  then login as 
+          </b>  then login as
           <b>root
           </b>
         </td>
@@ -800,7 +565,7 @@ HALT, 140000, LOAD ADDRESS, START
           <b>RK1
           </b>
         </td>
-        <td>RT11 v4.0 	
+        <td>RT11 v4.0
         </td>
         <td>The lightest/fastest OS here
         </td>
@@ -810,15 +575,15 @@ HALT, 140000, LOAD ADDRESS, START
           <b>RK2
           </b>
         </td>
-        <td>RSTS V06C-03 
+        <td>RSTS V06C-03
         </td>
-        <td>Boot and login as 
+        <td>Boot and login as
           <b>1,2
-          </b> with password 
+          </b> with password
           <b>SYSTEM
-          </b> or as 
+          </b> or as
           <b>11,70
-          </b> using 
+          </b> using
           <b>PDP
           </b>
         </td>
@@ -828,7 +593,7 @@ HALT, 140000, LOAD ADDRESS, START
           <b>RK3
           </b>
         </td>
-        <td>XXDP 		
+        <td>XXDP
         </td>
         <td>Diagnostic OS and utilities
         </td>
@@ -838,7 +603,7 @@ HALT, 140000, LOAD ADDRESS, START
           <b>RK4
           </b>
         </td>
-        <td>RT-11 3B 		
+        <td>RT-11 3B
         </td>
         <td>Distribution for RT-11 Version 3B
         </td>
@@ -848,7 +613,7 @@ HALT, 140000, LOAD ADDRESS, START
           <b>RK5
           </b>
         </td>
-        <td>RT-11 V5.4F	
+        <td>RT-11 V5.4F
         </td>
         <td>Distribution for RT-11 Version 5.4F
         </td>
@@ -858,9 +623,9 @@ HALT, 140000, LOAD ADDRESS, START
           <b>RL0
           </b>
         </td>
-        <td>BSD 2.9       
+        <td>BSD 2.9
         </td>
-        <td>Boot using: 
+        <td>Boot using:
           <b>rl(0,0)rlunix
           </b> &nbsp; CTRL/D to get to multiuser
         </td>
@@ -870,15 +635,15 @@ HALT, 140000, LOAD ADDRESS, START
           <b>RL2
           </b>
         </td>
-        <td>RSTS/E v7.0   
+        <td>RSTS/E v7.0
         </td>
-        <td>Option: &lt;LF&gt; Suboption: &lt;LF&gt;  ... Login as 
+        <td>Option: &lt;LF&gt; Suboption: &lt;LF&gt;  ... Login as
           <b>1,2
-          </b> using 
+          </b> using
           <b>SYSTEM
-          </b> or 
+          </b> or
           <b>11,70
-          </b> using 
+          </b> using
           <b>PDP
           </b>
         </td>
@@ -888,7 +653,7 @@ HALT, 140000, LOAD ADDRESS, START
           <b>RL3
           </b>
         </td>
-        <td>XXDP 		
+        <td>XXDP
         </td>
         <td>Larger version of diagnostics - including PDP 11/70 utilities
         </td>
@@ -898,9 +663,9 @@ HALT, 140000, LOAD ADDRESS, START
           <b>RP0
           </b>
         </td>
-        <td>ULTRIX-11 V3.1 
+        <td>ULTRIX-11 V3.1
         </td>
-        <td>CTRL/D to enter multiuser mode. Login as 
+        <td>CTRL/D to enter multiuser mode. Login as
           <b>root
           </b> with no password
         </td>
@@ -910,13 +675,13 @@ HALT, 140000, LOAD ADDRESS, START
           <b>RP2
           </b>
         </td>
-        <td>RSTS/E v9.6	
+        <td>RSTS/E v9.6
         </td>
-        <td>Answer boot questions and login as 
+        <td>Answer boot questions and login as
           <b>1,2
-          </b> (password 
+          </b> (password
           <b>SYSTEM
-          </b>) or 
+          </b>) or
           <b>11,70
           </b> (no password)
         </td>
@@ -926,17 +691,17 @@ HALT, 140000, LOAD ADDRESS, START
           <b>RP3
           </b>
         </td>
-        <td>RSX 11M v4.6	
+        <td>RSX 11M v4.6
         </td>
-        <td>Starts logged in as 
+        <td>Starts logged in as
           <b>1,2
-          </b> (password 
+          </b> (password
           <b>SYSTEM
-          </b>)  - user accounts 
+          </b>)  - user accounts
           <b>200,1
-          </b> (no password) or 
+          </b> (no password) or
           <b>11,70
-          </b> (password 
+          </b> (password
           <b>PDP
           </b>)
         </td>
@@ -944,10 +709,10 @@ HALT, 140000, LOAD ADDRESS, START
     </table>
     <p>
       <b>Note:
-      </b> Disks are shown in approximately order size. The 
+      </b> Disks are shown in approximately order size. The
       <a href="https://en.wikipedia.org/wiki/RK05">RK05
       </a> disks at the top are small and not too bad to use across a network.
-      The 
+      The
       <a href="http://www.columbia.edu/cu/computinghistory/rp06.html">RP06
       </a> disks at the bottom can be rather slow.
     </p>
@@ -1075,7 +840,7 @@ PI is approximately 0.3141592653580503d+01
     </h3>
     <pre>
 BOOT&gt; <b>boot rk1</b>
-RT-11SJ  V04.00C 
+RT-11SJ  V04.00C
 
 .D 56=5015
 
@@ -1094,7 +859,7 @@ do NOT require such modification.
 .D 56=0
 
 .<b>DIR</b>
- 
+
 SWAP  .SYS    25  01-Feb-82      RT11BL.SYS    65  01-Feb-82
 RT11SJ.SYS    67  01-Feb-82      RT11FB.SYS    80  01-Feb-82
 ...
@@ -1104,7 +869,7 @@ DUNGEO.SAV   216  07-Jun-86      DINDX .DAT    20  07-Jun-86
 DTEXT .DAT   383  07-Jun-86      ADVENT.SAV    93  20-Jul-85
 ADVENT.VAR    22  20-Jul-85      ADVTXT.TXT   125  20-Jul-85
 ODT11 .MAC    61  31-Oct-74      ANIMAL.SAV    22  02-Oct-85
-BLKJAK.SAV    20  02-Nov-85      FORTH .MAC   146           
+BLKJAK.SAV    20  02-Nov-85      FORTH .MAC   146
 RTLEM .MAC   363  06-Sep-73      BOOT  .MAC    26  24-Mar-75
  118 Files, 3392 Blocks
  1370 Free blocks
@@ -1120,19 +885,19 @@ Opening the mailbox reveals:
 ><b>READ LEAFLET</b>
 Taken.
                     Welcome to Dungeon!
- 
+
    Dungeon is a game of adventure, danger, and low cunning.  In it
 you will explore some of the most amazing territory ever seen by mortal
 man.  Hardened adventurers have run screaming from the terrors contained
 within.
- 
+
    In Dungeon, the intrepid explorer delves into the forgotten secrets
 of a lost labyrinth deep in the bowels of the earth, searching for
 vast treasures long hidden from prying eyes, treasures guarded by
 fearsome monsters and diabolical traps!
- 
+
    No DECsystem should be without one!
- 
+
    Dungeon was created at the Programming Technology Division of the MIT
 Laboratory for Computer Science by Tim Anderson, Marc Blank, Bruce
 Daniels, and Dave Lebling.  It was inspired by the Adventure game of
@@ -1140,7 +905,7 @@ Crowther and Woods, and the Dungeons and Dragons game of Gygax
 and Arneson.  The original version was written in MDL (alias MUDDLE).
 The current version was translated from MDL into FORTRAN IV by
 a somewhat paranoid DEC engineer who prefers to remain anonymous.
- 
+
    On-line information may be obtained with the commands HELP and INFO.
 ><b>QUIT</b>
 Your score would be   0 [total of 560 points], in    1 move.
@@ -1157,11 +922,11 @@ ERRORS DETECTED:  0
     <h3>Example boot of RSTS V06C-03
     </h3>
     <pre>
-BOOT&gt; <b>boot rk2</b>
+BOOT&gt; <b>boot rk2</b>
 
 RSTS V06C-03 Vixen (DK2)
 
-Option: 
+Option:
 
 You currently have: JOB MAX = 31, SWAP MAX = 28K.
 
@@ -1171,7 +936,7 @@ DD-MMM-YY? 31-OCT-76
 12:00 PM? 9:03
 INIT    V06C-03 RSTS V06C-03 Vixen
 
-Command File Name? 
+Command File Name?
 DETACHING...
 
 <b>I11/70</b>
@@ -1212,17 +977,17 @@ WELCOME TO ADVENTURE!!  WOULD YOU LIKE INSTRUCTIONS?
 
 <b>NO</b>
 YOU ARE STANDING AT THE END OF A ROAD BEFORE A SMALL BRICK BUILDING.
-AROUND YOU IS A FOREST.  A SMALL STREAM FLOWS OUT OF THE BUILDING AND 
-DOWN A GULLY. 
+AROUND YOU IS A FOREST.  A SMALL STREAM FLOWS OUT OF THE BUILDING AND
+DOWN A GULLY.
 
 <b>E</b>
-YOU ARE INSIDE A BUILDING, A WELL HOUSE FOR A LARGE SPRING. 
+YOU ARE INSIDE A BUILDING, A WELL HOUSE FOR A LARGE SPRING.
 
-THERE ARE SOME KEYS ON THE GROUND HERE. 
+THERE ARE SOME KEYS ON THE GROUND HERE.
 
-THERE IS A SHINY BRASS LAMP NEARBY. 
+THERE IS A SHINY BRASS LAMP NEARBY.
 
-THERE IS FOOD HERE. 
+THERE IS FOOD HERE.
 
 THERE IS A BOTTLE OF WATER HERE.
 
@@ -1230,12 +995,12 @@ THERE IS A BOTTLE OF WATER HERE.
 OK
 
 <b>QUIT</b>
-DO YOU REALLY WANT TO QUIT NOW? 
+DO YOU REALLY WANT TO QUIT NOW?
 
 <b>Y</b>
 OK
 YOU SCORED  32 OUT OF A POSSIBLE 350, USING    3 TURNS.
-YOU ARE OBVIOUSLY A RANK AMATEUR.  BETTER LUCK NEXT TIME. 
+YOU ARE OBVIOUSLY A RANK AMATEUR.  BETTER LUCK NEXT TIME.
 TO ACHIEVE THE NEXT HIGHER RATING, YOU NEED  4 MORE POINTS.
 
 Ready
@@ -1245,7 +1010,7 @@ Ready
                CREATIVE COMPUTING  MORRISTOWN, NEW JERSEY
 
 
-ACEY-DUCEY IS PLAYED IN THE FOLLOWING MANNER 
+ACEY-DUCEY IS PLAYED IN THE FOLLOWING MANNER
 THE DEALER (COMPUTER) DEALS TWO CARDS FACE UP
 YOU HAVE AN OPTION TO BET OR NOT BET DEPENDING
 ON WHETHER OR NOT YOU FEEL THE CARD WILL HAVE
@@ -1253,12 +1018,12 @@ A VALUE BETWEEN THE FIRST TWO.
 IF YOU DO NOT WANT TO BET, INPUT A 0
 YOU NOW HAVE 100 DOLLARS.
 
-HERE ARE YOUR NEXT TWO CARDS: 
- 4 
- 5 
+HERE ARE YOUR NEXT TWO CARDS:
+ 4
+ 5
 
 WHAT IS YOUR BET? <b>100</b>
- 9 
+ 9
 SORRY, YOU LOSE
 
 SORRY, FRIEND, BUT YOU BLEW YOUR WAD.
@@ -1274,8 +1039,8 @@ Ready
 RSTS V06C-03 Vixen status at 31-Oct-76, 09:05 AM Up: 2:34
 
 Job    Who    Where    What    Size    State    Run-Time   RTS
- 1    [OPR]   Det     ERRCPY    5K     SR            5.0  BASIC 
- 2    [SELF]  KB0     SYSTAT    8K     RN Lck        2.1  BASIC 
+ 1    [OPR]   Det     ERRCPY    5K     SR            5.0  BASIC
+ 2    [SELF]  KB0     SYSTAT    8K     RN Lck        2.1  BASIC
 
 Busy Devices: None
 
@@ -1308,7 +1073,6 @@ Elapsed time was 2 minutes
 Good morning
 
 </pre>
-</pre>
     <h3>Example boot of XXDP
     </h3>
     <pre>
@@ -1318,7 +1082,7 @@ CHMDKB1 XXDP+ DK MONITOR
 BOOTED VIA UNIT 3
 28K UNIBUS SYSTEM
 
-ENTER DATE (DD-MMM-YY): 
+ENTER DATE (DD-MMM-YY):
 
 RESTART ADDR: 152010
 THIS IS XXDP+.  TYPE "H" OR "H/L" FOR HELP.
@@ -1409,7 +1173,7 @@ PI      08:55 AM        31-Oct-74
 20 P = 0
 30 P1 = 1
 40 FOR K%=0% TO 10%
-50 P = P + 1.0/P1 * (4.0/(8%*K% + 1%) - 2.0/(8%*K% + 4%) - 1.0/(8%*K% + 
+50 P = P + 1.0/P1 * (4.0/(8%*K% + 1%) - 2.0/(8%*K% + 4%) - 1.0/(8%*K% +
 5%) - 1.0/(8%*K% + 6%))
 60 P1 = P1 * 16.0
 70 NEXT K%
@@ -1449,7 +1213,7 @@ ODT   .BAC       19      40     PROTECTION VIOLATION
 Ready
 
 <b>RUN $SYSTAT</b>
-OUTPUT STATUS TO? 
+OUTPUT STATUS TO?
 
 RSTS V04B-17 VIXEN STATUS ON 31-Oct-74 AT 08:56 AM UP: 1:37
 
@@ -1463,14 +1227,14 @@ DISK    OPEN     FREE   CLUSTER ERRORS  COMMENTS
 DK0      0       3184     1       0     PUBLIC
 
 SMALL  LARGE   ERRORS  HUNG TTY'S
- 68     0      0        0 
+ 68     0      0        0
 
 Ready
 
 <b>RUN PRIME</b>
- 1             2             3             5             7 
- 11            13            17            19            23 
- 29            31            37            41            43 
+ 1             2             3             5             7
+ 11            13            17            19            23
+ 29            31            37            41            43
  ...
 CPU TIME       2.3           SECONDS
 
@@ -1611,7 +1375,7 @@ DD-MMM-YY? <b>31-OCT-81</b>
 12:00 PM? <b>12:00</b>
 INIT    V7.0-07 RSTS V7.0-07 Vixen
 
-Command File Name? 
+Command File Name?
 DETACHING...
 ...
 
@@ -1619,13 +1383,13 @@ DETACHING...
 <b>HELLO 1/2</b>
 Password:
 Job 1 is detached under this account
-Job number to attach to? 
+Job number to attach to?
 1 other user is logged in under this account
 
 Ready
 
 <b>PRINT "HELLO WORLD",PI*4</b>
-HELLO WORLD    12.5664 
+HELLO WORLD    12.5664
 
 Ready
 
@@ -1650,8 +1414,8 @@ Ready
 RSTS V7.0-07 Vixen status at 31-Oct-81, 12:01 PM Up: 1:07
 
 Job    Who    Where    What    Size    State    Run-Time  Pri/RB   RTS
- 1    [SELF]  Det     ERRCPY   5/31K   SR            9.7    0/6   BASIC 
- 2    [SELF]  KB0     SYSTAT  11/31K   RN Lck        5.8   -8/6   BASIC 
+ 1    [SELF]  Det     ERRCPY   5/31K   SR            9.7    0/6   BASIC
+ 2    [SELF]  KB0     SYSTAT  11/31K   RN Lck        5.8   -8/6   BASIC
 
 Busy Devices: None
 
@@ -1699,7 +1463,7 @@ CHMDLD0 XXDP+ DL MONITOR
 BOOTED VIA UNIT 3
 28K UNIBUS SYSTEM
 
-ENTER DATE (DD-MMM-YY): 
+ENTER DATE (DD-MMM-YY):
 
 RESTART ADDR: 152010
 THIS IS XXDP+.  TYPE "H" OR "H/L" FOR HELP.
@@ -1725,11 +1489,11 @@ END PASS #     5  TOTAL ERRORS SINCE LAST REPORT      0
     <pre>
 BOOT&gt; <b>boot rp0</b>
 
-Sizing Memory...  
+Sizing Memory...
 
 Boot: hp(0,0)unix    (CTRL/C will abort auto-boot)
 
-Load device (? for help, <RETURN> if none) < ht tm ts tk rx rl rc > ? 
+Load device (? for help, &lt;RETURN&gt; if none) < ht tm ts tk rx rl rc > ?
 
 hp(0,0)unix: 14784+17024+8192+8000+8064+8000+8064+8128+8000+7808+7936+7936+7680+7360+1344
 
@@ -1749,7 +1513,7 @@ Restricted rights:
         to restrictions stated in your contract with
         Digital Equipment Corporation.
 
-*UNIX is a trademark of AT&T Bell Laboratories.
+*UNIX is a trademark of AT&amp;T Bell Laboratories.
 
 Mounted /dev/hp01 on /usr
 Mounted /dev/hp04 on /user1
@@ -1774,14 +1538,14 @@ vixen# <b>ps -xl</b>
    3 S   0     0     0 207   0   20   3756   4  73326 ?   0:28 swapper
    1 S   0     1     0   0  30   20   4770  13 114226 ?   0:00 /etc/init
 1101 S   0     2     1   0   5    0   6162  22 112272 ?   0:00 /etc/elc
-   0 S   0    41     1   0  30   20    109  16 114352 co  0:01 -sh 
-   1 R   0    49    41  22  51   20   5341  28        co  0:00 ps -xl 
+   0 S   0    41     1   0  30   20    109  16 114352 co  0:01 -sh
+   1 R   0    49    41  22  51   20   5341  28        co  0:00 ps -xl
  201 S   0    33     1   0  40   20   5251   7 140000 ?   0:00 /etc/update
  201 S   0    37     1   0  40   20   7017  13 140000 ?   0:00 /etc/cron
 vixen# <b>w</b>
  12:07pm  up 1 min,  1 user,  load average: 0.46, 0.11, 0.04
 User     tty       login@  idle   JCPU   PCPU  what
-root     console  12:06pm            1      1  w 
+root     console  12:06pm            1      1  w
 vixen# <b>mount</b>
 hp01 on /usr
 hp04 on /user1
@@ -1793,11 +1557,11 @@ Filesystem    total    kbytes  kbytes  percent
 /dev/hp04     148244       2  148242     0%    /user1
 vixen# <b>set</b>
 HOME=/
-IFS=    
+IFS=
 
 PATH=:/usr/ucb:/bin:/usr/bin:/etc
-PS1=vixen# 
-PS2=> 
+PS1=vixen#
+PS2=>
 SHELL=/bin/sh
 TERM=dw3
 TZ=GMT0
@@ -1824,7 +1588,7 @@ ddate        hosts        mkfs         nulib        rx2fmt       update
 dmesg        hosts.equiv  mknod        passwd       services     utmp
 elc          ifconfig     motd         printcap     syslog.conf  vipw
 eli          inetd.conf   mount        profile      syslog.pid   volcopy
-vixen# 
+vixen#
 </pre>
     <h3>Example boot of RSX 11M 4.6
     </h3>
@@ -1837,10 +1601,10 @@ BOOT&gt; <b>boot rp3</b>
 &gt;RED DB3:=LB:
 &gt;MOU DB3:RSXM56
 &gt;@DB3:[1,2]STARTUP
-&gt;* PLEASE ENTER TIME AND DATE (HR:MN DD-MMM-YY) [S]: 
-&gt;TIM 
+&gt;* PLEASE ENTER TIME AND DATE (HR:MN DD-MMM-YY) [S]:
+&gt;TIM
 00:00:14 29-APR-74
-&gt;* ENTER LINE WIDTH OF THIS TERMINAL [D D:132.]: 
+&gt;* ENTER LINE WIDTH OF THIS TERMINAL [D D:132.]:
 &gt;SET /BUF=TI:132.
 &gt;ACS SY:/BLKS=1024.
 &gt;;
@@ -1853,7 +1617,7 @@ BOOT&gt; <b>boot rp3</b>
 &gt;; (.;) comment delimiter from the beginning of each line.  These
 &gt;; commands may be useful for initializing the various facilities for
 &gt;; your installation or else they may provide a model with which to
-&gt;; tailor initialization commands for your particular installation. 
+&gt;; tailor initialization commands for your particular installation.
 &gt;;
 &gt;ELI /LOG
 00:00:16  ERRLOG -- Error Logging initialized
@@ -1865,35 +1629,35 @@ BOOT&gt; <b>boot rp3</b>
 &gt;INS LB:[1,54]BRU.TSK
 &gt;@ &lt;EOF&gt;
 &gt;<b>HELP</b>
- 
-        Help is available for many RSX-11M commands and utilities.  
- 
-        For help in logging into the system, type HELP HELLO or HELP 
+
+        Help is available for many RSX-11M commands and utilities.
+
+        For help in logging into the system, type HELP HELLO or HELP
         LOGIN.  You'll need a user-ID and password to log in.  Ask your
         system manager.
- 
+
         RSX-11M systems have two major command languages or CLIs:  MCR
         and DCL.  Once you log in, your terminal is set to either
         MCR or DCL.  (All terminals are set to MCR prior to logging in.)
- 
+
         The general forms of the HELP command are:
- 
+
                 &gt;HELP[/cli] topic [subtopic[s]]
- 
+
                 &gt;HELP commandname [switch]
- 
+
         Once you are logged in, you need not include the name of the CLI
-        to which your terminal is set.   
-        
+        to which your terminal is set.
+
         For information on what further help is available, type
         HELP[/MCR] LIST (brackets indicate an optional command line
         entry) or HELP/DCL.  For a listing of help available on other
         topics, type HELP[/MCR] MORE or HELP/DCL MORE.  You need not
         log in to get help.
- 
+
 &gt;<b>BYE</b>
 Have a nice day
-29-APR-74 00:00 TT0:  logged off VIXEN 
+29-APR-74 00:00 TT0:  logged off VIXEN
 &gt;
 </pre>
 
@@ -1942,7 +1706,7 @@ function examineDeposit(data) {
     trapState = CPU.trapPSW;
     CPU.trapPSW = -2; // Disable trap handling
     if (panel.rotary0 > 1) { // If a virtual address is selected...
-		CPU.displayAddress &= 0xffff;
+        CPU.displayAddress &= 0xffff;
         CPU.mmuMode = panel.rotary0 >> 1;
         if (CPU.mmuMode < 3) CPU.mmuMode--;
         if (data < 0) {
@@ -1957,7 +1721,7 @@ function examineDeposit(data) {
             CPU.mmuMode = (CPU.PSW >> 12) & 3; // Put back proper mode.
         }
     } else { // Physical address then
-		CPU.displayAddress &= 0x3fffff;
+        CPU.displayAddress &= 0x3fffff;
         if (CPU.displayAddress < IOBASE_UNIBUS && ((CPU.displayAddress & 1) || CPU.displayAddress >= MAX_MEMORY)) {
             result = -1; // Odd address / out of bounds check for unvalidated memory address
             CPU.statusLights |= 0x400; // Set ADRS ERR light

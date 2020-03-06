@@ -1325,25 +1325,25 @@ var kw11 = {
 
 function kw11_init() {
     kw11.csr = 0x80;
-}
-
-function kw11_interrupt() { // Called every 20 ms (50 Hz) to check whether time exhausted
-    var timeNow;
-    if (CPU.runState != STATE_HALT) {
-		timeNow = Date.now();
-		if (timeNow >= kw11.interruptTime) { // Time checked in steps to prevent time loss
-			kw11.csr |= 0x80; //Set DONE
-			if (kw11.csr & 0x40) {
-				interrupt(1, 0, 6 << 5, 0100);
-			}
-			if (timeNow >= kw11.interruptTime + (60 * 50 * 20)) { // Give up exactness if more than a minute behind
-				kw11.interruptTime = timeNow;
-			}
-			kw11.interruptTime += 20;
-		}
+    if (kw11.timerId == null) { // If not initialized set timer for every 20ms (50Hz)
+        kw11.timerId = setTimeout(kw11_interrupt, 20);
     }
 }
 
+function kw11_interrupt() { // Called every 20 ms (50 Hz) to check whether time exhausted
+    var timeNow = Date.now();
+    kw11.interruptTime += 20;
+    if (timeNow - kw11.interruptTime > 30000) { // Try to time accurately but give up if 30 seconds behind
+        kw11.interruptTime = timeNow + 20;
+    }
+    setTimeout(kw11_interrupt, Math.max(4, kw11.interruptTime - timeNow));
+    if (CPU.runState != STATE_HALT) {
+        kw11.csr |= 0x80; //Set DONE
+        if (kw11.csr & 0x40) { // If IE
+            interrupt(1, 0, 6 << 5, 0100);
+        }
+    }
+}
 
 
 // Initialize unibus things for a reset instruction
@@ -1633,19 +1633,15 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
                         result &= 0x40;
                         if ((result ^ kw11.csr) & 0x40) { // Is IE changing?
                             if (result & 0x40) { // If turning on interrupt now for diags (otherwise timing is too slow)
-                                if (kw11.timerId == null) { // If not initialized set timer for every 20ms (50Hz)
-                                    kw11.timerId = setInterval(kw11_interrupt, 20);
-                                }
-                                kw11.interruptTime = Date.now() + 20;
-                                result |= 0x80;
-                                interrupt(1, 0, 6 << 5, 0100);
+                                result |= 0x80; //Set DONE
+                                interrupt(1, 16, 6 << 5, 0100);
                             } else {
                                 interrupt(1, -1, 6 << 5, 0100); // Clear anything already in queue
                             }
                         }
                         kw11.csr = result;
                     }
-                    //console.log("KW11 " + result.toString(8) + " " + physicalAddress.toString(8) + " " + data.toString(8));
+                    //console.log("KW11 " + physicalAddress.toString(8) + " " + byteFlag + " " + data.toString(8) + " => " + result.toString(8) + " @" + CPU.registerVal[7].toString(8));
                     break;
                 case 017777516: // line printer lpdb buffer
                     result = insertData(lp11.lpdb, physicalAddress, data, byteFlag);

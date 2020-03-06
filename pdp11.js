@@ -1098,8 +1098,8 @@ function emulate(loopCount) {
         dstAddr,
         result = loopCount,
         virtualAddress, savePSW, reg;
+    var loopTime = Date.now() + 8;
     var CPU = window.CPU;
-    var timeNow;
     if (CPU.runState != STATE_RUN) {
         return;
     }
@@ -2144,39 +2144,19 @@ function emulate(loopCount) {
         }
 
         if (--loopCount <= 0) { // When loopCount reaches zero do timer/exit checks
-            timeNow = Date.now();
-            if (timeNow >= kw11.interruptTime) { // Time checked in steps to prevent time loss
-                kw11.csr |= 0x80; //Set DONE
-                if (kw11.csr & 0x40) {
-                    if (CPU.runState == STATE_WAIT) {
-                        CPU.runState = STATE_RUN; // Ensure not in WAIT otherwise interrupt calls back
-                    }
-                    interrupt(1, 0, 6 << 5, 0100);
-                }
-                if (timeNow >= kw11.interruptTime + (30 * 50 * 20)) { // Give up exactness if more than 30 seconds behind
-                    kw11.interruptTime = timeNow;
-                }
-                kw11.interruptTime += 20;
+            if (Date.now() >= loopTime || loopCount < 0) {
                 break;
             }
-            if (loopCount < 0) {
-                break;
-            } else {
-                loopCount = 4000;
-            }
+            loopCount = 4000;
         }
     } while (1);
 
     if (CPU.runState == STATE_RUN) {
         CPU.displayDataPaths = result & 0xffff;
+        setTimeout(emulate, 0, 1000); // immediately schedule another batch of instructions
     } else {
         CPU.displayDataPaths = CPU.registerVal[0];
         CPU.displayAddress = CPU.registerVal[7];
-    }
-
-    if (CPU.runState == STATE_RUN) {
-        setTimeout(emulate, 0, 1000); // immediately schedule another batch of instructions
-    } else {
         if (CPU.runState == STATE_RESET) {
             CPU.runState = STATE_RUN;
             setTimeout(emulate, 60, 1000); // schedule instructions after a reset pause

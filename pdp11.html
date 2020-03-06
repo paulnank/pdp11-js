@@ -171,7 +171,7 @@
     <div class="panel">
 
       <div style="position:absolute;top:42px;left:32px;">
-        <img src="pdp11-70.svg" alt="pdp11-70" style="position:absolute;top:0px;left:0px;" width="132">
+        <img src="pdp11-70.svg" alt="pdp11-70" style="position:absolute;top:0px;left:0px;" width="132px">
         <div style="position:absolute;top:0px;left:220px;">
           <div style="position:absolute;left:0px;">
             <div class="ledpad" style="left:0px;width:22px;">PAR<br>ERR<div id=s11 class=led></div></div>
@@ -233,15 +233,13 @@
             <div class="base"></div>
             <div class="ledpad" style="left:0px;"><div id=a5 class=led></div></div>
             <div class="ledpad" style="left:22px;"><div id=a4 class=led></div></div>
-            <div class="ledpad" style="left:44px;"><div id=a3 class=led></div>
-            </div>
+            <div class="ledpad" style="left:44px;"><div id=a3 class=led></div></div>
           </div>
           <div style="position:absolute;left:418px;">
             <div class="base" style="background-color:#701070;font-size:130%;">ADDRESS &nbsp;</div>
             <div class="ledpad" style="left:0px;"><div id=a2 class=led></div></div>
             <div class="ledpad" style="left:22px;"><div id=a1 class=led></div></div>
-            <div class="ledpad" style="left:44px;"><div id=a0 class=led></div>
-            </div>
+            <div class="ledpad" style="left:44px;"><div id=a0 class=led></div></div>
           </div>
         </div>
         <div class="switch_background_top" style="position:absolute;top:8px;left:502px;">
@@ -277,7 +275,7 @@
       <div style="position:absolute;top:160px;left:32px;">
         <div>
           <div style="position:absolute;top:0px;left:0px;">POWER</div>
-          <div style="position:absolute;top:0px;left:30px;">LOCK</div>
+          <div style="position:absolute;top:0px;left:28px;">LOCK</div>
           <div style="position:absolute;top:38px;left:0px;">OFF</div>
           <div style="position:absolute;top:6px;left:2px;height:32px;width:32px" onclick="if (event && event.shiftKey) { if (--panel.powerSwitch < -1) panel.powerSwitch = 1; } else { if (++panel.powerSwitch > 1) panel.powerSwitch = -1; } if (panel.powerSwitch < 0) { CPU.runState = STATE_HALT; } key.style.transform='rotate('+(panel.powerSwitch * 90 - 45)+'deg)';">
             <div class="lock"></div>
@@ -289,7 +287,8 @@
           <div style="position:absolute;left:66px;">
             <div class="base" style="width:44px;text-align:center;background-color:#000000;font-size:130%;">PARITY</div>
             <div class="ledpad" style="left:0px;font-size:110%;">HIGH<div id=s13 class=led></div></div>
-            <div class="ledpad" style="left:22px;font-size:110%;">LOW<div id=s12 class=led></div></div></div>
+            <div class="ledpad" style="left:22px;font-size:110%;">LOW<div id=s12 class=led></div></div>
+          </div>
           <div style="position:absolute;left:132px;">
             <div class="base" style="width:28px;"></div>
             <div class="ledpad" style="left:0px;"><div id=d15 class=led></div></div>
@@ -331,11 +330,11 @@
               <div class=leddiv id=s22 style="display:table-cell;"></div>
               <div style="display:table-cell;">DATA<br>PATHS</div>
               <div class=leddiv id=s23 style="display:table-cell;"></div>
-              <div style="display:table-cell;">&micro;&nbsp;ADRS<br>FPP/CPU</div>
+              <div style="display:table-cell;">&micro; ADRS<br>FPP/CPU</div>
             </div>
             <div style="display:table-row;">
               <div class=leddiv id=s24 style="display:table-cell;"></div>
-              <div style="display:table-cell;">BUS&nbsp;REG</div>
+              <div style="display:table-cell;">BUS REG</div>
               <div class=leddiv id=s25 style="display:table-cell;"></div>
               <div style="display:table-cell;">DISPLAY<br>REGISTER</div>
             </div>
