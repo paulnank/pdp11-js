@@ -1412,10 +1412,13 @@ function emulate(loopCount) {
                                             result |= 0xffffffff << (src - 49);
                                         }
                                     } else { // shift left (1-31)
-                                        dst = result;
+                                        dst = result << 16;
+                                        dst >>>= (31 - src); // EQKC confirms ANY change of sign during shift sets V :-(
+                                        if (dst && dst != (0xffff0000 >>> (31 - src))) {
+                                            CPU.flagV = 0x8000;
+                                        }
                                         result <<= src;
                                         CPU.flagC = result;
-                                        CPU.flagV = dst ^ result;
                                     }
                                 }
                                 CPU.registerVal[reg] = result & 0xffff;
@@ -1442,12 +1445,13 @@ function emulate(loopCount) {
                                             result |= 0xffffffff << (src - 33);
                                         }
                                     } else { // shift left (1-31)
-                                        dst = result;
+                                        dst = result >>> (31 - src); // EQKC confirms ANY change of sign during shift sets V :-(
+                                        if (dst && dst != (0xffffffff >>> (31 - src))) {
+                                            CPU.flagV = 0x8000;
+                                        }
                                         result <<= (src - 1);
                                         CPU.flagC = result >> 15;
                                         result <<= 1;
-                                        CPU.flagV = (dst ^ result) >> 16;
-
                                     }
                                 }
                                 CPU.registerVal[reg] = (result >> 16) & 0xffff;
@@ -2153,7 +2157,7 @@ function emulate(loopCount) {
                     kw11.interruptTime = timeNow;
                 }
                 kw11.interruptTime += 20;
-				break;
+                break;
             }
             if (loopCount < 0) {
                 break;
