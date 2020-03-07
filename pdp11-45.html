@@ -25,7 +25,7 @@
         top: 0px;
         left: 0px;
         height: 10px;
-        width: 66px;
+        width: 65px;
         background-color: #EA2020;
         text-align: right;
         position: absolute;
@@ -36,8 +36,8 @@
         height: 34px;
         width: 21px;
         background-color: black;
-        border-bottom-left-radius: 6px;
-        border-bottom-right-radius: 6px;
+        border-bottom-left-radius: 5px;
+        border-bottom-right-radius: 5px;
         position: absolute;
         float: left;
       }
@@ -53,7 +53,7 @@
       .switch_background_top {
         height: 90px;
         width: 154px;
-        border-radius: 5px;
+        border-radius: 4px;
         background-color: #000000;
         position: absolute;
         float: left;
@@ -61,7 +61,7 @@
       .switch_background_bottom {
         height: 44px;
         width: 154px;
-        border-radius: 5px;
+        border-radius: 4px;
         background-color: #000000;
         position: absolute;
         float: left;
@@ -70,7 +70,7 @@
         height: 28px;
         width: 21px;
         background-color: #D01010;
-        border-radius: 6px;
+        border-radius: 4px;
         position: absolute;
         float: left;
       }
@@ -173,7 +173,7 @@
       <div style="position:absolute;top:42px;left:32px;">
         <div style="position:absolute;top:0px;left:0px;">
           <div style="position:absolute;left:0px;">
-            <div class="base"></div>
+            <div class="base" style="border-top-left-radius:4px;"></div>
             <div class="ledpad" style="left:0px;"><div id=a17 class=led></div></div>
             <div class="ledpad" style="left:22px;"><div id=a16 class=led></div></div>
             <div class="ledpad" style="left:44px;"><div id=a15 class=led></div></div>
@@ -203,7 +203,7 @@
             <div class="ledpad" style="left:44px;"><div id=a3 class=led></div></div>
           </div>
           <div style="position:absolute;left:330px;">
-            <div class="base" style="background-color:#701070;font-size:130%;">ADDRESS &nbsp;</div>
+            <div class="base" style="background-color:#701070;border-top-right-radius:4px;font-size:130%;">ADDRESS &nbsp;</div>
             <div class="ledpad" style="left:0px;"><div id=a2 class=led></div></div>
             <div class="ledpad" style="left:22px;"><div id=a1 class=led></div></div>
             <div class="ledpad" style="left:44px;"><div id=a0 class=led></div></div>
@@ -254,7 +254,7 @@
 
         <div style="position:absolute;left:44px;">
           <div style="position:absolute;left:0px;">
-            <div class="base" style="width:28px;"></div>
+            <div class="base" style="width:21px;border-top-left-radius:4px;"></div>
             <div class="ledpad" style="left:0px;"><div id=d15 class=led></div></div>
           </div>
           <div style="position:absolute;left:22px;">
@@ -282,7 +282,7 @@
             <div class="ledpad" style="left:44px;"><div id=d3 class=led></div></div>
           </div>
           <div style="position:absolute;left:286px;">
-            <div class="base" style="background-color:#701070;font-size:130%;">DATA &nbsp;</div>
+            <div class="base" style="background-color:#701070;border-top-right-radius:4px;font-size:130%;">DATA &nbsp;</div>
             <div class="ledpad" style="left:0px;"><div id=d2 class=led></div></div>
             <div class="ledpad" style="left:22px;"><div id=d1 class=led></div></div>
             <div class="ledpad" style="left:44px;"><div id=d0 class=led></div></div>
@@ -420,7 +420,7 @@
 
     <p style="clear:both">console
       <br>
-      <textarea id=0 cols=132 rows=24 style='"font-family:Courier New,Lucida Console,Monaco,Consolas,Courier"' autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+      <textarea id=0 cols=132 rows=24 style="font-family:'Courier New',Courier,'Lucida Console',Monaco,monospace;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
       <br>
       <button onclick="dl11_input(0,3)">Ctrl/C
       </button>
