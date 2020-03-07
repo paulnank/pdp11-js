@@ -4,44 +4,40 @@
 ## Example boot of Unix V5
 
 ```
-BOOT> boot rk0
+Boot> boot rk0
 @unix
 
 login: root
-# date
-Fri Mar 21 12:09:02 EST 1975
-# chdir /etc
-# pwd
-../etc
-# ls -al
-total 40
-drwxr-xr-x  2 bin       240 Mar 21 12:07 .
-drwxr-xr-x  9 bin       160 Jan 29 16:14 ..
--rwxr--r--  1 bin       474 Nov 26 18:13 getty
--rwxr-xr-x  1 bin      1446 Nov 26 18:13 glob
--rwxr--r--  1 bin      1972 Nov 26 18:13 init
--rwxr-xr-x  1 bin       814 Nov 26 18:13 lpd
--rwxr--r--  1 bin      4136 Nov 26 18:13 mkfs
--rwxr--r--  1 bin      1800 Nov 26 18:13 mknod
--rwsr-xr-x  1 root     2078 Nov 26 18:13 mount
--rw-r--r--  1 bin        49 Nov 26 18:13 passwd
--rw-r--r--  1 bin        70 Nov 26 18:13 rc
--rw-r--r--  1 bin        56 Nov 26 18:13 ttys
--rwsr-xr-x  1 root     1990 Nov 26 18:13 umount
--rwxr-xr-x  1 bin        32 Nov 26 18:13 update
--rw-r--r--  1 root      144 Mar 21 12:09 utmp
 # cat /etc/passwd
 root::0:1::/:
 daemon::1:1::/bin:
 bin::3:1::/bin:
-# cal 10 1981
-      Oct 1981
- S  M Tu  W Th  F  S
-             1  2  3
- 4  5  6  7  8  9 10
-11 12 13 14 15 16 17
-18 19 20 21 22 23 24
-25 26 27 28 29 30 31
+# who
+root    tty8 Mar 21 12:09
+# chdir /usr/sys/ken
+# pwd
+../usr/sys/ken
+# ls -al
+total 121
+drwxr-xr-x  2 bin       352 Nov 26 18:13 .
+drwxr-xr-x  5 bin       384 Nov 26 18:13 ..
+-rw-r--r--  1 bin      3855 Nov 26 18:13 alloc.c
+-rw-r--r--  1 bin      2159 Nov 26 18:13 clock.c
+-rw-r--r--  1 bin      2662 Nov 26 18:13 fio.c
+-rw-r--r--  1 bin      2941 Nov 26 18:13 iget.c
+-rw-r--r--  1 bin      2674 Nov 26 18:13 main.c
+...
+# ls -al /usr/games
+total 64
+drwxr-xr-x  2 bin       144 Nov 26 18:13 .
+drwxr-xr-x 14 bin       224 Nov 26 18:13 ..
+-rwxr-xr-x  1 bin      1562 Nov 26 18:13 bj
+-rwxr-xr-x  1 bin     16268 Nov 26 18:13 chess
+-rwxr-xr-x  1 bin      2468 Nov 26 18:13 cubic
+-rwxr-xr-x  1 bin       624 Nov 26 18:13 moo
+-rwxr-xr-x  1 bin      2192 Nov 26 18:13 ttt
+-rw-rw-rw-  1 bin       294 Nov 26 18:13 ttt.k
+-rwxr-xr-x  1 bin      5386 Nov 26 18:13 wump
 # ls -al /bin
 total 339
 drwxr-xr-x  2 bin       944 Nov 26 18:13 .
@@ -51,7 +47,71 @@ drwxr-xr-x  9 bin       160 Jan 29 16:14 ..
 -rwxr-xr-x  1 bin      6042 Nov 26 18:13 bas
 -rwxr-xr-x  1 bin       152 Nov 26 18:13 cat
 -rwxr-xr-x  1 bin      5668 Nov 26 18:13 cc
+....
+# ls -al /usr/source/s2
+total 281
+drwxr-xr-x  2 bin       848 Jan  2 19:36 .
+drwxr-xr-x  7 bin       112 Nov 26 18:13 ..
+-rw-r--r--  1 bin      4233 Nov 26 18:13 mail.c
+-rw-r--r--  1 bin       588 Nov 26 18:13 mesg.s
+-rw-r--r--  1 bin      1088 Nov 26 18:13 mkdir.s
+-rw-r--r--  1 bin      6922 Nov 26 18:13 mkfs.c
+-rw-r--r--  1 bin       563 Nov 26 18:13 mknod.c
 ...
+# chdir /
+# cal 10 1981
+Oct 1981
+S  M Tu  W Th  F  S
+1  2  3
+4  5  6  7  8  9 10
+11 12 13 14 15 16 17
+18 19 20 21 22 23 24
+25 26 27 28 29 30 31
+# bas
+print sqr(2)
+1.414213562
+10 print "Calculating e"
+20 p = 20
+30 k = 1
+40 e = 0
+50 for x=1 p
+60 e = e + 1/k
+70 k = k * x
+80 next x
+90 print "e=" e " (" exp(1) ")"
+run
+Calculating e
+e=2.718281828 (2.718281828)
+CTRL/D
+# cat > hello.c
+main(argc, argv)
+char **argv;
+{
+printf("Hello world\n");
+}
+CTRL/D
+# cc hello.c
+# a.out
+Hello world
+# cat > pi.f
+c PI via Nilakantha series: 3 + 4/(2*3*4) - 4/(4*5*6) + 4/(6*7*8) ...
+      double precision pi, n, d
+      pi = 3.0
+      n = 4.0
+      d = 2.0
+      do 25 i=1,3000
+        pi = pi + n / (d * (d + 1.0) * (d + 2.0))
+        d = d + 2.0
+        n = -n
+ 25     continue
+      write(6,70) pi
+ 70   format('PI is approximately ', d2.16)
+      end
+CTRL/D
+# fc pi.f
+# a.out
+PI is approximately 0.3141592653580503d+01
+#
 
 ```
 
@@ -59,95 +119,106 @@ drwxr-xr-x  9 bin       160 Jan 29 16:14 ..
 ##Example boot of RT11 v4.0
 
 ```
-BOOT> boot rk1
+Boot> boot rk1
 RT-11SJ  V04.00C
 
 .D 56=5015
 
 .TYPE V4USER.TXT
 Welcome to RT-11 Version 4. RT-11 V04 provides new hardware support
-and some major enhancements over Version 3B
-...
+and some major enhancements over Version 3B.
+
+Please use the HELP command;  it describes the new options in many
+of the utilities.
+
+If you are using a terminal that requires fill characters,
+modify location 56 with a Deposit command before proceeding with
+system installation. LA36 DECwriter II and VT52 DECscope terminals
+do NOT require such modification.
+
 .D 56=0
-
-.MAC BOOT
-ERRORS DETECTED:  0
-
-.LINK BOOT
-
-.DIR BOOT
-
-BOOT  .MAC    16                 BOOT  .OBJ     4
-BOOT  .SAV     4
- 3 Files, 24 Blocks
- 2851 Free blocks
 
 .DIR
 
 SWAP  .SYS    25  01-Feb-82      RT11BL.SYS    65  01-Feb-82
 RT11SJ.SYS    67  01-Feb-82      RT11FB.SYS    80  01-Feb-82
-TT    .SYS     2  01-Feb-82      DT    .SYS     3  01-Feb-82
-DP    .SYS     3  01-Feb-82      DX    .SYS     3  01-Feb-82
 ...
+DISMT2.COM     8  01-Feb-82      DUNGEO.COM     1  07-Jun-86
+DSAVE .DAT    10  07-Jun-86      ADVENT.DOC     4  20-Jul-85
+DUNGEO.SAV   216  07-Jun-86      DINDX .DAT    20  07-Jun-86
+DTEXT .DAT   383  07-Jun-86      ADVENT.SAV    93  20-Jul-85
+ADVENT.VAR    22  20-Jul-85      ADVTXT.TXT   125  20-Jul-85
+ODT11 .MAC    61  31-Oct-74      ANIMAL.SAV    22  02-Oct-85
+BLKJAK.SAV    20  02-Nov-85      FORTH .MAC   146
+RTLEM .MAC   363  06-Sep-73      BOOT  .MAC    26  24-Mar-75
+ 118 Files, 3392 Blocks
+ 1370 Free blocks
 
-.R ADVENT
+.R DUNGEO
+Welcome to Dungeon.                     This version created 10-AUG-78.
+You are in an open field west of a big white house with a boarded
+front door.
+There is a small mailbox here.
+>OPEN MAILBOX
+Opening the mailbox reveals:
+  A leaflet.
+>READ LEAFLET
+Taken.
+                    Welcome to Dungeon!
 
-WELCOME TO ADVENTURE!!  WOULD YOU LIKE INSTRUCTIONS?
+   Dungeon is a game of adventure, danger, and low cunning.  In it
+you will explore some of the most amazing territory ever seen by mortal
+man.  Hardened adventurers have run screaming from the terrors contained
+within.
 
-YES
-SOMEWHERE NEARBY IS COLOSSAL CAVE, WHERE OTHERS HAVE FOUND FORTUNES IN
-TREASURE AND GOLD, THOUGH IT IS RUMORED THAT SOME WHO ENTER ARE NEVER 
-SEEN AGAIN.  MAGIC IS SAID TO WORK IN THE CAVE.  I WILL BE YOUR EYES
-AND HANDS.  DIRECT ME WITH COMMANDS OF 1 OR 2 WORDS.  I SHOULD WARN 
-YOU THAT I LOOK AT ONLY THE FIRST FOUR LETTERS OF EACH WORD, SO YOU'LL
-HAVE TO ENTER "NORTHEAST" AS "NE" TO DISTINGUISH IT FROM "NORTH". 
-(SHOULD YOU GET STUCK, TYPE "HELP" FOR SOME GENERAL HINTS.  FOR INFOR-
-MATION ON HOW TO END YOUR ADVENTURE, ETC., TYPE "INFO".)
-      - - - 
-THIS PROGRAM WAS ORIGINALLY DEVELOPED BY WILLIE CROWTHER.  MOST OF THE
-FEATURES OF THE CURRENT PROGRAM WERE ADDED BY DON WOODS (DON @ SU-AI).
-THE CURRENT VERSION WAS DONE BY MIKE WESTON.
+   In Dungeon, the intrepid explorer delves into the forgotten secrets
+of a lost labyrinth deep in the bowels of the earth, searching for
+vast treasures long hidden from prying eyes, treasures guarded by
+fearsome monsters and diabolical traps!
 
-YOU ARE STANDING AT THE END OF A ROAD BEFORE A SMALL BRICK BUILDING.
-AROUND YOU IS A FOREST.  A SMALL STREAM FLOWS OUT OF THE BUILDING AND 
-DOWN A GULLY. 
+   No DECsystem should be without one!
 
-EAST
-YOU ARE INSIDE A BUILDING, A WELL HOUSE FOR A LARGE SPRING. 
+   Dungeon was created at the Programming Technology Division of the MIT
+Laboratory for Computer Science by Tim Anderson, Marc Blank, Bruce
+Daniels, and Dave Lebling.  It was inspired by the Adventure game of
+Crowther and Woods, and the Dungeons and Dragons game of Gygax
+and Arneson.  The original version was written in MDL (alias MUDDLE).
+The current version was translated from MDL into FORTRAN IV by
+a somewhat paranoid DEC engineer who prefers to remain anonymous.
 
-THERE ARE SOME KEYS ON THE GROUND HERE. 
+   On-line information may be obtained with the commands HELP and INFO.
+>QUIT
+Your score would be   0 [total of 560 points], in    1 move.
+This gives you the rank of beginner.
+Do you wish to leave the game?
+Y
 
-THERE IS A SHINY BRASS LAMP NEARBY. 
-
-THERE IS FOOD HERE. 
-
-THERE IS A BOTTLE OF WATER HERE.
-
-TAKE FOOD
-OK
-...
+.MAC RTLEM
+ERRORS DETECTED:  0
+.LINK RTLEM
+.RUN RTLEM
+... attempt to land the lunar module using the mouse as a light pen - goodluck!
 ```
 
 ## Example boot of RSTS V06C-03
 
 ```
-BOOT> boot rk2
+Boot> boot rk2
 
-RSTS V06C-03 vixen (DK2)
+RSTS V06C-03 Vixen (DK2)
 
-Option: <LF>
+Option:
 
-You currently have: JOB MAX = 32, SWAP MAX = 28K.
+You currently have: JOB MAX = 31, SWAP MAX = 28K.
 
 You currently have crash dump disabled.
 
 DD-MMM-YY? 31-OCT-76
 12:00 PM? 9:03
-INIT    V06C-03 RSTS V06C-03 vixen
+INIT    V06C-03 RSTS V06C-03 Vixen
 
-Command File Name? <CR>
+Command File Name?
 DETACHING...
-...
 
 I11/70
 Password: PDP
@@ -168,39 +239,50 @@ ADVENT.VAR    22   < 60> 20-Jul-85
 ADVTXT.TXT   125   < 60> 20-Jul-85
 SYSMAC.SML    42   < 60> 13-Mar-77
 HELLO .MAC     1   < 60> 13-Mar-77
-BOOT  .MAC    24   < 60> 13-Mar-77
+PRIME .BAS     1   < 60> 24-Mar-76
+PI    .BAS     1   < 60> 24-Mar-76
+BOOT  .MAC    26   < 60> 01-Jan-76
 
-Total of 35 blocks in 4 files in SY:[11,70]
+Total of 386 blocks in 15 files in SY:[11,70]
 
 Ready
 
-SYSTAT
+RUN PI
+3.14159265358979
 
-RSTS V06C-03 vixen status at 31-Oct-76, 09:03 AM Up: 18
+Ready
 
-Job    Who    Where    What    Size    State    Run-Time   RTS
- 1    [OPR]   Det     ERRCPY    5K     SR            3.4  BASIC 
- 2    [SELF]  KB0     SYSTAT    8K     RN Lck        0.3  BASIC 
+RUN ADVENT
 
-Busy Devices: None
+WELCOME TO ADVENTURE!!  WOULD YOU LIKE INSTRUCTIONS?
 
-Disk Structure:
-Disk    Open    Free    Cluster Errors  Name    Comments
-DK2       3     239        1      0     VIXEN   Pub, DLW
+NO
+YOU ARE STANDING AT THE END OF A ROAD BEFORE A SMALL BRICK BUILDING.
+AROUND YOU IS A FOREST.  A SMALL STREAM FLOWS OUT OF THE BUILDING AND
+DOWN A GULLY.
 
-Small   Large   Jobs    Hung TTY's      Errors
-345       0      2/2        0              0
+E
+YOU ARE INSIDE A BUILDING, A WELL HOUSE FOR A LARGE SPRING.
 
-Run-Time Systems:
- Name   Ext       Size  Users   Comments
-BASIC   BAC     16(16)K   2     Perm, Addr:25, KBM, CSZ
-RSX     TSK      2(28)K   0     Non-Res, KBM
-RT11    SAV      4(28)K   0     Non-Res, KBM, CSZ, EMT:255
-RMS11   TSK      4(28)K   0     Non-Res
+THERE ARE SOME KEYS ON THE GROUND HERE.
 
-Message Receivers:
- Name   Job     Msgs    Max     Senders
-ERRLOG   1       0      40      Priv
+THERE IS A SHINY BRASS LAMP NEARBY.
+
+THERE IS FOOD HERE.
+
+THERE IS A BOTTLE OF WATER HERE.
+
+GET FOOD
+OK
+
+QUIT
+DO YOU REALLY WANT TO QUIT NOW?
+
+Y
+OK
+YOU SCORED  32 OUT OF A POSSIBLE 350, USING    3 TURNS.
+YOU ARE OBVIOUSLY A RANK AMATEUR.  BETTER LUCK NEXT TIME.
+TO ACHIEVE THE NEXT HIGHER RATING, YOU NEED  4 MORE POINTS.
 
 Ready
 
@@ -209,84 +291,129 @@ RUN ACEY
                CREATIVE COMPUTING  MORRISTOWN, NEW JERSEY
 
 
-ACEY-DUCEY IS PLAYED IN THE FOLLOWING MANNER 
+ACEY-DUCEY IS PLAYED IN THE FOLLOWING MANNER
 THE DEALER (COMPUTER) DEALS TWO CARDS FACE UP
 YOU HAVE AN OPTION TO BET OR NOT BET DEPENDING
 ON WHETHER OR NOT YOU FEEL THE CARD WILL HAVE
 A VALUE BETWEEN THE FIRST TWO.
 IF YOU DO NOT WANT TO BET, INPUT A 0
 YOU NOW HAVE 100 DOLLARS.
-....
-HERE ARE YOUR NEXT TWO CARDS: 
- 8 
-KING
 
-WHAT IS YOUR BET? 95
-JACK
-YOU WIN!!!
-YOU NOW HAVE 190 DOLLARS.
+HERE ARE YOUR NEXT TWO CARDS:
+ 4
+ 5
 
-HERE ARE YOUR NEXT TWO CARDS: 
- 2 
- 10 
+WHAT IS YOUR BET? 100
+ 9
+SORRY, YOU LOSE
 
-WHAT IS YOUR BET? ^C
+SORRY, FRIEND, BUT YOU BLEW YOUR WAD.
+
+TRY AGAIN (YES OR NO)? NO
+
+O.K., HOPE YOU HAD FUN!
 
 Ready
 
-BYE
-Confirm: Y
-Saved all disk files; 35 blocks in use, 65 free
-Job 2 User 11,70 logged off KB0 at 31-Oct-76 09:04 AM
-System RSTS V06C-03 vixen
-Run time was 1.5 seconds
-Elapsed time was 1 minute
+SYSTAT
+
+RSTS V06C-03 Vixen status at 31-Oct-76, 09:05 AM Up: 2:34
+
+Job    Who    Where    What    Size    State    Run-Time   RTS
+ 1    [OPR]   Det     ERRCPY    5K     SR            5.0  BASIC
+ 2    [SELF]  KB0     SYSTAT    8K     RN Lck        2.1  BASIC
+
+Busy Devices: None
+
+Disk Structure:
+Disk    Open    Free    Cluster Errors  Name    Comments
+DK2       3     324        1      0     VIXEN   Pub, DLW
+
+Small   Large   Jobs    Hung TTY's      Errors
+380       1      2/2        0              0
+
+Run-Time Systems:
+ Name   Ext       Size  Users   Comments
+BASIC   BAC     16(16)K   2     Perm, Addr:26, KBM, CSZ
+RSX     TSK      2(28)K   0     Non-Res, KBM
+RT11    SAV      4(28)K   0     Temp, Addr:66, KBM, CSZ, EMT:255
+RMS11   TSK      4(28)K   0     Non-Res
+
+Message Receivers:
+ Name   Job     Msgs    Max     Senders
+ERRLOG   1       0      40      Priv
+
+Ready
+
+BYE/Y
+Saved all disk files; 388 blocks in use, 112 free
+Job 2 User 11,70 logged off KB0 at 31-Oct-76 09:05 AM
+System RSTS V06C-03 Vixen
+Run time was 2.7 seconds
+Elapsed time was 2 minutes
 Good morning
 ```
 
 ## Example boot of XXDP
 
 ```
-BOOT> boot rk3
+Boot> boot rk3
 
 CHMDKB1 XXDP+ DK MONITOR
 BOOTED VIA UNIT 3
 28K UNIBUS SYSTEM
 
-ENTER DATE (DD-MMM-YY): <CR>
+ENTER DATE (DD-MMM-YY):
 
 RESTART ADDR: 152010
 THIS IS XXDP+.  TYPE "H" OR "H/L" FOR HELP.
 
-.D
+.R EKBB??
+EKBBF0.BIC
 
-ENTRY# FILNAM.EXT        DATE          LENGTH  START
+CEKBBF0 11/70 CPU #2
+A
+CPU UNDER TEST FOUND TO BE A KB11-B/C OR KB11-CM
+LOOK AT THE CONSOLE LIGHTS
+THE DATA LIGHTS SHOULD READ 166667
+THE ADDRESS LIGHTS SHOULD READ  032236
+CHANGE SWITCH 7 TO CONTINUE
+LOOK AT THE CONSOLE LIGHTS
+THE DATA LIGHTS SHOULD READ 166667
+THE ADDRESS LIGHTS SHOULD READ  032316
+TYPE A CHARACTER TO CONTINUE
 
-    1  HDDKB0.SYS       2-JAN-70          2    000112
-    2  HMDKB1.SYS       2-JAN-70         17    000113
-    3  HDDKB1.SYS       2-JAN-70          2    000114
-    4  HSAAC4.SYS       8-DEC-82         24    000115
-....
+END PASS #     1  TOTAL ERRORS SINCE LAST REPORT      0
+AAAAAAAAAAAAAAAAAAAAA
+END PASS #     2  TOTAL ERRORS SINCE LAST REPORT      0
+AAAAAAAAAAAAAAAAAAAAA
+END PASS #     3  TOTAL ERRORS SINCE LAST REPORT      0
+AAAAAAAAAAAAAAAAAAAAA
+END PASS #     4  TOTAL ERRORS SINCE LAST REPORT      0
+AAAAAAAAAAAAAAAAAAAAA
+END PASS #     5  TOTAL ERRORS SINCE LAST REPORT      0
+AAAAAAAAAAAAAAAAAAAAA
+...
 ```
 
 ## Example boot of RSTS 4B-17
 
 ```
-BOOT> boot tm0
+Boot> boot tm0
 
 ROLLIN V07
 
 #DK:<MT:VIXEN/REW
 END-OF-FILE DURING READ, TYPE
-M TO MOUNT ANOTHER REEL, OR K TO KILL REQUEST: 
+M TO MOUNT ANOTHER REEL, OR K TO KILL REQUEST: k
 
-#/BO:DK
+#/BO:DK:
 
 RSTS V04B-17 VIXEN
 
-OPTION? ST
-DD-MON-YY? 31-OCT-71
-HH:MM? 6:42
+OPTION? ^J
+DD-MON-YY? 24-MAR-75
+HH:MM? 9:21
 VIXEN  - SYSTEM PACK MOUNTED
 ENABLE CRASH DUMP? N
 CHAIN "INIT"
@@ -306,66 +433,90 @@ CAT
 LOGIN .BAS       7       60     31-Oct-71 31-Oct-71 06:42 AM
 LOGIN .BAC       15      60     31-Oct-71 31-Oct-71 06:42 AM
 LOGOUT.BAS       7       60     31-Oct-71 31-Oct-71 06:42 AM
-....
+LOGOUT.BAC       15      60     31-Oct-71 31-Oct-71 06:42 AM
+PIP   .BAS       18      60     31-Oct-71 31-Oct-71 06:42 AM
+PIP   .BAC       23      40     31-Oct-71 31-Oct-71 06:42 AM
+SYSTAT.BAS       12      60     31-Oct-71 31-Oct-71 06:42 AM
+SYSTAT.BAC       19      168    31-Oct-71 31-Oct-71 06:42 AM
+...
 
 Ready
 
-BYE
-CONFIRM: Y
-SAVED ALL DISK FILES; 782 BLOCKS IN USE
-JOB 1 USER 1,2 LOGGED OFF KB0 AT 31-Oct-71 06:42 AM
-SYSTEM RSTS V04B-17 VIXEN
-RUN TIME WAS 1.4 SECONDS
-ELAPSED TIME WAS 13 SECONDS
-GOOD MORNING
-
-HELLO
-
-RSTS V04B-17 VIXEN  JOB 1  KB0  31-Oct-71  06:42 AM
-#11,70
-PASSWORD:
-RSTS V4B-17 IS NOW AVAILABLE...
-
-NEW OR OLD--
-CAT
-PRIME .BAS       1       60     31-Oct-71 31-Oct-71 06:43 AM
-PI    .BAS       1       60     31-Oct-71 31-Oct-71 06:43 AM
+RUN TTYSET
+'TTYSET' TERMINAL CHARACTERISTICS PROGRAM
+? LC
+? ^Z
 
 Ready
 
-RUN PI
-3.14159265358979
+run utilty
+'UTILTY' SYSTEM UTILITY PROGRAM
+? LOGINS
+? HELP
+COMMANDS ARE:
+ MOUNT DEV:ID           DISMOUNT DEV:
+ LOCK DEV:              UNLOCK DEV:
+ NO LOGINS              LOGINS
+ CLEAN DEV:             KILL JOB#
+ SEND KBN: STRING       FORCE KBN: [^]STRING
+ CHANGE [ACCT]PASSWORD  QUOTA [ACCT] QUOTA
+ ZERO DEV:[ACCT]        HANGUP KBN:
+ DATE DD-MMM-YY         TIME HH:MM
+? ^Z
 
 Ready
 
-RUN $SYSTAT
-OUTPUT STATUS TO? 
+run pip
+PIP - RSTS V04B-17 VIXEN
+#acct.sys
+11,70,PDP,0,2,PDP 11/70 EMULATOR
+#^Z
 
-RSTS V04B-17 VIXEN STATUS ON 31-Oct-71 AT 06:42 AM UP: 42
+Ready
+
+run systat
+OUTPUT STATUS TO? kb:
+
+RSTS V04B-17 VIXEN STATUS ON 24-Mar-75 AT 09:22 AM UP: 1:07
 
 JOB    WHO      WHERE    WHAT   SIZE    STATE     RUN-TIME
- 1    11,70      KB0    SYSTAT   6K     RN             3.4
+ 1     1,2       KB0    SYSTAT   6K     RN             0.1
 
 BUSY DEVICES: NONE
 
 DISK STRUCTURE:
 DISK    OPEN     FREE   CLUSTER ERRORS  COMMENTS
-DK0      0       3184     1       0     PUBLIC
+DK0      0       3185     1       0     PUBLIC
 
 SMALL  LARGE   ERRORS  HUNG TTY'S
- 69     0      0        0 
+ 69     0      0        0
 
 Ready
+
+bye
+CONFIRM: y
+SAVED ALL DISK FILES; 782 BLOCKS IN USE
+JOB 1 USER 1,2 LOGGED OFF KB0 AT 24-Mar-75 09:22 AM
+SYSTEM RSTS V04B-17 VIXEN
+RUN TIME WAS .1 SECONDS
+ELAPSED TIME WAS 1 MINUTE, 20 SECONDS
+GOOD MORNING
+
 ```
 
 ## Example boot of BSD 2.9
 
 ```
-BOOT> boot rl0
+Boot> boot rl0
 :boot
 
 70Boot
 : rl(0,0)rlunix
+
+Berkeley UNIX (Rev. 2.9.1) Sun Nov 20 14:55:50 PST 1983
+mem = 3797696
+xp2: drive type 20 unrecognized
+xp3: drive type 20 unrecognized
 
 CONFIGURE SYSTEM:
 xp 0 csr 176700 vector 254 attached
@@ -374,22 +525,37 @@ hk ? csr 177440 vector 210 skipped:  No CSR
 rl 0 csr 174400 vector 160 attached
 rp ? csr 176700 vector 254 interrupt vector already in use
 ht 0 csr 172440 vector 224 skipped:  No CSR
-tm 0 csr 172520 vector 224 skipped:  No CSR
-...
+tm 0 csr 172520 vector 224 attached
+ts 0 csr 172520 vector 224 interrupt vector already in use
+dh ? csr 160020 vector 370 skipped:  No CSR
+dm ? csr 170500 vector 360 skipped:  No autoconfig routines
+dz ? csr 160110 vector 320 skipped:  No CSR
+dz ? csr 160110 vector 320 skipped:  No CSR
+dn 0 csr 175200 vector 300 skipped:  No autoconfig routines
+vp ? csr 177500 vector 174 skipped:  No autoconfig routines
+lp 0 csr 177514 vector 200 attached
 Erase=^?, kill=^U, intr=^C
-# ls -al
-total 546
-drwxr-xr-x11 root     daemon       512 Mar  7 09:00 .
-drwxr-xr-x11 root     daemon       512 Mar  7 09:00 ..
--rw-rw-r-- 1 root     daemon       164 Sep 29 09:20 .cshrc
--rw-rw-r-- 1 root     daemon       266 Mar  7 08:43 .login
--rw-rw-r-- 1 root     superuse       2 Jul 26 16:00 .msgsrc
--rw-rw-r-- 1 root     daemon       116 Mar 30 00:59 .profile
--rw-r--r-- 1 root     superuse      56 Nov 20 16:03 2.9stamp
--rw-rw-r-- 1 root     superuse     450 Mar 30 00:50 READ_ME
-drwxrwxr-x 2 bin      bin         1632 Nov 20 16:04 bin
--rwxrwxr-x 1 root     superuse   23572 Mar  7 09:05 boot
-...
+# ^D
+Wed Dec 31 16:02:43 PST 1969
+/etc/fstab: No such file or directory
+/usr/sys: No such file or directory
+init: /dev/tty07: cannot open
+init: /dev/tty06: cannot open
+init: /dev/tty05: cannot open
+init: /dev/tty04: cannot open
+init: /dev/tty03: cannot open
+init: /dev/tty02: cannot open
+init: /dev/tty01: cannot open
+init: /dev/tty00: cannot open
+
+
+Berkeley Unix 2.9BSD
+
+:login: root
+
+Welcome to the 2.9BSD (Berkeley) UNIX system.
+
+
 # cat /etc/passwd
 root::0:2:The Man:/:/bin/csh
 toor::0:2:The Man:/:
@@ -406,40 +572,40 @@ ken:sq5UDrPlKj1nA:10:2:& Thompson:/a/guest/ken:
 mike:KnKNwMkyCt8ZI:11:2:mike karels:/a/guest/mike:/bin/csh
 carl:S2KiTfS3pH3kg:12:2:& Smith,508-21E,6258:/a/guest/carl:/bin/csh
 joshua::999:2:&:/usr/games:/usr/games/wargames
-# CTRL/D
-Wed Dec 31 16:04:16 PST 1969
-/etc/fstab: No such file or directory
-/usr/sys: No such file or directory
-init: /dev/tty07: cannot open
-...
-
-Berkeley Unix 2.9BSD
-
-:login: root
-
-Welcome to the 2.9BSD (Berkeley) UNIX system.
-
-tty: Command not found.
-# ls -al /bin
-total 1182
--rwxrwxr-x 1 bin      bin         8692 Dec 31 16:59 #
-drwxrwxr-x 2 bin      bin         1632 Nov 20 16:04 .
+# ls -al
+total 546
+drwxr-xr-x11 root     daemon       512 Mar  7 09:00 .
 drwxr-xr-x11 root     daemon       512 Mar  7 09:00 ..
--rwxrwxr-x 2 bin      bin         2917 Dec 31 16:59 [
--rwxrwxr-x 1 bin      bin        30340 Mar 24 08:27 adb
--rwxrwxr-x 1 bin      bin         9844 Dec 31 16:58 ar
--rwxrwxr-t 1 bin      bin         5626 Sep 30 17:39 as
--rwxrwxr-x 1 bin      bin         4508 Jan 18 08:22 cat
--rwxrwxr-t 1 bin      bin         7314 Oct  9 04:04 cc
--rwxrwxr-x 1 bin      bin         5096 Dec 31 16:59 chgrp
--rwxrwxr-x 1 bin      bin         3364 Dec 31 16:59 chmod
-...
+-rw-rw-r-- 1 root     daemon       164 Sep 29 09:20 .cshrc
+-rw-rw-r-- 1 root     daemon       266 Mar  7 08:43 .login
+-rw-rw-r-- 1 root     superuse       2 Jul 26 16:00 .msgsrc
+-rw-rw-r-- 1 root     daemon       116 Mar 30 00:59 .profile
+-rw-r--r-- 1 root     superuse      56 Nov 20 16:03 2.9stamp
+-rw-rw-r-- 1 root     superuse     450 Mar 30 00:50 READ_ME
+drwxrwxr-x 2 bin      bin         1632 Nov 20 16:04 bin
+-rwxrwxr-x 1 root     superuse   23572 Mar  7 09:05 boot
+drwxrwxr-x 2 root     superuse    1424 Nov 20 18:11 dev
+drwxr-xr-x 2 root     superuse     768 Nov 20 17:46 etc
+-rwxrwxr-x 1 root     superuse     561 Jul 26 16:55 genallsys.sh
+-rwxr-xr-x 1 root     sys        74534 Nov 20 16:38 hkunix
+drwxrwxr-x 2 bin      bin          416 Nov 20 16:06 lib
+drwxrwxr-x 2 root     daemon      4128 Dec  7 22:35 lost+found
+drwxrwxr-x 2 root     superuse     128 Apr 11 10:00 mdec
+drwx------ 2 root     daemon        32 Jul  7 13:07 mnt
+-rwxr-xr-x 1 root     sys        74534 Nov 20 16:38 rkunix
+-rwxr-xr-x 1 root     sys        74534 Nov 20 16:38 rlunix
+-rwxr-xr-x 1 root     sys        74534 Nov 20 16:39 rpunix
+drwxrwxrwx 2 root     superuse     144 May 30 19:42 tmp
+-rwxr-xr-x 2 root     sys       104798 Nov 20 16:33 unix
+drwxrwxrwx 2 root     superuse      48 Feb 18 18:16 usr
+-rwxr-xr-x 2 root     sys       104798 Nov 20 16:33 xpunix
+#
 ```
 
 ## Example boot of RSX 11M v3.2
 
 ```
-BOOT> boot rl1
+Boot> boot rl1
 
   RSX-11M V3.2 BL26   1912K  MAPPED
 >RED DL1:=SY:
@@ -501,11 +667,11 @@ HAVE A GOOD AFTERNOON
 ## Example boot of RSTS/E v7.0
 
 ```
-BOOT> boot rl2
+Boot> boot rl2
 
 RSTS V7.0-07 Vixen (DL2)
 
-Option: 
+Option: ^J
 
 You currently have: JOB MAX = 63, SWAP MAX = 31K.
 
@@ -522,19 +688,29 @@ Table will be reset by RSTS.
   1912K: 16740000 - End              : NXM
 
 
-  Table suboption? 
+  Table suboption? ^J
 
 You currently have crash dump disabled.
 
 DD-MMM-YY? 31-OCT-81
-12:00 PM? 
+12:00 PM? 9:32
 INIT    V7.0-07 RSTS V7.0-07 Vixen
 
-Command File Name? 
+Command File Name? ^J
 DETACHING...
+...
 
-I11/70
+ERRINT  V7.0-07 RSTS V7.0-07 Vixen
+ERRLOG File is 2% Full
+Change Size to < 100 >?
+Utilize Crash File Output (Yes/No) <No>?
+Detaching . . .
+
+I11,70
 Password: PDP
+
+Welcome to RSTS/E V7.0 time sharing
+...
 
 Ready
 
@@ -553,27 +729,29 @@ ADVTXT.TXT     125   < 60> 20-Jul-85
 SYSMAC.SML      42   < 60> 13-Mar-77
 HELLO .MAC       1   < 60> 13-Mar-77
 BOOT  .MAC      24   < 60> 13-Mar-77
+PRIME .BAS       1   < 60> 24-Mar-76
+PI    .BAS       1   < 60> 24-Mar-76
 
-Total of 382 blocks in 13 files in SY:[11,70]
+Total of 384 blocks in 15 files in SY:[11,70]
 
 Ready
 
 SYSTAT
 
-RSTS V7.0-07 Vixen status at 31-Oct-81, 12:00 PM Up: 31
+RSTS V7.0-07 Vixen status at 31-Oct-81, 09:32 AM Up: 36
 
 Job    Who    Where    What    Size    State    Run-Time    RTS
- 1    [OPR]   Det     ERRCPY    5K     SR            4.8   BASIC 
- 2    [SELF]  KB0     SYSTAT   11K     RN Lck        0.9   BASIC 
+ 1    [OPR]   Det     ERRCPY    5K     SR            4.7   BASIC
+ 2    [SELF]  KB0     SYSTAT   11K     RN Lck        0.3   BASIC
 
 Busy Devices: None
 
 Disk Structure:
 Disk    Open    Free    Cluster Errors  Name    Comments
-DL2       3     2502       1      0     VIXEN   Pub, DLW
+DL2       3     2500       1      0     VIXEN   Pub, DLW
 
 Small   Large   Jobs    Hung TTY's      Errors
-488       1      2/2        0              0
+486       1      2/2        0              0
 
 Run-Time Systems:
  Name   Ext       Size  Users   Comments
@@ -592,10 +770,10 @@ Ready
 
 EDT TEST.BAS
 *I
-10 PRINT "HELP"
+10 PRINT "SIMPLE TEST"
 20 END
 ^Z
-*EXIT
+*EX
 2 LINES OUTPUT
 
 Ready
@@ -605,73 +783,34 @@ OLD TEST
 Ready
 
 RUN
-TEST    12:01 AM        31-Oct-81
-HELP
+TEST    09:33 AM        31-Oct-81
+SIMPLE TEST
 
 Ready
 
 BYE
 Confirm: Y
-Saved all disk files; 385 blocks in use, 115 free
-Job 2 User 11,70 logged off KB0 at 31-Oct-81 12:01 AM
+Saved all disk files; 387 blocks in use, 113 free
+Job 2 User 11,70 logged off KB0 at 31-Oct-81 09:33 AM
 System RSTS V7.0-07 Vixen
-Run time was 1.7 seconds
+Run time was .6 seconds
 Elapsed time was 1 minute
 Good morning
-
 ```
 
 ## Example boot of XXDP
 
 ```
-BOOT> boot rl3
+Boot> boot rl3
 
 CHMDLD0 XXDP+ DL MONITOR
 BOOTED VIA UNIT 3
 28K UNIBUS SYSTEM
 
-ENTER DATE (DD-MMM-YY): <CR>
+ENTER DATE (DD-MMM-YY):
 
 RESTART ADDR: 152010
 THIS IS XXDP+.  TYPE "H" OR "H/L" FOR HELP.
-
-.D
-
-ENTRY# FILNAM.EXT        DATE          LENGTH  START
-
-    1  MMDP  .SAV       3-MAR-83C        17    000310
-    2  MTDP  .SAV       3-MAR-83C        17    000331
-    3  HSAAD0.SYS       3-MAR-83         24    000352
-    4  HSABC0.SYS       3-MAR-83         28    000402
-    5  HSACC0.SYS       3-MAR-83         27    000436
-    6  HSADB0.SYS       3-MAR-83         25    000471
-    7  HUDIB0.SYS       3-MAR-83          5    000522
-    8  HELP  .TXT       3-MAR-83         14    000527
-...
-.R EKBA??
-EKBAD0.BIC
-AA
-CEKBAD0 11/70 CPU #1
-
-END PASS
-END PASS
-END PASS
-restart through switches
-
-.R EKBE??
-EKBEE1.BIC
-
-CEKBEE0 11/70 MEM MGMT
-
-CPU UNDER TEST FOUND TO BE A KB11-CM
-
-END PASS #     1  TOTAL ERRORS SINCE LAST REPORT      0
-END PASS #     2  TOTAL ERRORS SINCE LAST REPORT      0
-END PASS #     3  TOTAL ERRORS SINCE LAST REPORT      0
-END PASS #     4  TOTAL ERRORS SINCE LAST REPORT      0
-END PASS #     5  TOTAL ERRORS SINCE LAST REPORT      0
-....
-restart through switches
 
 .R EQKC??
 EQKCE1.BIC
@@ -680,8 +819,8 @@ CEQKC-E...PDP 11/70 CPU EXERCISER
 
 CPU UNDER TEST FOUND TO BE A 11/74          (KB11CM)
 
-PROCESSOR ID REGISTER =000001 (OCTAL)       1 (DECIMAL) 
-OPT.CP=145406
+PROCESSOR ID REGISTER =000001 (OCTAL)       1 (DECIMAL)
+OPT.CP=165406
 OPERATIONAL SWITCH SETTINGS
 SWITCH                  USE
   15            HALT ON ERROR
@@ -716,46 +855,41 @@ THIS PROGRAM SUPPORTS I/O RELOCATION ONLY WITH THE FOLLOWING DEVICES:
 RP03,RK05,RP04/5/6,RS03/4
 THE FOLLOWING DEVICES AND DRIVES WILL BE USED FOR RELOCATION IF BIT 8 SET:
 DEVICE  DRIVES
-RK05    0, 1, 2, 3, 4, 5, 6, 7, 
-RP04    0, 1, 2, 3, 
+RK05    0, 1, 2, 3, 4, 5, 6, 7,
+RP04    0, 1, 2, 3, 4,
 TYPE A CHARACTER TO CONTINUE
-
-1THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS BACK 0123456789
+k1THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS BACK 0123456789
 2THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS BACK 0123456789
 3THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS BACK 0123456789
 4THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS BACK 0123456789
 5THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS BACK 0123456789
-000:01:33
+000:01:01
 
 END PASS #     1  TOTAL ERRORS SINCE LAST REPORT      0
 1THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS BACK 0123456789
-2THE QUICK BROWN FOX JUMPED OVER THE LAZY DOGS BACK 0123456789
-...
-
 ```
 
 ## Example boot of ULTRIX-11 System V3.1
 
 ```
-BOOT> boot rp0
+Boot> boot rp0
 
 Sizing Memory...
 
 Boot: hp(0,0)unix    (CTRL/C will abort auto-boot)
 
-Load device (? for help, <RETURN> if none) < ht tm ts tk rx rl rc > ? <CR>
-
-hp(0,0)unix: 14784+17024+8192+8000+8064+8000+8064+8128+8000+7808+7936+7936+7680+7360+1344
+hp(0,0)unix: 36754+55616+8128+7744+8128+7616+3648
 
 ULTRIX-11 Kernel V3.1
 
 realmem = 3915776
-buffers = 25600
-clists  = 1600
-usermem = 3756608
-maxumem = 212992
+buffers = 73728
+clists  = 2080
+usermem = 3677312
+maxumem = 417792
+proc on q
 erase = delete, kill = ^U, intr = ^C
-# CTRL/D
+# ^D
 
 Restricted rights:
 
@@ -766,11 +900,12 @@ Restricted rights:
 *UNIX is a trademark of AT&T Bell Laboratories.
 
 Mounted /dev/hp01 on /usr
-Mounted /dev/hp04 on /user1
+Mounted /dev/hp05 on /user1
 
-Sat Oct 31 12:06:33 GMT-0:00 1981
+Sat Oct 31 16:52:30 PST 1981
 
 ERROR LOG has - 1 of 200 blocks used
+
 
 ULTRIX-11 System V3.1 (vixen)
 
@@ -779,71 +914,97 @@ login: root
 Welcome to the ULTRIX-11 System
 
 erase = delete, kill = ^U, intr = ^C
-vixen# uname -a
-ULTRIX-11 vixen 3 0 PDP-11/70
-vixen# ps -xl
-
-   F S UID   PID  PPID CPU PRI NICE   ADDR  SZ  WCHAN TTY TIME CMD
-   3 S   0     0     0 205   0   20   3756   4  73326 ?   0:10 swapper
-   1 S   0     1     0   0  30   20   4770  13 114226 ?   0:00 /etc/init
-1101 S   0     2     1   0   5    0   6162  22 112272 ?   0:00 /etc/elc
-   1 S   0    41     1   0  30   20   6433  16 114352 co  0:00 -sh
-   1 R   0    49    41   6  50   20  10370  28        co  0:00 ps -xl
- 201 S   0    33     1   0  40   20   5251   7 140000 ?   0:00 /etc/update
- 201 S   0    37     1   0  40   20   7017  13 140000 ?   0:00 /etc/cron
-vixen# w
- 12:06pm  up  1 user,  load average: 0.00, 0.00, 0.00
-User     tty       login@  idle   JCPU   PCPU  what
-root     console  12:06pm            1         w
-vixen# mount
-hp01 on /usr
-hp04 on /user1
+vixen# ls -al
+total 373
+drwxr-xr-x16 root        912 Oct 31 16:40 .
+drwxr-xr-x16 root        912 Oct 31 16:40 ..
+-rw-rw-r-- 1 root         93 Jan 15 06:07 .cshrc
+-rw-rw-r-- 1 root        115 Jan 15 06:07 .login
+-rw-r--r-- 1 root        204 Oct 31 16:39 .profile
+drwx------ 2 root        144 Oct 31 17:00 .setup
+drwxr-xr-x 2 root       3424 Oct 31 16:02 bin
+-rw-r--r-- 1 root      42548 Jan 20 13:43 boot
+-rw-r--r-- 1 root      42548 Jan 20 13:43 boot.bu
+-rw-r--r-- 1 root        191 Oct  6 07:58 crt.profile
+drwxr-xr-x 2 root       4736 Oct 31 16:52 dev
+drwxr-xr-x 4 root       1232 Oct 31 16:52 etc
+-rw-r--r-- 2 root     131330 Oct 31 16:25 gunix
+-rw-rw-r-- 1 root         36 Oct 31 16:40 hello.c
+drwxr-xr-x 2 root        544 Oct 31 17:00 lib
+drwx------ 2 root        512 Sep 26 08:53 lost+found
+drwxr-xr-x 2 root        256 Aug  6 17:21 mdec
+drwxrwxr-x 2 root         32 Oct 31 16:20 media
+drwx------ 2 root         32 Jul 10  1980 mnt
+drwx------ 2 root        256 Sep 29 16:01 opr
+-rw-r--r-- 1 root        185 Oct  6 07:58 prt.profile
+drwxr-xr-x 2 root        640 Jul 28 05:45 sas
+-rw-rw-r-- 1 root        249 Oct 31 16:40 size.c
+drwxrwxrwx 2 root        304 Oct 31 16:02 tmp
+-rw-r--r-- 2 root     131330 Oct 31 16:25 unix
+drwxr-xr-x 6 root         96 Oct 31 16:37 user1
+drwxr-xr-x24 root        384 Oct 31 16:05 usr
 vixen# df
 Filesystem    total    kbytes  kbytes  percent
    node       kbytes    used    free   used    Mounted on
-/dev/hp00       4606    3077    1529    67%    /
-/dev/hp01       9629    3594    6035    37%    /usr
-/dev/hp04     148244       2  148242     0%    /user1
-vixen# set
-HOME=/
-IFS=
+/dev/hp00       4606    3120    1486    68%    /
+/dev/hp01       9629    7800    1829    80%    /usr
+/dev/hp05      81036   28489   52547    35%    /user1
+vixen# who
+root     console     Oct 31 16:52
+vixen# ps -aux
 
-PATH=:/usr/ucb:/bin:/usr/bin:/etc
-PS1=vixen#
-PS2=>
-SHELL=/bin/sh
-TERM=dw3
-TZ=GMT0
-USER=root
-vixen# cat /.profile
-PS1=`hostname`'# '
-echo "erase = delete, kill = ^U, intr = ^C"
-if test `tty` = /dev/console
-then
-        stty dec prterase
-else
-        stty crt tabs
-fi
-PATH=:/usr/ucb:/bin:/usr/bin:/etc
-export PATH
-vixen# ls /etc
-accton       fpsim        init         msf          protocols    termcap
-arp          fsdb         ipatch       mtab         rawfs        tss
-catman       fstab        labelit      networks     rc           ttys
-cron         getty        log          newfs        rdate        ttytype
-cshprofile   gettytab     lpdrestart   nu           remote       tzname
-dcopy        group        lpset        nu.cf        route        umount
-ddate        hosts        mkfs         nulib        rx2fmt       update
-dmesg        hosts.equiv  mknod        passwd       services     utmp
-elc          ifconfig     motd         printcap     syslog.conf  vipw
-eli          inetd.conf   mount        profile      syslog.pid   volcopy
-vixen#
+   PID TTY TIME CMD
+    41 co  0:00 -sh
+    50 co  0:00 ps -aux
+vixen# cc hello.c
+vixen# a.out
+Hello world
+vixen# cat > size.c
+#include <stdio.h>
+int main() {
+    printf("Size of char: %d byte\n",sizeof(char));
+    printf("Size of int: %d bytes\n",sizeof(int));
+    printf("Size of float: %d bytes\n",sizeof(float));
+    printf("Size of double: %d bytes\n",sizeof(double));
+}
+^D
+vixen# cc size.c
+vixen# a.out
+Size of char: 1 byte
+Size of int: 2 bytes
+Size of float: 4 bytes
+Size of double: 8 bytes
+vixen# ls /user1
+lost+found  root        src         user1
+vixen# ls /user1/src
+etc  src  sys  usr
+vixen# ls -al /user1/src/usr
+total 6
+drwxrwxr-x 6 root         96 Oct 31 16:38 .
+drwxrwxr-x 6 root         96 Oct 31 16:38 ..
+drwxrwxr-x 3 root         48 Oct 31 16:38 games
+drwxrwxr-x 5 root         80 Oct 31 16:38 include
+drwxrwxr-x 3 root         96 Oct 31 16:38 lib
+drwxrwxr-x 2 root         64 Oct 31 16:38 local
+vixen# uname
+ULTRIX-11
+vixen# ^D
+
+ULTRIX-11 System V3.1 (vixen)
+
+login: sys
+
+Welcome to the ULTRIX-11 System
+
+$ cd conf
+$ sysgen
+...
 ```
 
 ## Example boot of BSD 2.11
 
 ```
-BOOT> boot rp1
+Boot> boot rp1
 
 70Boot from xp(0,1,0) at 0176700
 Press <CR> to boot, or any other key to abort: 0
@@ -861,13 +1022,13 @@ hk ? csr 177440 vector 210 skipped:  No CSR.
 ht ? csr 172440 vector 224 skipped:  No CSR.
 ra ? csr 172150 vector 154 skipped:  No CSR.
 rl 0 csr 174400 vector 160 attached
-tm ? csr 172520 vector 224 skipped:  No CSR.
+tm 0 csr 172520 vector 224 attached
 tms ? csr 174500 vector 260 skipped:  No CSR.
-ts ? csr 172520 vector 224 skipped:  No CSR.
+ts ? csr 172520 vector 224 interrupt vector already in use.
 xp 0 csr 176700 vector 254 attached
 Automatic reboot in progress...
-Sat Oct 31 04:28:59 PST 1981
-Sat Oct 31 04:28:59 PST 1981
+Sat Oct 31 16:00:38 PST 1981
+Sat Oct 31 16:00:38 PST 1981
 checking quotas: done.
 Assuming non-networking system ...
 checking for core dump...
@@ -876,102 +1037,156 @@ clearing /tmp
 standard daemons: update cron accounting.
 starting lpd
 starting local daemons: sendmail.
-Sat Oct 31 04:29:02 PST 1981
+Sat Oct 31 16:00:40 PST 1981
+
 
 2.11 BSD UNIX (vixen.2bsd.com) (console)
 
 login: root
 erase, kill ^U, intr ^C
-# uname
-2.11BSD
-# ps -al
-  F S   UID   PID  PPID CPU PRI NICE  ADDR  SZ WCHAN    TTY TIME COMMAND
-  1 R     0    80    75   3  50   0  21600  59          co  0:00 ps -al
-# cat /etc/passwd
-root:*:0:1:The Man:/:/bin/sh
-daemon:*:1:1:The devil himself:/:/bin/sh
-sys:*:4:2:Operating System:/tmp:nologin
-operator:*:2:5:System &:/usr/guest/operator:/bin/csh
-bin:*:3:20:Binaries Commands and Source:/:/bin/csh
-nobody:*:32767:31:Nobody:/nonexistent:/bin/sh
-uucp:*:66:1:UNIX-to-UNIX Copy:/usr/spool/uucppublic:/usr/sbin/uucico
-ingres:*:39:74:INGRES Owner:/usr/ingres:/bin/csh
-# ls -al /sys/conf
-total 147
-drwxr-xr-x  5 root          512 Mar 31 13:55 .
-drwxr-xr-x 23 root          512 Mar 31 15:45 ..
--r--r--r--  1 root          238 Dec 27  1986 :comm-to-bss
-...
+# df
+Filesystem  1K-blocks     Used    Avail Capacity  Mounted on
+/dev/xp1a      163557    85424    78133    52%    /
+# ps -aux
+USER       PID NICE SZ TTY TIME COMMAND
+root         0   0   8 ?   0:00 swapper
+root         1   0  29 ?   0:00  (init)
+root        42   0  11 ?   0:00 update
+root        45   0  51 ?   0:00 cron
+root        49  -1  26 ?   0:00 acctd
+root        55   0  47 ?   0:00 /usr/sbin/lpd
+root        75   0  19 co  0:00 -sh
+root        81   0  59 co  0:00 ps -aux
+# ls -al
+total 721
+drwxr-xr-x 14 root         1024 Oct 31 04:11 .
+drwxr-xr-x 14 root         1024 Oct 31 04:11 ..
+-rw-r--r--  1 root          349 Oct 29  1996 .cshrc
+-rw-r--r--  1 root            0 May 17  1995 .hushlogin
+-rw-r--r--  1 root          153 May  2  1997 .kermrc
+-rw-r--r--  1 root          335 Oct 29  1996 .login
+-rw-r--r--  1 root            8 Jan 17  1988 .mailrc
+-rw-r--r--  1 root          152 Oct 29  1996 .profile
+-rw-------  1 root            0 Apr 22  2000 .rhosts
+-rw-r--r--  1 root           12 May  2  1997 .tiprc
+-r--r--r--  1 root        18648 Aug 28  1992 README
+-rw-r--r--  1 root         2714 Oct 31 02:55 VERSION
+-rw-r--r--  1 root         3371 Oct 31 02:55 VERSION~
+drwxr-xr-x  3 root          512 Apr 23  2000 a
+drwxr-xr-x  2 root         1024 Apr 23  2000 bin
+-rwxr-x---  1 root        36286 Oct 31 04:03 boot
+drwxr-xr-x  3 root         4608 Oct 31 04:23 dev
+-rwxr-x--x  1 root        38798 Oct 31 04:03 disklabel
+drwxr-xr-x  3 root         1024 Oct 31 16:00 etc
+-rwxr--r--  1 root       170258 Apr 22  2000 genunix
+-rw-r-----  1 root        11520 Oct 31 16:00 hostid.core
+drwxr-xr-x  2 root          512 Apr 23  2000 lib
+drwxr-xr-x  2 root         1024 Aug 17  1990 lost+found
+-rw-r--r--  1 root        27072 Oct 31 16:00 lpd.core
+drwxr-xr-x  2 root          512 Apr 23  2000 mdec
+drwxr-xr-x  2 root          512 Dec 31  1991 mnt
+-rwxr-----  1 root       170258 Oct 31 03:15 oldunix
+drwxr-xr-x  2 root          512 Apr 23  2000 sbin
+-rw-r--r--  1 root        24896 Oct 31 16:00 sendmail.core
+lrwxrwxrwx  1 root           11 Apr 23  2000 sys -> usr/src/sys
+drwxrwxrwt  2 root          512 Oct 31 16:00 tmp
+-rwxr-xr-x  1 root        30490 Oct 31 04:03 toyset
+-rwxr--r--  1 root       170509 Oct 31 04:05 unix
+drwxr-xr-x 28 root          512 Oct 31 02:03 usr
+drwxr-xr-x  6 root          512 Apr 23  2000 var
+lrwxrwxrwx  1 root            4 Apr 23  2000 vmunix -> unix
+# while true; do echo; /usr/games/fortune; sleep 5; done
+
+A man's best friend is his dogma.
+
+Three rules for sounding like an expert:
+1. Oversimplify your explanations to the point of uselessness.
+2. Always point out second-order effects,
+   but never point out when they can be ignored.
+3. Come up with three rules.
+
+The human mind treats a new idea the way the
+body treats a strange protein: it rejects it.
+                -- P. Medawar
+
+Charlie was a chemist,
+But Charlie is no more.
+What Charlie thought was H2O was H2SO4.
+
+^C
 # cat > hello.c
 #include <stdio.h>
-main()
-{
+main() {
     printf("Hello world\n");
 }
-CTRL/D
+^D
 # cc hello.c
 # ls -al hello* a.out
 -rwxr-x--x  1 root         5335 Mar 31 15:52 a.out
 -rw-r-----  1 root           59 Mar 31 15:52 hello.c
 # ./a.out
 Hello world
+# cat > size.c
+#include <stdio.h>
+int main() {
+    printf("Size of char: %d byte\n",sizeof(char));
+    printf("Size of int: %d bytes\n",sizeof(int));
+    printf("Size of float: %d bytes\n",sizeof(float));
+    printf("Size of double: %d bytes\n",sizeof(double));
+}
+^D
+# cc size.c
+# ./a.out
+Size of char: 1 byte
+Size of int: 2 bytes
+Size of float: 4 bytes
+Size of double: 8 bytes
 # cd /sys/VIXEN
 # make
-make -f Make.sys I=/usr/include H=../h M=../machine AS="/bin/as -V" .....
+make -f Make.sys I=/usr/include H=../h M=../machine AS="/bin/as -V" CPP="/lib/cpp -P -DKERNEL -DVIXEN -DFPSIM -DSOFUB_MAP -I. -I../h"  CFLAGS="-O -DKERNEL -DVIXEN -DFPSIM -DSOFUB_MAP -I. -I../h" SED="/bin/sed"
 cc -O -DKERNEL -DVIXEN -DFPSIM -DSOFUB_MAP -I. -I../h -S ../sys/init_main.c
 /bin/sed -f SPLFIX init_main.s | /bin/as -V -u -o init_main.o
 rm -f init_main.s
 cc -O -DKERNEL -DVIXEN -DFPSIM -DSOFUB_MAP -I. -I../h -S ../sys/init_sysent.c
-/bin/sed -f SPLFIX init_sysent.s | /bin/as -V -u -o init_sysent.o
-rm -f init_sysent.s
-cc -O -DKERNEL -DVIXEN -DFPSIM -DSOFUB_MAP -I. -I../h -S ../sys/kern_acct.c
-/bin/sed -f SPLFIX kern_acct.s | /bin/as -V -u -o kern_acct.o
-rm -f kern_acct.s
-cc -O -DKERNEL -DVIXEN -DFPSIM -DSOFUB_MAP -I. -I../h -S ../sys/kern_clock.c
-/bin/sed -f SPLFIX kern_clock.s | /bin/as -V -u -o kern_clock.o
-rm -f kern_clock.s
 ...
-size unix
 text    data    bss     dec     hex
-50624   7792    23708   82124   140cc   total text: 118272
-        overlays: 7680,7360,7680,7488,7488,7744,5632,6144,7680,2752
+55168   8458    24348   87974   157a6   total text: 124736
+        overlays: 7680,7360,7680,7488,7488,7744,5632,8000,7744,2752
 Compacting symbol table
 symcompact unix
-symcompact: 209 symbols removed
+symcompact: 228 symbols removed
 Compacting strings table
 strcompact unix
 rearranging symbols
 symorder ../pdp/symbols.sort unix
 ./checksys unix
-System will occupy 210528 bytes of memory (including buffers and clists).
+System will occupy 220576 bytes of memory (including buffers and clists).
 
-               end {0075414}          nbuf {0017116}           buf {0044360}
-             nproc {0017104}          proc {0061314}         ntext {0017106}
-              text {0074354}         nfile {0017112}          file {0071720}
-            ninode {0017110}         inode {0017200}      ncallout {0017114}
-           callout {0035764}     ucb_clist {0017122}        nclist {0017120}
-          ram_size {0000000}       xitdesc {0017176}      quotdesc {0000000}
-         namecache {0036504}       _iosize {0010004}          nlog {0016156}
+               end {0100046}          nbuf {0020350}           buf {0046716}
+             nproc {0020336}          proc {0063746}         ntext {0020340}
+              text {0077006}         nfile {0020344}          file {0074352}
+            ninode {0020342}         inode {0020432}      ncallout {0020346}
+           callout {0037216}     ucb_clist {0020354}        nclist {0020352}
+          ram_size {0000000}       xitdesc {0020430}      quotdesc {0000000}
+         namecache {0037736}       _iosize {0010456}          nlog {0017414}
 # make install
 install -c -o root -g kmem -m 744 unix /unix
-# ps -aux
-USER       PID NICE SZ TTY TIME COMMAND
-root         0   0   8 ?   0:00 swapper
-root         1   0  29 ?   0:00  (init)
-root        42   0  11 ?   0:00 update 
-root        45   0  51 ?   0:00 cron 
-root        49  -1  26 ?   0:00 acctd 
-root        55   0  47 ?   0:00 /usr/sbin/lpd 
-root        75   0  19 co  0:00 -sh 
-root       884   0  59 co  0:00 ps -aux 
-# 
+# shutdown -h now
+Shutdown at 04:29 (in 0 minutes) [pid 80]
 
+        *** FINAL System shutdown message from root@vixen.2bsd.com ***
+
+System going down IMMEDIATELY
+
+System shutdown time has arrived
+# syncing disks... done
+halting
 ```
 
 ## Example boot of RSTS V9.6
 
 ```
-BOOT> boot rp2
+Boot> boot rp2
 
 RSTS V9.6-11 RSTS   (DB2) INIT V9.6-11
 
@@ -979,7 +1194,7 @@ Today's date? 31-OCT-86
 
 Current time? 11:12
 
-Start timesharing? <Yes> 
+Start timesharing? <Yes> ^J
 
 Default memory allocation table shows LESS
 memory than INIT detects on this machine.
@@ -998,7 +1213,7 @@ Memory available to RSTS/E is 1912K words.
 
 1 device disabled
 
-Proceed with system startup? <YES> 
+Proceed with system startup? <YES> ^J
 
  Beginning RSTS/E system startup...
 86.10.31  11:12      Installing monitor overlays
@@ -1012,38 +1227,40 @@ Proceed with system startup? <YES>
 31-Oct-86 11:12 AM   Setting printer characteristics
 31-Oct-86 11:12 AM   Starting spoolers
 
-*** From [1,2] on KB0: at 11:12 AM 31-Oct-86     
-** RSTS/E is on the air...     
+*** From [1,2] on KB0: at 11:12 AM 31-Oct-86
+** RSTS/E is on the air...
 
+I11,70
+Last logged in on 31-Oct-86, 06:42 AM at KB0:
 
-
-I11/70
+Welcome to RSTS/E V9.6 time sharing
+...
 
 $ systat
 
-RSTS V9.6-11 RSTS/E V9.6 status at 31-Oct-86, 11:14 AM Up: 2:45
+RSTS V9.6-11 RSTS/E V9.6 status at 31-Oct-86, 11:12 AM Up: 29
 
 Job    Who    Where     What    Size    State    Run-Time    RTS
- 1     1,2    Det      ERRCPY    5K     SR            0.8    ...RSX
- 2    11,70   KB0      SYSTAT   16K     RN Lck        0.4    ...RSX
- 3     1,2    Det      PBS...   19K     SL            0.0    ...RSX
+ 1     1,2    Det      ERRCPY    5K     SR            1.3    ...RSX
+ 2    11,70   KB0      SYSTAT   16K     RN Lck        0.2    ...RSX
+ 3     1,2    Det      PBS...   19K     SL            0.1    ...RSX
 
 Busy Devices: None
 
 Disk Structure:
 Dsk  Open    Size      Free    Clu   Err Name      Level  Comments
-DB2    18  171796  119452  69%   4     0 VIXEN      1.2   Pub, DLW
+DB2    18  171796  119440  69%   4     0 VIXEN      1.2   Pub, DLW
 
 General  FIP                    Hung
 Buffers  Buffers  Jobs/Jobmax   TTY's   Errors
-  741      461       3/63         0        0
+  734      461       3/63         0        0
 
 Run-Time Systems:
  Name   Typ   Dev    Size    Users  Comments
 ...RSX  TSK          0(32)K    3    Monitor, KBM
 DCL     COM   DB2:   24(8)K    0    Temp, Addr:71, DF KBM
 RT11    SAV   DB2:   4(28)K    0    Temp, Addr:108, KBM, CSZ, EMT:255
-BASIC   BAC   DB2:  16(16)K    0    Temp, Addr:166, KBM, CSZ
+BASIC   BAC   DB2:  16(16)K    0    Non-Res, KBM, CSZ
 TECO    TEC   DB2:  10(20)K    0    Non-Res, KBM
 
 Resident Libraries:
@@ -1059,7 +1276,7 @@ RMSLBE < 42>  DB2:[  0,10 ]    3K    1    Temp, Addr:125
 RMSLBF < 42>  DB2:[  0,10 ]    4K    1    Temp, Addr:128
 DAPRES < 42>  DB2:[  0,10 ]   10K    0    Non-Res, Addr:1679
 
-Message Receivers: 
+Message Receivers:
 Rcvrid   Job    Rib  Obj   Msgs/Max   Links/InMax/OutMax  Access
 ERRLOG    1      0    1       0/40          0/0/0          Prv
 QM$CMD    3      1    3       0/20          0/0/255        Prv
@@ -1086,8 +1303,7 @@ See the RSTS/E Quick Reference Guide for the syntax of all DCL commands
 and qualifiers on RSTS/E.
 
 For instructions on how to use this HELP facility, type HELP HELP from
-DCL, or type HELP in response to the HELP Topic?  prompt.  
- 
+DCL, or type HELP in response to the HELP Topic?  prompt.
 
 Additional help is available on:
 
@@ -1098,20 +1314,9 @@ CREATE          Dates           DCL             DEALLOCATE      DEASSIGN
 DEFINE          DELETE          DETACH          DIBOL           DIFFERENCES
 DIRECTORY       DISMOUNT        DUMP            EDIT            Entries
 EOD             EXIT            Expressions     Files           FORCE
-Forms           FORTRAN         Functions       GOSUB           GOTO
-HANGUP          HELP            IF              INITIALIZE      INQUIRE
-INSTALL         Keys            Labels          LINK            LOAD
-LOGIN           LOGOUT          MACRO           MAIL            MERGE
-MOUNT           ON              OPEN            Operators       Passwords
-PRINT           Privileges      Programs        Queues          Quotas
-READ            REMOVE          RENAME          REQUEST         RESTORE
-RETURN          RT11            RSX             RUN             Runtime Systems
-Servers         SET             SHOW            SORT            START
-STOP            SUBMIT          Symbols         Times           TYPE
-UNLOAD          WRITE
+...
 
 Topic? ^Z
-
 $ set term/width:80
 $ dir
 
@@ -1122,92 +1327,45 @@ STRTRK.BAS      27   < 60>    STRTR1.BAS       9   < 60>
 ADVENT.DOC       4   < 60>    ADVENT.SAV      93   <124>
 ADVENT.VAR      22   < 60>    ADVTXT.TXT     125   < 60>
 SYSMAC.SML      42   < 60>    HELLO .MAC       1   < 60>
-BOOT  .MAC      24   < 60>    
+BOOT  .MAC      24   < 60>    PI    .BAS       1   < 60>
+PRIME .BAS       1   < 60>
 
-Total of 382 blocks in 13 files in SY:[11,70]
+Total of 384 blocks in 15 files in SY:[11,70]
 
-$ run advent
-
-WELCOME TO ADVENTURE!!  WOULD YOU LIKE INSTRUCTIONS?
-
-yes
-SOMEWHERE NEARBY IS COLOSSAL CAVE, WHERE OTHERS HAVE FOUND FORTUNES IN
-TREASURE AND GOLD, THOUGH IT IS RUMORED THAT SOME WHO ENTER ARE NEVER 
-SEEN AGAIN.  MAGIC IS SAID TO WORK IN THE CAVE.  I WILL BE YOUR EYES
-AND HANDS.  DIRECT ME WITH COMMANDS OF 1 OR 2 WORDS.  I SHOULD WARN 
-YOU THAT I LOOK AT ONLY THE FIRST FOUR LETTERS OF EACH WORD, SO YOU'LL
-HAVE TO ENTER "NORTHEAST" AS "NE" TO DISTINGUISH IT FROM "NORTH". 
-(SHOULD YOU GET STUCK, TYPE "HELP" FOR SOME GENERAL HINTS.  FOR INFOR-
-MATION ON HOW TO END YOUR ADVENTURE, ETC., TYPE "INFO".)
-      - - - 
-THIS PROGRAM WAS ORIGINALLY DEVELOPED BY WILLIE CROWTHER.  MOST OF THE
-FEATURES OF THE CURRENT PROGRAM WERE ADDED BY DON WOODS (DON @ SU-AI).
-THE CURRENT VERSION WAS DONE BY MIKE WESTON.
-
-YOU ARE STANDING AT THE END OF A ROAD BEFORE A SMALL BRICK BUILDING.
-AROUND YOU IS A FOREST.  A SMALL STREAM FLOWS OUT OF THE BUILDING AND 
-DOWN A GULLY. 
-
-quit
-DO YOU REALLY WANT TO QUIT NOW? 
-
-yes
-OK
-
-YOU SCORED  27 OUT OF A POSSIBLE 350, USING    8 TURNS.
-
-YOU ARE OBVIOUSLY A RANK AMATEUR.  BETTER LUCK NEXT TIME. 
-
-TO ACHIEVE THE NEXT HIGHER RATING, YOU NEED  9 MORE POINTS.
-$ run $switch
-Keyboard Monitor to switch to? basic
+$ switch basic
 
 Ready
 
-run acey
-                          ACEY DUCEY CARD GAME
-               CREATIVE COMPUTING  MORRISTOWN, NEW JERSEY
+run prime
+ 1             2             3             5             7
+ 11            13            17            19            23
+ 29            31            37            41            43
+...
+CPU TIME       2.7           SECONDS
 
+Ready
 
-ACEY-DUCEY IS PLAYED IN THE FOLLOWING MANNER 
-THE DEALER (COMPUTER) DEALS TWO CARDS FACE UP
-YOU HAVE AN OPTION TO BET OR NOT BET DEPENDING
-ON WHETHER OR NOT YOU FEEL THE CARD WILL HAVE
-A VALUE BETWEEN THE FIRST TWO.
-IF YOU DO NOT WANT TO BET, INPUT A 0
-YOU NOW HAVE 100 DOLLARS.
-
-HERE ARE YOUR NEXT TWO CARDS: 
- 4 
- 5 
-
-WHAT IS YOUR BET? 1
- 9 
-SORRY, YOU LOSE
-YOU NOW HAVE 99 DOLLARS.
-
-HERE ARE YOUR NEXT TWO CARDS: 
- 3 
-QUEEN
-
-WHAT IS YOUR BET? 1
-QUEEN
-SORRY, YOU LOSE
-YOU NOW HAVE 98 DOLLARS.
-
-HERE ARE YOUR NEXT TWO CARDS: 
- 7 
-JACK
-
-WHAT IS YOUR BET? ^C
+list
+PRIME   11:14 AM    31-Oct-86
+10 REM PRIME NUMBERS
+20 S=TIME(1)
+30 FOR I%=1% TO 1000%
+40  FOR J%=2% TO I%-1%
+50   IF I%/J%*J%=I% THEN 80
+60  NEXT J%
+70 PRINT I%,
+80 NEXT I%
+90 PRINT
+100 PRINT "CPU TIME ", (TIME(1) - S) / 10, " SECONDS"
+999 END
 
 Ready
 
 bye
-Saved all disk files on SY: 416 blocks in use
+Saved all disk files on SY: 424 blocks in use
 Job 2 User 11,70 logged off KB0: at 31-Oct-86 11:14 AM
 System RSTS V9.6-11 RSTS/E V9.6
-Run time was 3.4 seconds
+Run time was 4.2 seconds
 Elapsed time was 2 minutes
 Good morning
 ```
@@ -1217,7 +1375,7 @@ Good morning
 ```
 PAUL NANKERVIS - PAULNANK@HOTMAIL.COM
 
-BOOT> boot rp3
+Boot> boot rp3
 
 
   RSX-11M V4.6 BL56   1912.K MAPPED
