@@ -51,13 +51,15 @@ const
 // management mode stack pointer (R6), as well as two sets of general registers (selection by program status).
 // Floating point arithmetic is handled by a separate module. It is implemented by calling the executeFPP()
 // function in module fpp.js whenever a floating point instruction is encountered.
-// Traps are implemented by the trap() function below. Traps cause the current instruction flow to be saved
-// in kernel mode, and for a new PC and PSW to be loaded from a trap vector location in kernel data space.
+// Traps are implemented by the trap() function below. Traps read a new PC and PSW from a vector in kernel data
+// space, and then save the old values on to the new mode stack. Software can resume processing at the end of an
+// interrupt service routine by using an RTT or RTI instruction to restore the PC and PSW.
 // The trap vector depends on the kind of trap, for example 4 for an odd address, 10 for an invalid instruction,
-// or 20 when an IOT instruction is encountred.
-// IO traps occur when a device needs to signal attention, for example at the completion of an operation. In this
+// or 20 when an IOT instruction is encountered.
+// I/O traps occur when a device needs to signal attention, for example at the completion of an operation. In this
 // case the device code calls the interrupt() function below to queue a trap to the appropriate trap vector
-// with a priority code. When the CPU priority reduces below that interupt level then the device trap will trigger.
+// with a priority code. When the CPU priority in the PSW reduces below that interupt level then the device I/O
+// trap will trigger.
 
 var CPU = {
     controlReg: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], // various control registers we don't really care about
@@ -947,6 +949,9 @@ function getVirtualByMode(addressMode, accessMode) {
     return virtualAddress;
 }
 
+
+// Convert an instruction operand into a 17 bit I/D virtual address and then map it to a 22 bit physical
+// address. Handle register addresses as a special case to outside of physical address range.
 
 function getAddrByMode(addressMode, accessMode) {
     "use strict";
