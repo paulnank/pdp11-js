@@ -39,7 +39,7 @@ function extractXHR(xhr, cache, block) {
     do {
         if (typeof cache[block] === "undefined") {
             cache[block] = new Uint8Array(IO_BLOCKSIZE); // Creates zero filled cache block
-            for (blockIndex = 0; blockIndex < IO_BLOCKSIZE && dataIndex < dataLength; ) {
+            for (blockIndex = 0; blockIndex < IO_BLOCKSIZE && dataIndex < dataLength;) {
                 cache[block][blockIndex++] = dataView[dataIndex++] & 0xff;
             }
         } else {
@@ -1130,70 +1130,60 @@ function lp11_initialize() {
 
 // =========== DL11 data (includes console as unit 0) ===========
 
-var DL11 = {
-    textElement: [],
-    rbufQueue: [
-        []
-    ],
-    rbuf: [0],
-    rcsr: [0],
-    xbuf: [0],
-    xcsr: [0200],
-    vector: [0],
-    delCode: 127,
-    del: 0
-};
+var DL11_lastUnit = 0;
+var DL11 = []; // Space for the array of DL11 objects
 
-function dl11_init() {
-    DL11.rbufQueue = [
-        []
-    ];
-    DL11.rcsr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    DL11.xcsr = [0200, 0200, 0200, 0200, 0200, 0200, 0200, 0200, 0200, 0200, 0200, 0200, 0200, 0200, 0200, 0200, 0200];
+
+function dl11_reset() { // Reset all units to initial state
+    "use strict";
+    var i;
+    for (i = 0; i < DL11.length; i++) {
+        DL11[i].rcsr = 0; // No received characters
+        DL11[i].xcsr = 0x80; // Ready to transmit
+        DL11[i].typeAhead = ''; // Nothing in type ahead buffer
+    }
 }
 
 
-function dl11_initialize(unit, vector) {
+function dl11_initialize(unit, vector) { // Called when a new terminal identified
+    "use strict";
     var divElement;
     if (unit != 0) {
         divElement = document.createElement('div');
-        divElement.innerHTML = '<p>tty' + unit + '<br /><textarea id=' + unit + ' cols=132 rows=24 spellcheck=false style="font-family:Liberation Mono,Monaco,Courier New,Lucida Console,Consolas,DejaVu Sans Mono,Bitstream Vera Sans Mono,monospace"></textarea><br /></p>';
+        divElement.innerHTML = '<p>tty' + unit + '<br /><textarea id=' + unit + ' cols=132 rows=24 style="font-family:' + "'Courier New'" + ',Courier,' + "'Lucida Console'" + ',Monaco,monospace;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea><br /></p>';
         document.getElementById('dl11').appendChild(divElement);
     }
-    DL11.vector[unit] = vector;
-    DL11.rbufQueue[unit] = [];
-    DL11.rcsr[unit] = 0;
-    DL11.xcsr[unit] = 0200;
-    DL11.textElement[unit] = document.getElementById(unit);
-    DL11.textElement[unit].onkeydown = dl11_keydown;
-    DL11.textElement[unit].onkeypress = dl11_read;
-    DL11.textElement[unit].onpaste = dl11_paste;
-}
-
-function dl11_input(unit, ascii) {
-    DL11.rbufQueue[unit].push(ascii);
-    if (!(DL11.rcsr[unit] & 0x80)) {
-        dl11_rbuf(unit);
-    }
-    DL11.textElement[unit].focus();
+    DL11[unit] = {
+        rcsr: 0,
+        rbuf: 0,
+        xcsr: 0x80,
+        xbuf: 0,
+        vector: vector,
+        typeAhead: '',
+        elementId: document.getElementById(unit)
+    };
+    DL11[unit].elementId.onkeydown = dl11_keydown;
+    DL11[unit].elementId.onkeypress = dl11_keypress;
+    DL11[unit].elementId.onpaste = dl11_paste;
 }
 
 function dl11_keydown(event) {
+    "use strict";
     var code = event.charCode || event.keyCode;
+    DL11_lastUnit = event.target.id;
     if (event.ctrlKey && code > 64 && code < 96) {
-        dl11_input(event.target.id, event.keyCode - 64);
+        dl11_input(DL11_lastUnit, String.fromCharCode(event.keyCode - 64));
     } else {
         if (event.code == "Escape") {
-            dl11_input(event.target.id, 27);
+            dl11_input(DL11_lastUnit, String.fromCharCode(27));
         } else {
             if (event.code == "Tab") {
-                dl11_input(event.target.id, 9);
+                dl11_input(DL11_lastUnit, String.fromCharCode(9));
             } else {
                 if (code == 8 || code == 127) {
-                    dl11_input(event.target.id, DL11.delCode);
-                    DL11.del = 1;
+                    dl11_input(DL11_lastUnit, String.fromCharCode(127));
                 } else {
-                    return true; // too hard to decode - let it go to keypress
+                    return vt52KeyDown(DL11_lastUnit, code, event);
                 }
             }
         }
@@ -1201,112 +1191,109 @@ function dl11_keydown(event) {
     return false;
 }
 
-function dl11_read(event) {
+function dl11_keypress(event) {
+    "use strict";
     var code = event.charCode || event.keyCode;
-    dl11_input(event.target.id, code);
+    DL11_lastUnit = event.target.id;
+    dl11_input(DL11_lastUnit, String.fromCharCode(code));
     return false;
 }
 
 function dl11_paste(event) {
+    "use strict";
     var i, cb = event.clipboardData.getData('text/plain') || window.clipboardData.getData('Text');
+    DL11_lastUnit = event.target.id;
     if (cb && cb.length > 0) {
-        for (i = 0; i < cb.length; i++) {
-            if (cb.charCodeAt(i) != 015) dl11_input(event.target.id, cb.charCodeAt(i));
-        }
+        dl11_input(DL11_lastUnit, cb);
     }
     return false;
 }
 
-function dl11_putchar(unit, data) {
-    switch (data) {
-        case 0:
-        case 015:
-            if (DL11.textElement[unit].value.length > 12000) {
-                DL11.textElement[unit].value = DL11.textElement[unit].value.substring(DL11.textElement[unit].value.length - 4000);
-            }
-            break;
-        case 010:
-            if (1 || !DL11.del) {
-                DL11.textElement[unit].value = DL11.textElement[unit].value.substring(0, DL11.textElement[unit].value.length - 1);
-            }
-            break;
-        default:
-            DL11.textElement[unit].value += String.fromCharCode(data);
-            if (data == 012) {
-                DL11.textElement[unit].scrollTop = DL11.textElement[unit].scrollHeight;
-            }
+function dl11_input(unit, string) {
+    "use strict";
+    if (string.length > 0) {
+        if (string.charCodeAt(0) == 3) {
+            DL11[unit].typeAhead = string; // Kill type ahead if user types ^C
+        } else {
+            DL11[unit].typeAhead += string;
+        }
+        if (!(DL11[unit].rcsr & 0x80)) {
+            dl11_rbuf(unit);
+        }
     }
-    DL11.del = 0;
+    DL11[unit].elementId.focus();
 }
 
-
-function dl11_rbuf(unit) {
-    if (!(DL11.rcsr[unit] & 0x80)) {
-        if (DL11.rbufQueue[unit].length > 0) {
-            DL11.rbuf[unit] = DL11.rbufQueue[unit].shift();
-            DL11.rcsr[unit] |= 0x80;
-            if (DL11.rcsr[unit] & 0x40) interrupt(1, 0, 4 << 5, DL11.vector[unit]);
+function dl11_rbuf(unit) { // Load character into rbuf from typeahead
+    "use strict";
+    if (!(DL11[unit].rcsr & 0x80)) {
+        if (DL11[unit].typeAhead.length > 0) {
+            DL11[unit].rbuf = DL11[unit].typeAhead.charCodeAt(0);
+            DL11[unit].typeAhead = DL11[unit].typeAhead.substr(1);
+            DL11[unit].rcsr |= 0x80;
+            if (DL11[unit].rcsr & 0x40) {
+                interrupt(1, 0, 4 << 5, DL11[unit].vector);
+            }
         }
     }
 }
 
+function dl11_putchar(unit, data) {
+    "use strict";
+    vt52Put(unit, data);
+}
+
 
 function accessDL11(physicalAddress, data, byteFlag, unit, vector) {
-    var result;
+    "use strict";
+    var result = 0;
+    if (typeof DL11[unit] === "undefined") {
+        dl11_initialize(unit, vector);
+    }
     switch (physicalAddress & 0x6) {
-        case 06: // DL xbuf
-            result = insertData(DL11.xbuf[unit], physicalAddress, data, byteFlag);
+        case 6: // DL xbuf
+            result = insertData(DL11[unit].xbuf, physicalAddress, data, byteFlag);
             if (data >= 0 && result >= 0) {
-                DL11.xbuf[unit] = result &= 0x7f;
-                if (result >= 010 && result < 127) {
+                DL11[unit].xbuf = result;
+                result &= 0x7f;
+                if (result >= 8 && result < 127) {
                     dl11_putchar(unit, result);
                 }
-                if (DL11.xcsr[unit] & 0x40) {
-                    DL11.xcsr[unit] &= ~0x80; // Turn off Done until interrupt
-                    interrupt(1, 4, 4 << 5, DL11.vector[unit] + 4, function() {
-                        DL11.xcsr[unit] |= 0x80;
-                        return (DL11.xcsr[unit] & 0x40);
-                    });
+                if (DL11[unit].xcsr & 0x40) { // Cheat: leave Done permanently set
+                    interrupt(1, 4, 4 << 5, DL11[unit].vector + 4);
                 }
             }
             break;
-        case 04: // DL xcsr
-            result = insertData(DL11.xcsr[unit], physicalAddress, data, byteFlag);
+        case 4: // DL xcsr
+            result = insertData(DL11[unit].xcsr, physicalAddress, data, byteFlag);
             if (data >= 0 && result >= 0) {
-                if (typeof DL11.textElement[unit] === "undefined") {
-                    dl11_initialize(unit, vector);
-                }
-                if (((DL11.xcsr[unit] ^ result) & 0x40)) { // IE changed state?
+                if (((DL11[unit].xcsr ^ result) & 0x40)) { // IE changed state?
                     if (result & 0x40) {
-                        DL11.xcsr[unit] = 0xc0; // Set done as well in case an interrupt was pending
-                        interrupt(1, 5, 4 << 5, DL11.vector[unit] + 4);
+                        DL11[unit].xcsr = 0xc0; // Set done as well in case an interrupt was pending
+                        interrupt(1, 5, 4 << 5, DL11[unit].vector + 4);
                     } else {
-                        DL11.xcsr[unit] &= 0x80; // Keep Done but clear IE
-                        interrupt(1, -1, 4 << 5, DL11.vector[unit] + 4); // Clean interrupts from queue
+                        DL11[unit].xcsr &= 0x80; // Keep Done but clear IE
+                        interrupt(1, -1, 4 << 5, DL11[unit].vector + 4); // Clean interrupts from queue
                     }
                 }
             }
             break;
-        case 02: // DL rbuf
-            result = insertData(DL11.rbuf[unit], physicalAddress, data, byteFlag);
+        case 2: // DL rbuf
+            result = insertData(DL11[unit].rbuf, physicalAddress, data, byteFlag);
             if (result >= 0 && data < 0) {
-                if (DL11.rcsr[unit] & 0x80) {
-                    DL11.rcsr[unit] &= ~0x80;
-                    if (DL11.rbufQueue[unit].length > 0) {
-                        setTimeout(dl11_rbuf, 55, unit);
-                    }
+                if ((DL11[unit].rcsr & 0x80) && DL11[unit].typeAhead.length > 0) {
+                    setTimeout(dl11_rbuf, 7, unit); // If something in typeahead then set timer to use it
                 }
+                DL11[unit].rcsr &= ~0x80;
             }
             break;
-        case 00: // DL rcsr
-            result = insertData(DL11.rcsr[unit], physicalAddress, data, byteFlag);
+        case 0: // DL rcsr
+            result = insertData(DL11[unit].rcsr, physicalAddress, data, byteFlag);
             if (result >= 0 && data >= 0) {
-                if (((DL11.rcsr[unit] ^ result) & 0x40)) { // IE change?
-                    if (!(result & 0x40)) {
-                        interrupt(1, -1, 4 << 5, DL11.vector[unit]);
-                    }
+                if ((DL11[unit].rcsr & 0x40) && !(result & 0x40)) { // Did IE just get turned off?
+                    interrupt(1, -1, 4 << 5, DL11[unit].vector);
                 }
-                DL11.rcsr[unit] = (DL11.rcsr[unit] & 0x80) | (result & 0x40);
+                DL11[unit].rcsr = (DL11[unit].rcsr & 0x80) | (result & 0x40);
             }
             break;
     }
@@ -1356,7 +1343,7 @@ function reset_iopage() {
     CPU.MMR0 = CPU.MMR3 = CPU.mmuEnable = 0;
     CPU.MMR3Mask[0] = CPU.MMR3Mask[1] = CPU.MMR3Mask[3] = 7;
     CPU.mmuLastPage = 0;
-    dl11_init();
+    dl11_reset();
     ptr11_init();
     lp11_init();
     kw11_init();
@@ -1676,8 +1663,6 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
                     }
                     break;
                 default:
-
-                    result = accessDL11(physicalAddress, data, byteFlag, idx + 1, idx * 8 + 0300);
                     CPU.CPU_Error |= 0x10;
                     result = trap(4, 234);
             }
