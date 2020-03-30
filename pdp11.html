@@ -11,7 +11,7 @@
     <!--I'm particularly interested in hearing from anyone with real experience on a PDP 11/70 front panel-->
     <style type="text/css">
         .frame {
-            height: 362px;
+            height: 350px;
             width: 768px;
             position: relative;
             background: #c3bcaa;
@@ -37,7 +37,7 @@
         }
         .bevel {
             position: absolute;
-            top: 44px;
+            top: 46px;
             left: 14px;
             height: 0px;
             width: 700px;
@@ -48,16 +48,16 @@
         }
         .edges {
             position: absolute;
-            top: 64px;
+            top: 62px;
             left: 4px;
             height: 0;
             width: 740px;
-            border-bottom: 295px solid #9c9781;
+            border-bottom: 286px solid #9c9781;
             border-left: 10px solid transparent;
             border-right: 10px solid transparent;
         }
         .panel {
-            top: 60px;
+            top: 58px;
             left: 24px;
             height: 304px;
             width: 720px;
@@ -70,14 +70,14 @@
         }
         .panel_black {
             position: absolute;
-            height: 252px;
+            height: 242px;
             width: 720px;
             border-radius: 15px;
             background-color: #202020;
         }
         .switch_bevel {
             position: absolute;
-            top: 312px;
+            top: 300px;
             left: 5px;
             height: 365px;
             width: 758px;
@@ -116,9 +116,9 @@
             position: absolute;
         }
         .switch_background_top {
-            height: 90px;
+            height: 96px;
             width: 154px;
-            border-radius: 4px;
+            border-radius: 6px;
             background-color: #000000;
             position: absolute;
             float: left;
@@ -126,7 +126,7 @@
         .switch_background_bottom {
             height: 44px;
             width: 154px;
-            border-radius: 4px;
+            border-radius: 6px;
             background-color: #000000;
             position: absolute;
             float: left;
@@ -240,8 +240,8 @@
       <div class="panel">
       <div class="panel_black"></div>
 
-        <div style="position:absolute;top:42px;left:32px;">
-          <img src="pdp11-70.svg" alt="pdp11-70" style="position:absolute;top:0px;left:0px;" width="114px">
+        <div style="position:absolute;top:32px;left:32px;">
+          <img src="pdp11-70.svg" alt="pdp11-70" style="position:absolute;top:8px;left:0px;" width="114px">
           <div style="position:absolute;top:0px;left:220px;">
             <div style="position:absolute;left:0px;">
               <div class="ledpad" style="left:0px;width:22px;">PAR<br>ERR<div id=s11 class=led></div></div>
@@ -264,7 +264,7 @@
               <div class="ledpad" style="left:66px;">22<div id=s0 class=led></div></div>
             </div>
           </div>
-          <div style="position:absolute;top:64px;left:0px;">
+          <div style="position:absolute;top:60px;left:0px;">
             <div style="position:absolute;left:0px;">
               <div class="base" style="width:21px;border-top-left-radius:4px;"></div>
               <div class="ledpad" style="left:0px;"><div id=a21 class=led></div></div>
@@ -313,7 +313,7 @@
             </div>
           </div>
           <div class="switch_background_top" style="position:absolute;top:8px;left:502px;">
-            <div style="position:absolute;left:2px;top:10px;display:table;height:72px;width:122px;text-align:left;font-size:110%;border-spacing:4px;">
+            <div style="position:absolute;left:2px;top:10px;display:table;height:78px;width:122px;text-align:left;font-size:110%;border-spacing:4px;">
               <div style="display:table-row">
                 <div class=leddiv id=s20 style="display:table-cell;"></div>
                 <div style="display:table-cell;">USER D</div>
@@ -342,7 +342,7 @@
           </div>
         </div>
 
-        <div style="position:absolute;top:160px;left:32px;">
+        <div style="position:absolute;top:152px;left:32px;">
           <div>
             <div style="position:absolute;top:0px;left:0px;">POWER</div>
             <div style="position:absolute;top:0px;left:28px;">LOCK</div>
@@ -415,7 +415,7 @@
           </div>
         </div>
 
-        <div style="position:absolute;top:220px;left:32px;">
+        <div style="position:absolute;top:212px;left:32px;">
           <div>
             <div style="position:absolute;left:0px;">
               <div class="switch_pad" style="left:0px;"><br style="line-height:10px;">21</div>
@@ -465,7 +465,7 @@
               <div class="switch_pad" style="left:132px;"><br style="line-height:10px;">START</div>
             </div>
           </div>
-          <div style="position:absolute;top:32px;left:0px;height:47px;width:647px;background-color:#373030;">
+          <div style="position:absolute;top:30px;left:0px;height:47px;width:647px;background-color:#373030;">
             <div style="position:absolute;left:0px;">
               <div id=sw21 class="switchRed" style="left:0px;" onclick="setSwitch('sw21',2097152);"></div>
             </div>

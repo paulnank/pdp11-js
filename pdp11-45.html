@@ -11,7 +11,7 @@
     <!--I'm particularly interested in hearing from anyone with real experience on a PDP 11/70 front panel-->
     <style type="text/css">
         .frame {
-            height: 362px;
+            height: 350px;
             width: 768px;
             position: relative;
             background: #c3bcaa;
@@ -39,7 +39,7 @@
         .logo45 {
             position: absolute;
             top: 2px;
-            left: 32px;
+            left: 30px;
             height: 22px;
             width: 140px;
             font-size: 80%;
@@ -51,13 +51,13 @@
         .letter {
             position: relative;
             float: left;
-            width: 12px;
+            width: 13px;
             border: 1px solid #736c62;
             border-bottom-color: #534c42;
         }
         .bevel {
             position: absolute;
-            top: 44px;
+            top: 46px;
             left: 14px;
             height: 0px;
             width: 700px;
@@ -68,16 +68,16 @@
         }
         .edges {
             position: absolute;
-            top: 64px;
+            top: 62px;
             left: 4px;
             height: 0;
             width: 740px;
-            border-bottom: 295px solid #9c9781;
+            border-bottom: 286px solid #9c9781;
             border-left: 10px solid transparent;
             border-right: 10px solid transparent;
         }
         .panel {
-            top: 60px;
+            top: 58px;
             left: 24px;
             height: 304px;
             width: 720px;
@@ -90,14 +90,14 @@
         }
         .panel_black {
             position: absolute;
-            height: 252px;
+            height: 242px;
             width: 720px;
             border-radius: 15px;
             background-color: #202020;
         }
         .switch_bevel {
             position: absolute;
-            top: 312px;
+            top: 300px;
             left: 5px;
             height: 365px;
             width: 758px;
@@ -136,9 +136,9 @@
             position: absolute;
         }
         .switch_background_top {
-            height: 90px;
+            height: 96px;
             width: 154px;
-            border-radius: 4px;
+            border-radius: 6px;
             background-color: #000000;
             position: absolute;
             float: left;
@@ -146,7 +146,7 @@
         .switch_background_bottom {
             height: 44px;
             width: 154px;
-            border-radius: 4px;
+            border-radius: 6px;
             background-color: #000000;
             position: absolute;
             float: left;
@@ -262,7 +262,7 @@
       <div class=switch_bevel></div>
       <div class="panel">
       <div class="panel_black"></div>
-        <div style="position:absolute;top:42px;left:32px;">
+        <div style="position:absolute;top:44px;left:32px;">
           <div style="position:absolute;top:0px;left:0px;">
             <div style="position:absolute;left:0px;">
               <div class="base" style="border-top-left-radius:4px;"></div>
@@ -332,7 +332,7 @@
           </div>
         </div>
 
-        <div style="position:absolute;top:118px;left:32px;">
+        <div style="position:absolute;top:112px;left:32px;">
           <div>
             <div style="position:absolute;top:0px;left:0px;">POWER</div>
             <div style="position:absolute;top:0px;left:28px;">LOCK</div>
@@ -403,7 +403,7 @@
           </div>
         </div>
 
-        <div style="position:absolute;top:170px;left:32px;">
+        <div style="position:absolute;top:162px;left:32px;">
           <img src="pdp11-45.svg" alt="pdp11-45" style="position:absolute;top:0px;left:0px;" width="114px">
           <div style="position:absolute;top:0px;left:418px">
             <div class="ledpad" style="left:0px;width:27px;">ADRS ERR<div id=s10 class=led style="left:9px;"></div></div>
@@ -417,7 +417,7 @@
           </div>
         </div>
 
-        <div style="position:absolute;top:220px;left:32px;">
+        <div style="position:absolute;top:212px;left:32px;">
           <div>
             <div style="position:absolute;left:0px;">
               <div class="switch_pad" style="left:0px;"><br style="line-height:10px;">17</div>
@@ -461,7 +461,7 @@
               <div class="switch_pad" style="left:242px;"><br style="line-height:10px;">REG<br>DEP</div>
             </div>
           </div>
-          <div style="position:absolute;top:32px;left:0px;height:47px;width:647px;background-color:#373030;">
+          <div style="position:absolute;top:30px;left:0px;height:47px;width:647px;background-color:#373030;">
             <div style="position:absolute;left:0px;">
               <div id=sw17 class="switchRed" style="left:0px;" onclick="setSwitch('sw17',131072);"></div>
               <div id=sw16 class="switchRed" style="left:22px;" onclick="setSwitch('sw16',65536);"></div>
@@ -493,7 +493,7 @@
               <div id=sw0 class="switchPurple" style="left:44px;;" onclick="setSwitch('sw0',1);"></div>
             </div>
           </div>
-          <div style="position:absolute;top:32px;left:396px;">
+          <div style="position:absolute;top:30px;left:396px;">
             <div id=lt class="switchRed" style="left:0px;background-color: #d7d7d7;border-top-color:#c4c4c0;border-bottom-color:#707067;border-left-color:#575750;border-right-color:#404037;" onclick="panel.lampTest = 1 - panel.lampTest; moveSwitch('lt', (panel.lampTest ? 36 : 22)); if (!panel.powerSwitch) { if (panel.lamp) panel.lamp = 1; }"></div>
             <div id=load class="switchRed" style="left:22px;" onclick="moveSwitch('load', 36); setTimeout(function() {moveSwitch('load', 22);},300); if (!panel.powerSwitch) { CPU.displayAddress = CPU.switchRegister; if (panel.rotary0 > 1) CPU.displayAddress &= 0xffff; panel.autoIncr = 0; }"></div>
             <div id=examine class="switchPurple" style="left:44px;" onclick="moveSwitch('examine', 36); setTimeout(function() {moveSwitch('examine', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) examineDeposit(-1); }"></div>
