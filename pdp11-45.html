@@ -4,24 +4,24 @@
     <title>Javascript PDP 11/45 Emulator v2.1
     </title>
     <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=utf-8">
-    <meta name="description" content="Javascript PDP 11/70 Emulator v2.0">
+    <meta name="description" content="Javascript PDP 11/70 Emulator">
     <meta name="keywords" content="PDP,11,11/70,11/45,Console Panel,RSTS/E Idle Loop,Emulator,Emulation,JavaScript">
     <meta name="author" content="Paul Nankervis">
     <!--Send feedback, fixes and suggestions to Paul Nankervis at paulnank@hotmail.com-->
     <!--I'm particularly interested in hearing from anyone with real experience on a PDP 11/70 front panel-->
     <style type="text/css">
         .frame {
-            height: 350px;
-            width: 768px;
+            height: 344px;
+            width: 760px;
             position: relative;
-            background: #c3bcaa;
+            background: linear-gradient( #c3bcaa, #a39c8a );
         }
         .logo_base {
             position: absolute;
             top: 3px;
             left: 8px;
             height: 28px;
-            width: 430px;
+            width: 440px;
             border: 1px solid #736c62;
             border-radius: 5px;
         }
@@ -36,7 +36,7 @@
             color: #736c62;
             font-family: arial, helvetica, sans-serif;
         }
-        .logo45 {
+        .logo {
             position: absolute;
             top: 2px;
             left: 30px;
@@ -58,9 +58,9 @@
         .bevel {
             position: absolute;
             top: 46px;
-            left: 14px;
+            left: 12px;
             height: 0px;
-            width: 700px;
+            width: 696px;
             padding:  20px 20px 20px 20px;
             background: #837c72;
             border: none;
@@ -68,17 +68,17 @@
         }
         .edges {
             position: absolute;
-            top: 62px;
-            left: 4px;
+            top: 66px;
+            left: 8px;
             height: 0;
-            width: 740px;
-            border-bottom: 286px solid #9c9781;
-            border-left: 10px solid transparent;
-            border-right: 10px solid transparent;
+            width: 736px;
+            border-bottom: 278px solid #9c9781;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
         }
         .panel {
-            top: 58px;
-            left: 24px;
+            top: 52px;
+            left: 20px;
             height: 304px;
             width: 720px;
             color: white;
@@ -97,14 +97,14 @@
         }
         .switch_bevel {
             position: absolute;
-            top: 300px;
-            left: 5px;
+            top: 294px;
+            left: 9px;
             height: 365px;
-            width: 758px;
+            width: 742px;
             height: 3px;
             background: #b3ac9a;
             border-top: 22px solid #9c9781;
-            border-bottom: 22px solid #736c62;
+            border-bottom: 22px solid #534c42;
         }
         .base {
             top: 0px;
@@ -127,7 +127,7 @@
             float: left;
         }
         .led {
-            top: 14px;
+            top: 16px;
             left: 6px;
             height: 9px;
             width: 9px;
@@ -254,7 +254,7 @@
   <body style="font-size:16px;">
     <div class=frame>
       <div class=logo_base>
-        <div class=logo45><div class=letter>d</div><div class=letter>i</div><div class=letter>g</div><div class=letter>i</div><div class=letter>t</div><div class=letter>a</div><div class=letter>l</div></div>
+        <div class=logo><div class=letter>d</div><div class=letter>i</div><div class=letter>g</div><div class=letter>i</div><div class=letter>t</div><div class=letter>a</div><div class=letter>l</div></div>
         <div class=dec>digital equipment corportation &bull; maynard massachusetts</div>
       </div>
       <div class=edges></div>
@@ -404,7 +404,7 @@
         </div>
 
         <div style="position:absolute;top:162px;left:32px;">
-          <img src="pdp11-45.svg" alt="pdp11-45" style="position:absolute;top:0px;left:0px;" width="114px">
+          <img src="pdp11-45.svg" alt="pdp11-45" style="position:absolute;top:6px;left:0px;" width="114px">
           <div style="position:absolute;top:0px;left:418px">
             <div class="ledpad" style="left:0px;width:27px;">ADRS ERR<div id=s10 class=led style="left:9px;"></div></div>
             <div class="ledpad" style="left:30px;width:27px;">RUN<div id=s9 class=led style="left:9px;"></div></div>
@@ -420,45 +420,45 @@
         <div style="position:absolute;top:212px;left:32px;">
           <div>
             <div style="position:absolute;left:0px;">
-              <div class="switch_pad" style="left:0px;"><br style="line-height:10px;">17</div>
-              <div class="switch_pad" style="left:22px;"><br style="line-height:10px;">16</div>
-              <div class="switch_pad" style="left:44px;"><br style="line-height:10px;">15</div>
+              <div class="switch_pad" style="left:0px;"><br style="line-height:9px;">17</div>
+              <div class="switch_pad" style="left:22px;"><br style="line-height:9px;">16</div>
+              <div class="switch_pad" style="left:44px;"><br style="line-height:9px;">15</div>
             </div>
             <div style="position:absolute;left:66px;">
-              <div class="switch_pad" style="left:0px;background-color:#701070;"><br style="line-height:10px;">14</div>
-              <div class="switch_pad" style="left:22px;background-color:#701070;"><br style="line-height:10px;">13</div>
-              <div class="switch_pad" style="left:44px;background-color:#701070;"><br style="line-height:10px;">12</div>
+              <div class="switch_pad" style="left:0px;background-color:#701070;"><br style="line-height:9px;">14</div>
+              <div class="switch_pad" style="left:22px;background-color:#701070;"><br style="line-height:9px;">13</div>
+              <div class="switch_pad" style="left:44px;background-color:#701070;"><br style="line-height:9px;">12</div>
             </div>
             <div style="position:absolute;left:132px;">
-              <div class="switch_pad" style="left:0px;"><br style="line-height:10px;">11</div>
-              <div class="switch_pad" style="left:22px;"><br style="line-height:10px;">10</div>
-              <div class="switch_pad" style="left:44px;"><br style="line-height:10px;">9</div>
+              <div class="switch_pad" style="left:0px;"><br style="line-height:9px;">11</div>
+              <div class="switch_pad" style="left:22px;"><br style="line-height:9px;">10</div>
+              <div class="switch_pad" style="left:44px;"><br style="line-height:9px;">9</div>
             </div>
             <div style="position:absolute;left:198px;">
-              <div class="switch_pad" style="left:0px;background-color:#701070;"><br style="line-height:10px;">8</div>
-              <div class="switch_pad" style="left:22px;background-color:#701070;"><br style="line-height:10px;">7</div>
-              <div class="switch_pad" style="left:44px;background-color:#701070;"><br style="line-height:10px;">6</div>
+              <div class="switch_pad" style="left:0px;background-color:#701070;"><br style="line-height:9px;">8</div>
+              <div class="switch_pad" style="left:22px;background-color:#701070;"><br style="line-height:9px;">7</div>
+              <div class="switch_pad" style="left:44px;background-color:#701070;"><br style="line-height:9px;">6</div>
             </div>
             <div style="position:absolute;left:264px;">
-              <div class="switch_pad" style="left:0px;"><br style="line-height:10px;">5</div>
-              <div class="switch_pad" style="left:22px;"><br style="line-height:10px;">4</div>
-              <div class="switch_pad" style="left:44px;"><br style="line-height:10px;">3</div>
+              <div class="switch_pad" style="left:0px;"><br style="line-height:9px;">5</div>
+              <div class="switch_pad" style="left:22px;"><br style="line-height:9px;">4</div>
+              <div class="switch_pad" style="left:44px;"><br style="line-height:9px;">3</div>
             </div>
             <div style="position:absolute;left:330px;">
-              <div class="switch_pad" style="left:0px;background-color:#701070;"><br style="line-height:10px;">2</div>
-              <div class="switch_pad" style="left:22px;background-color:#701070;"><br style="line-height:10px;">1</div>
-              <div class="switch_pad" style="left:44px;background-color:#701070;"><br style="line-height:10px;">0</div>
+              <div class="switch_pad" style="left:0px;background-color:#701070;"><br style="line-height:9px;">2</div>
+              <div class="switch_pad" style="left:22px;background-color:#701070;"><br style="line-height:9px;">1</div>
+              <div class="switch_pad" style="left:44px;background-color:#701070;"><br style="line-height:9px;">0</div>
             </div>
             <div style="position:absolute;left:396px;">
-              <div class="switch_pad" style="left:22px;"><br style="line-height:10px;">LOAD<br>ADRS</div>
-              <div class="switch_pad" style="left:44px;background-color:#701070;"><br style="line-height:10px;">EXAM</div>
-              <div class="switch_pad" style="left:66px;"><br style="line-height:10px;">CONT</div>
-              <div class="switch_pad" style="left:88px;background-color:#701070;"><br style="line-height:10px;">ENABLE<br>HALT</div>
-              <div class="switch_pad" style="left:110px;"><br style="line-height:10px;">S INST<br>S BUS</div>
-              <div class="switch_pad" style="left:132px;background-color:#701070;"><br style="line-height:10px;">START</div>
-              <div class="switch_pad" style="left:176px;"><br style="line-height:10px;">DEP</div>
-              <div class="switch_pad" style="left:220px;background-color:#701070;"><br style="line-height:10px;">REG<br>EXAM</div>
-              <div class="switch_pad" style="left:242px;"><br style="line-height:10px;">REG<br>DEP</div>
+              <div class="switch_pad" style="left:22px;"><br style="line-height:9px;">LOAD<br>ADRS</div>
+              <div class="switch_pad" style="left:44px;background-color:#701070;"><br style="line-height:9px;">EXAM</div>
+              <div class="switch_pad" style="left:66px;"><br style="line-height:9px;">CONT</div>
+              <div class="switch_pad" style="left:88px;background-color:#701070;"><br style="line-height:6px;">ENABLE<div style="height:2px;background-color:#202020;border:none;"></div>HALT</div>
+              <div class="switch_pad" style="left:110px;"><br style="line-height:6px;">S INST<div style="height:2px;background-color:#202020;border:none;"></div>S BUS</div>
+              <div class="switch_pad" style="left:132px;background-color:#701070;"><br style="line-height:9px;">START</div>
+              <div class="switch_pad" style="left:176px;"><br style="line-height:9px;">DEP</div>
+              <div class="switch_pad" style="left:220px;background-color:#701070;"><br style="line-height:9px;">REG<br>EXAM</div>
+              <div class="switch_pad" style="left:242px;"><br style="line-height:9px;">REG<br>DEP</div>
             </div>
           </div>
           <div style="position:absolute;top:30px;left:0px;height:47px;width:647px;background-color:#373030;">
