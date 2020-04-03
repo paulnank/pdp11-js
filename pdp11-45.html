@@ -82,7 +82,7 @@
             height: 304px;
             width: 720px;
             color: white;
-            font-size: 33%;
+            font-size: 30%;
             font-family: palatino, verdana;
             text-align: center;
             position: relative;
@@ -151,6 +151,14 @@
             position: absolute;
             float: left;
         }
+        .leddiv {
+            margin-right:2px;
+            height: 9px;
+            width: 9px;
+            border-radius: 3px;
+            background-color: red;
+            float: left;
+        }
         .switch_pad {
             height: 28px;
             width: 21px;
@@ -182,13 +190,6 @@
             border-left: 6px solid #472047;
             border-right: 6px solid #301030;
             transition: .4s;
-        }
-        .leddiv {
-            height: 9px;
-            width: 9px;
-            border-radius: 3px;
-            background-color: red;
-            float: left;
         }
         .rotary-switch {
             position: absolute;
@@ -303,26 +304,18 @@
           </div>
           <div style="position:absolute;top:0px;left:418px;font-size:110%;">
             <div class="switch_background_top" style="width:240px;height:46px;border-radius:8px;">
-              <div style="display:table;text-align:left;border-spacing:4px;">
-                <div style="display:table-row;height:14px">
-                  <div class=leddiv id=s21 style="display:table-cell;"></div>
-                  <div style="display:table-cell;width:32px">USER I</div>
-                  <div class=leddiv id=s19 style="display:table-cell;"></div>
-                  <div style="display:table-cell;width:32px">SUPER I</div>
-                  <div class=leddiv id=s17 style="display:table-cell;"></div>
-                  <div style="display:table-cell;width:32px">KERNEL I</div>
-                  <div class=leddiv id=s15 style="display:table-cell;"></div>
-                  <div style="display:table-cell;width:32px">PROG PHY</div>
+              <div style="position:absolute;top:12px;left:6px;display:table;text-align:left;table-layout:fixed;width:75%;height:70%;">
+                <div style="display:table-row;">
+                  <div style="display:table-cell;width:24%;"><div class=leddiv id=s21></div>USER I</div>
+                  <div style="display:table-cell;width:24%;"><div class=leddiv id=s19></div>SUPER I</div>
+                  <div style="display:table-cell;width:24%;"><div class=leddiv id=s17></div>KERNEL I</div>
+                  <div style="display:table-cell;"><div class=leddiv id=s15></div>PROG PHY</div>
                 </div>
-                <div style="display:table-row;height:18px">
-                  <div class=leddiv id=s20 style="display:table-cell;"></div>
-                  <div style="display:table-cell;">USER D</div>
-                  <div class=leddiv id=s18 style="display:table-cell;"></div>
-                  <div style="display:table-cell">SUPER D</div>
-                  <div class=leddiv id=s16 style="display:table-cell;"></div>
-                  <div style="display:table-cell">KERNEL D</div>
-                  <div class=leddiv id=s14 style="display:table-cell;"></div>
-                  <div style="display:table-cell">CONS PHY</div>
+                <div style="display:table-row;">
+                  <div style="display:table-cell;"><div class=leddiv id=s20></div>USER D</div>
+                  <div style="display:table-cell;"><div class=leddiv id=s18></div>SUPER D</div>
+                  <div style="display:table-cell;"><div class=leddiv id=s16></div>KERNEL D</div>
+                  <div style="display:table-cell;"><div class=leddiv id=s14></div>CONS PHY</div>
                 </div>
               </div>
               <div id=rotary0 class="rotary-switch" style="position:absolute;top:6px;right:7px;height:30px;width:30px" onclick="if (event && event.shiftKey) { if (--panel.rotary0 < 0) panel.rotary0 = 7; } else { if (++panel.rotary0 > 7) panel.rotary0 = 0; } rotary0.style.transform = 'rotate('+(panel.rotary0*45-45)+'deg)'; panel.autoIncr = 0;">
@@ -382,18 +375,14 @@
           </div>
           <div style="position:absolute;top:0px;left:418px;font-size:110%;">
             <div class="switch_background_bottom" style="width:240px;height:46px;border-radius:8px;">
-              <div style="display:table;text-align:left;border-spacing:4px;">
-                <div style="display:table-row;height:14px">
-                  <div class=leddiv id=s22 style="display:table-cell;"></div>
-                  <div style="display:table-cell;width:64px">DATA PATHS</div>
-                  <div class=leddiv id=s23 style="display:table-cell;"></div>
-                  <div style="display:table-cell;width:46px">&micro; ADRS FPP/CPU</div>
+              <div style="position:absolute;top:12px;left:6px;display:table;text-align:left;table-layout:fixed;width:75%;height:70%;">
+                <div style="display:table-row;">
+                  <div style="display:table-cell;width:48%;"><div class=leddiv id=s22></div>DATA PATHS</div>
+                  <div style="display:table-cell;"><div class=leddiv id=s23></div>&micro; ADRS FPP/CPU</div>
                 </div>
-                <div style="display:table-row;height:14px">
-                  <div class=leddiv id=s24 style="display:table-cell;"></div>
-                  <div style="display:table-cell">BUS REGISTER</div>
-                  <div class=leddiv id=s25 style="display:table-cell;"></div>
-                  <div style="display:table-cell">DISPLAY REGISTER</div>
+                <div style="display:table-row;">
+                  <div style="display:table-cell;"><div class=leddiv id=s24></div>BUS REGISTER</div>
+                  <div style="display:table-cell;"><div class=leddiv id=s25></div>DISPLAY REGISTER</div>
                 </div>
               </div>
               <div id=rotary1 class="rotary-switch" style="position:absolute;top:6px;right:7px;height:30px;width:30px" onclick="if (event && event.shiftKey) { if (--panel.rotary1 < 0) panel.rotary1 = 3; } else { if (++panel.rotary1 > 3) panel.rotary1 = 0; } rotary1.style.transform = 'rotate('+(panel.rotary1*45-45)+'deg)';">
@@ -453,8 +442,8 @@
               <div class="switch_pad" style="left:22px;"><br style="line-height:9px;">LOAD<br>ADRS</div>
               <div class="switch_pad" style="left:44px;background-color:#701070;"><br style="line-height:9px;">EXAM</div>
               <div class="switch_pad" style="left:66px;"><br style="line-height:9px;">CONT</div>
-              <div class="switch_pad" style="left:88px;background-color:#701070;"><br style="line-height:6px;">ENABLE<div style="height:2px;background-color:#202020;border:none;"></div>HALT</div>
-              <div class="switch_pad" style="left:110px;"><br style="line-height:6px;">S INST<div style="height:2px;background-color:#202020;border:none;"></div>S BUS</div>
+              <div class="switch_pad" style="left:88px;background-color:#701070;"><br style="line-height:4px;">ENABLE<div style="margin-top:3px;margin-bottom:2px;height:2px;background:#202020;"></div>HALT</div>
+              <div class="switch_pad" style="left:110px;"><br style="line-height:4px;">S INST<div style="margin-top:3px;margin-bottom:2px;height:2px;background:#202020;"></div>S BUS</div>
               <div class="switch_pad" style="left:132px;background-color:#701070;"><br style="line-height:9px;">START</div>
               <div class="switch_pad" style="left:176px;"><br style="line-height:9px;">DEP</div>
               <div class="switch_pad" style="left:220px;background-color:#701070;"><br style="line-height:9px;">REG<br>EXAM</div>
