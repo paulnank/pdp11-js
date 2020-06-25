@@ -10,301 +10,300 @@
     <!--Send feedback, fixes and suggestions to Paul Nankervis at paulnank@hotmail.com-->
     <!--I'm particularly interested in hearing from anyone with real experience on a PDP 11/70 front panel-->
     <style type="text/css">
-        .frame {
-            height: 344px;
-            width: 760px;
-            position: relative;
-            background: linear-gradient( #c3bcaa, #a39c8a );
-        }
-        .logo_base {
-            position: absolute;
-            top: 3px;
-            left: 8px;
-            height: 28px;
-            width: 440px;
-            border: 1px solid #736c62;
-            border-radius: 5px;
-        }
-        .dec {
-            position: absolute;
-            top: 3px;
-            left: 145px;
-            height: 22px;
-            font-size: 55%;
-            line-height: 22px;
-            text-align: center;
-            color: #736c62;
-            font-family: arial, helvetica, sans-serif;
-        }
-        .logo {
-            position: absolute;
-            top: 2px;
-            left: 30px;
-            height: 22px;
-            width: 140px;
-            font-size: 80%;
-            text-align: center;
-            color: #736c62;
-            line-height: 22px;
-            font-family: arial, helvetica, sans-serif;
-        }
-        .letter {
-            position: relative;
-            float: left;
-            width: 13px;
-            border: 1px solid #736c62;
-            border-bottom-color: #534c42;
-        }
-        .bevel {
-            position: absolute;
-            top: 46px;
-            left: 12px;
-            height: 0px;
-            width: 696px;
-            padding:  20px 20px 20px 20px;
-            background: #837c72;
-            border: none;
-            border-radius: 80px 80px 80px 80px;
-        }
-        .edges {
-            position: absolute;
-            top: 66px;
-            left: 8px;
-            height: 0;
-            width: 736px;
-            border-bottom: 278px solid #9c9781;
-            border-left: 4px solid transparent;
-            border-right: 4px solid transparent;
-        }
-        .panel {
-            top: 52px;
-            left: 20px;
-            height: 304px;
-            width: 720px;
-            color: white;
-            font-size: 30%;
-            font-family: palatino, verdana;
-            text-align: center;
-            position: relative;
-            float: left;
-        }
-        .panel_black {
-            position: absolute;
-            height: 242px;
-            width: 720px;
-            border-radius: 15px;
-            background-color: #202020;
-        }
-        .switch_bevel {
-            position: absolute;
-            top: 294px;
-            left: 9px;
-            height: 365px;
-            width: 742px;
-            height: 3px;
-            background: #b3ac9a;
-            border-top: 22px solid #9c9781;
-            border-bottom: 22px solid #534c42;
-        }
-        .base {
-            top: 0px;
-            left: 0px;
-            height: 10px;
-            width: 65px;
-            background-color: #EA2020;
-            text-align: right;
-            position: absolute;
-            float: left;
-      }
-      .ledpad {
-            top: 10px;
-            height: 34px;
-            width: 21px;
-            background-color: black;
-            border-bottom-left-radius: 5px;
-            border-bottom-right-radius: 5px;
-            position: absolute;
-            float: left;
-        }
-        .led {
-            top: 16px;
-            left: 6px;
-            height: 9px;
-            width: 9px;
-            border-radius: 3px;
-            background-color: red;
-            position: absolute;
-        }
-        .switch_background_top {
-            height: 96px;
-            width: 154px;
-            border-radius: 6px;
-            background-color: #000000;
-            position: absolute;
-            float: left;
-        }
-        .switch_background_bottom {
-            height: 44px;
-            width: 154px;
-            border-radius: 6px;
-            background-color: #000000;
-            position: absolute;
-            float: left;
-        }
-        .leddiv {
-            margin-right:2px;
-            height: 9px;
-            width: 9px;
-            border-radius: 3px;
-            background-color: red;
-            float: left;
-        }
-        .switch_pad {
-            height: 28px;
-            width: 21px;
-            background-color: #D01010;
-            border-radius: 4px;
-            position: absolute;
-            float: left;
-        }
-        .switchRed {
-            top: 0px;
-            height: 3px;
-            width: 9px;
-            background: #f04040;
-            position: absolute;
-            border-top: 22px solid #e02020;
-            border-bottom: 22px solid #701010;
-            border-left: 6px solid #672020;
-            border-right: 6px solid #501010;
-            transition: .4s;
-        }
-        .switchPurple {
-            top: 0px;
-            height: 3px;
-            width: 9px;
-            background: #c010c0;
-            position: absolute;
-            border-top: 22px solid #901090;
-            border-bottom: 22px solid #500050;
-            border-left: 6px solid #472047;
-            border-right: 6px solid #301030;
-            transition: .4s;
-        }
-        .rotary-switch {
-            position: absolute;
-            border: solid 1px #202020;
-            border-radius: 50%;
-            background: linear-gradient(0deg, #b0b0c0, #020212 25%, #404050 35%, #303040 65%, #020212 75%, #b0b0c0);
-            transform: rotate(-45deg);
-            transition: .5s;
-        }
-        .rotary-switch:before {
-            position: absolute;
-            display: block;
-            content: "";
-            width: 50%;
-            height: 6%;
-            top: 47%;
-            background: #FAF8F9;
-            margin: 0% auto;
-        }
-        .rotary-centre {
-            position: absolute;
-            background: #FAF8F9;
-            left: 43%;
-            top: 44%;
-            width: 12%;
-            height: 12%;
-            border-radius: 50%;
-        }
-        .lock {
-            position: absolute;
-            border-radius: 50%;
-            top: 20%;
-            left: 20%;
-            width: 60%;
-            height: 60%;
-            background: linear-gradient(45deg, #605050, #c0c0c7);
-            border: solid 1px #11100e;
-            box-shadow: 0 0 0 2px #404040;
-        }
-        .keyBase {
-            position: absolute;
-            border: solid 1px #202020;
-            border-radius: 50%;
-            top: 36%;
-            left: 36%;
-            width: 30%;
-            height: 30%;
-            background: #445566;
-        }
-        .key {
-            position: absolute;
-            border: solid 1px black;
-            width: 6%;
-            height: 90%;
-            top: 0%;
-            left: 47%;
-            background: linear-gradient(0deg, #808080, #e0e0e0);
-            transform: rotate(-45deg);
-            transition: .5s;
-        }
+ .frame {
+     height: 344px;
+     width: 760px;
+     position: relative;
+     background: linear-gradient( #c3bcaa, #a39c8a );
+}
+ .logo_base {
+     position: absolute;
+     top: 8px;
+     left: 12px;
+     height: 28px;
+     width: 440px;
+     border: 1px solid #736c62;
+     border-radius: 5px;
+}
+ .dec {
+     position: absolute;
+     top: 3px;
+     left: 145px;
+     height: 22px;
+     font-size: 55%;
+     line-height: 22px;
+     text-align: center;
+     color: #736c62;
+     font-family: arial, helvetica, sans-serif;
+}
+ .logo {
+     position: absolute;
+     top: 2px;
+     left: 30px;
+     height: 22px;
+     width: 140px;
+     font-size: 80%;
+     text-align: center;
+     color: #736c62;
+     line-height: 22px;
+     font-family: arial, helvetica, sans-serif;
+}
+ .letter {
+     position: relative;
+     float: left;
+     width: 13px;
+     border: 1px solid #736c62;
+     border-bottom-color: #534c42;
+}
+ .bevel {
+     position: absolute;
+     top: 46px;
+     left: 12px;
+     height: 0px;
+     width: 696px;
+     padding: 20px 20px 20px 20px;
+     background: #837c72;
+     border: none;
+     border-radius: 80px 80px 80px 80px;
+}
+ .edges {
+     position: absolute;
+     top: 66px;
+     left: 8px;
+     height: 0;
+     width: 736px;
+     border-bottom: 278px solid #9c9781;
+     border-left: 4px solid transparent;
+     border-right: 4px solid transparent;
+}
+ .panel {
+     top: 52px;
+     left: 20px;
+     height: 304px;
+     width: 720px;
+     color: white;
+     font-size: 30%;
+     font-family: palatino, verdana;
+     text-align: center;
+     position: relative;
+     float: left;
+}
+ .panel_black {
+     position: absolute;
+     height: 242px;
+     width: 720px;
+     border-radius: 15px;
+     background-color: #202020;
+}
+ .switch_bevel {
+     position: absolute;
+     top: 294px;
+     left: 9px;
+     height: 365px;
+     width: 742px;
+     height: 3px;
+     background: #b3ac9a;
+     border-top: 22px solid #9c9781;
+     border-bottom: 22px solid #534c42;
+}
+ .baseRed {
+     background-color: firebrick;
+}
+ .basePurple {
+     background-color: #452c63;
+}
+ .baseRed, .basePurple {
+     position: absolute;
+     top: 0px;
+     left: 0px;
+     height: 10px;
+     width: 65px;
+     text-align: right;
+     float: left;
+}
+ .ledpad {
+     top: 10px;
+     height: 34px;
+     width: 21px;
+     background-color: black;
+     border-bottom-left-radius: 5px;
+     border-bottom-right-radius: 5px;
+     position: absolute;
+     float: left;
+}
+ .led {
+     top: 16px;
+     left: 6px;
+     height: 9px;
+     width: 9px;
+     border-radius: 50%;
+     background: radial-gradient(circle at 4px 4px, #f08030, red);
+     box-shadow: 0 0 1px 1px #882111;
+     position: absolute;
+}
+ .switch_background {
+     position: absolute;
+     border-radius: 6px;
+     background-color: #000000;
+     float: left;
+}
+ .leddiv {
+     margin-right:5px;
+     height: 9px;
+     width: 9px;
+     border-radius: 50%;
+     background: radial-gradient(circle at 4px 4px, #f08030, red);
+     box-shadow: 0 0 1px 1px #882111;
+     float: left;
+}
+ .switch_padRed {
+     background-color: firebrick;
+}
+ .switch_padPurple {
+     background-color: #452c63;
+}
+ .switch_padRed, .switch_padPurple {
+     position: absolute;
+     height: 28px;
+     width: 21px;
+     border-radius: 4px;
+     float: left;
+}
+ .switchRed {
+     background: #f04040;
+     border-top: 22px solid #e02020;
+     border-bottom: 22px solid #701010;
+     border-left: 6px solid #672020;
+     border-right: 6px solid #501010;
+}
+ .switchPurple {
+     background: #c010c0;
+     border-top: 22px solid #901090;
+     border-bottom: 22px solid #500050;
+     border-left: 6px solid #472047;
+     border-right: 6px solid #301030;
+}
+ .switchRed, .switchPurple {
+     position: absolute;
+     top: 0px;
+     height: 3px;
+     width: 9px;
+     transition: .4s;
+}
+ .rotary-switch {
+     position: absolute;
+     border: solid 1px #202020;
+     border-radius: 50%;
+     background: linear-gradient(0deg, #b0b0c0, #020212 25%, #404050 35%, #303040 65%, #020212 75%, #b0b0c0);
+     transform: rotate(-45deg);
+     transition: .5s;
+}
+ .rotary-switch:before {
+     position: absolute;
+     display: block;
+     content: "";
+     width: 50%;
+     height: 6%;
+     top: 47%;
+     background: #FAF8F9;
+     margin: 0% auto;
+}
+ .rotary-centre {
+     position: absolute;
+     background: #FAF8F9;
+     left: 43%;
+     top: 44%;
+     width: 12%;
+     height: 12%;
+     border-radius: 50%;
+}
+ .lock {
+     position: absolute;
+     border-radius: 50%;
+     top: 20%;
+     left: 20%;
+     width: 60%;
+     height: 60%;
+     background: linear-gradient(45deg, #43464b, silver);
+     border: solid 1px #11100e;
+     box-shadow: 0 0 0 2px #404040;
+}
+ .keyBase {
+     position: absolute;
+     border: solid 1px #202020;
+     border-radius: 50%;
+     top: 36%;
+     left: 36%;
+     width: 30%;
+     height: 30%;
+     background: #dimgray;
+}
+ .key {
+     position: absolute;
+     border: solid 1px black;
+     width: 6%;
+     height: 90%;
+     top: 0%;
+     left: 47%;
+     background: silver;
+     transform: rotate(-45deg);
+     transition: .5s;
+}
+
     </style>
   </head>
   <body style="font-size:16px;">
     <div class=frame>
       <div class=logo_base>
         <div class=logo><div class=letter>d</div><div class=letter>i</div><div class=letter>g</div><div class=letter>i</div><div class=letter>t</div><div class=letter>a</div><div class=letter>l</div></div>
-        <div class=dec>digital equipment corportation &bull; maynard massachusetts</div>
+        <div class=dec>digital equipment corportation &bull; maynard, massachusetts</div>
       </div>
       <div class=edges></div>
       <div class=bevel></div>
       <div class=switch_bevel></div>
-      <div class="panel">
-      <div class="panel_black"></div>
+      <div class=panel>
+      <div class=panel_black></div>
         <div style="position:absolute;top:44px;left:32px;">
           <div style="position:absolute;top:0px;left:0px;">
             <div style="position:absolute;left:0px;">
-              <div class="base" style="border-top-left-radius:4px;"></div>
-              <div class="ledpad" style="left:0px;"><div id=a17 class=led></div></div>
-              <div class="ledpad" style="left:22px;"><div id=a16 class=led></div></div>
-              <div class="ledpad" style="left:44px;"><div id=a15 class=led></div></div>
+              <div class=baseRed style="border-top-left-radius:4px;"></div>
+              <div class=ledpad style="left:0px;"><div id=a17 class=led></div></div>
+              <div class=ledpad style="left:22px;"><div id=a16 class=led></div></div>
+              <div class=ledpad style="left:44px;"><div id=a15 class=led></div></div>
             </div>
             <div style="position:absolute;left:66px;">
-              <div class="base" style="background-color:#701070;"></div>
-              <div class="ledpad" style="left:0px;"><div id=a14 class=led></div></div>
-              <div class="ledpad" style="left:22px;"><div id=a13 class=led></div></div>
-              <div class="ledpad" style="left:44px;"><div id=a12 class=led></div></div>
+              <div class=basePurple></div>
+              <div class=ledpad style="left:0px;"><div id=a14 class=led></div></div>
+              <div class=ledpad style="left:22px;"><div id=a13 class=led></div></div>
+              <div class=ledpad style="left:44px;"><div id=a12 class=led></div></div>
             </div>
             <div style="position:absolute;left:132px;">
-              <div class="base"></div>
-              <div class="ledpad" style="left:0px;"><div id=a11 class=led></div></div>
-              <div class="ledpad" style="left:22px;"><div id=a10 class=led></div></div>
-              <div class="ledpad" style="left:44px;"><div id=a9 class=led></div></div>
+              <div class=baseRed></div>
+              <div class=ledpad style="left:0px;"><div id=a11 class=led></div></div>
+              <div class=ledpad style="left:22px;"><div id=a10 class=led></div></div>
+              <div class=ledpad style="left:44px;"><div id=a9 class=led></div></div>
             </div>
             <div style="position:absolute;left:198px;">
-              <div class="base" style="background-color:#701070;"></div>
-              <div class="ledpad" style="left:0px;"><div id=a8 class=led></div></div>
-              <div class="ledpad" style="left:22px;"><div id=a7 class=led></div></div>
-              <div class="ledpad" style="left:44px;"><div id=a6 class=led></div></div>
+              <div class=basePurple></div>
+              <div class=ledpad style="left:0px;"><div id=a8 class=led></div></div>
+              <div class=ledpad style="left:22px;"><div id=a7 class=led></div></div>
+              <div class=ledpad style="left:44px;"><div id=a6 class=led></div></div>
             </div>
             <div style="position:absolute;left:264px;">
-              <div class="base"></div>
-              <div class="ledpad" style="left:0px;"><div id=a5 class=led></div></div>
-              <div class="ledpad" style="left:22px;"><div id=a4 class=led></div></div>
-              <div class="ledpad" style="left:44px;"><div id=a3 class=led></div></div>
+              <div class=baseRed></div>
+              <div class=ledpad style="left:0px;"><div id=a5 class=led></div></div>
+              <div class=ledpad style="left:22px;"><div id=a4 class=led></div></div>
+              <div class=ledpad style="left:44px;"><div id=a3 class=led></div></div>
             </div>
             <div style="position:absolute;left:330px;">
-              <div class="base" style="background-color:#701070;border-top-right-radius:4px;font-size:125%;">ADDRESS &nbsp;</div>
-              <div class="ledpad" style="left:0px;"><div id=a2 class=led></div></div>
-              <div class="ledpad" style="left:22px;"><div id=a1 class=led></div></div>
-              <div class="ledpad" style="left:44px;"><div id=a0 class=led></div></div>
+              <div class=basePurple style="border-top-right-radius:4px;font-size:115%;">ADDRESS &nbsp;</div>
+              <div class=ledpad style="left:0px;"><div id=a2 class=led></div></div>
+              <div class=ledpad style="left:22px;"><div id=a1 class=led></div></div>
+              <div class=ledpad style="left:44px;"><div id=a0 class=led></div></div>
             </div>
           </div>
-          <div style="position:absolute;top:0px;left:418px;font-size:110%;">
-            <div class="switch_background_top" style="width:240px;height:46px;border-radius:8px;">
-              <div style="position:absolute;top:12px;left:6px;display:table;text-align:left;table-layout:fixed;width:75%;height:70%;">
+            <div class=switch_background style="top:0px;left:418px;height:46px;width:240px;">
+              <div style="position:absolute;top:10px;left:6px;display:table;text-align:left;table-layout:fixed;width:80%;height:75%;font-size:110%;">
                 <div style="display:table-row;">
                   <div style="display:table-cell;width:24%;"><div class=leddiv id=s21></div>USER I</div>
                   <div style="display:table-cell;width:24%;"><div class=leddiv id=s19></div>SUPER I</div>
@@ -318,11 +317,10 @@
                   <div style="display:table-cell;"><div class=leddiv id=s14></div>CONS PHY</div>
                 </div>
               </div>
-              <div id=rotary0 class="rotary-switch" style="position:absolute;top:6px;right:7px;height:30px;width:30px" onclick="if (event && event.shiftKey) { if (--panel.rotary0 < 0) panel.rotary0 = 7; } else { if (++panel.rotary0 > 7) panel.rotary0 = 0; } rotary0.style.transform = 'rotate('+(panel.rotary0*45-45)+'deg)'; panel.autoIncr = 0;">
-                <div class="rotary-centre"></div>
+              <div id=rotary0 class=rotary-switch style="position:absolute;top:6px;right:7px;height:30px;width:30px" onclick="if (event && event.shiftKey) { if (--panel.rotary0 < 0) panel.rotary0 = 7; } else { if (++panel.rotary0 > 7) panel.rotary0 = 0; } rotary0.style.transform = 'rotate('+(panel.rotary0*45-45)+'deg)'; panel.autoIncr = 0;">
+                <div class=rotary-centre></div>
               </div>
             </div>
-          </div>
         </div>
 
         <div style="position:absolute;top:112px;left:32px;">
@@ -331,51 +329,50 @@
             <div style="position:absolute;top:0px;left:28px;">LOCK</div>
             <div style="position:absolute;top:38px;left:0px;">OFF</div>
             <div style="position:absolute;top:6px;left:2px;height:32px;width:32px" onclick="if (event && event.shiftKey) { if (--panel.powerSwitch < -1) panel.powerSwitch = 1; } else { if (++panel.powerSwitch > 1) panel.powerSwitch = -1; } if (panel.powerSwitch < 0) { CPU.runState = STATE_HALT; } key.style.transform='rotate('+(panel.powerSwitch * 90 - 45)+'deg)';">
-              <div class="lock"></div>
-              <div class="keyBase"></div>
-              <div id=key class="key"></div>
+              <div class=lock></div>
+              <div class=keyBase></div>
+              <div id=key class=key></div>
             </div>
           </div>
 
           <div style="position:absolute;left:44px;">
             <div style="position:absolute;left:0px;">
-              <div class="base" style="width:21px;border-top-left-radius:4px;"></div>
-              <div class="ledpad" style="left:0px;"><div id=d15 class=led></div></div>
+              <div class=baseRed style="width:21px;border-top-left-radius:4px;"></div>
+              <div class=ledpad style="left:0px;"><div id=d15 class=led></div></div>
             </div>
             <div style="position:absolute;left:22px;">
-              <div class="base" style="background-color:#701070;"></div>
-              <div class="ledpad" style="left:0px;"><div id=d14 class=led></div></div>
-              <div class="ledpad" style="left:22px;"><div id=d13 class=led></div></div>
-              <div class="ledpad" style="left:44px;"><div id=d12 class=led></div></div>
+              <div class=basePurple></div>
+              <div class=ledpad style="left:0px;"><div id=d14 class=led></div></div>
+              <div class=ledpad style="left:22px;"><div id=d13 class=led></div></div>
+              <div class=ledpad style="left:44px;"><div id=d12 class=led></div></div>
             </div>
             <div style="position:absolute;left:88px;">
-              <div class="base"></div>
-              <div class="ledpad" style="left:0px;"><div id=d11 class=led></div></div>
-              <div class="ledpad" style="left:22px;"><div id=d10 class=led></div></div>
-              <div class="ledpad" style="left:44px;"><div id=d9 class=led></div></div>
+              <div class=baseRed></div>
+              <div class=ledpad style="left:0px;"><div id=d11 class=led></div></div>
+              <div class=ledpad style="left:22px;"><div id=d10 class=led></div></div>
+              <div class=ledpad style="left:44px;"><div id=d9 class=led></div></div>
             </div>
             <div style="position:absolute;left:154px;">
-              <div class="base" style="background-color:#701070;"></div>
-              <div class="ledpad" style="left:0px;"><div id=d8 class=led></div></div>
-              <div class="ledpad" style="left:22px;"><div id=d7 class=led></div></div>
-              <div class="ledpad" style="left:44px;"><div id=d6 class=led></div></div>
+              <div class=basePurple></div>
+              <div class=ledpad style="left:0px;"><div id=d8 class=led></div></div>
+              <div class=ledpad style="left:22px;"><div id=d7 class=led></div></div>
+              <div class=ledpad style="left:44px;"><div id=d6 class=led></div></div>
             </div>
             <div style="position:absolute;left:220px;">
-              <div class="base"></div>
-              <div class="ledpad" style="left:0px;"><div id=d5 class=led></div></div>
-              <div class="ledpad" style="left:22px;"><div id=d4 class=led></div></div>
-              <div class="ledpad" style="left:44px;"><div id=d3 class=led></div></div>
+              <div class=baseRed></div>
+              <div class=ledpad style="left:0px;"><div id=d5 class=led></div></div>
+              <div class=ledpad style="left:22px;"><div id=d4 class=led></div></div>
+              <div class=ledpad style="left:44px;"><div id=d3 class=led></div></div>
             </div>
             <div style="position:absolute;left:286px;">
-              <div class="base" style="background-color:#701070;border-top-right-radius:4px;font-size:125%;">DATA &nbsp;</div>
-              <div class="ledpad" style="left:0px;"><div id=d2 class=led></div></div>
-              <div class="ledpad" style="left:22px;"><div id=d1 class=led></div></div>
-              <div class="ledpad" style="left:44px;"><div id=d0 class=led></div></div>
+              <div class=basePurple style="border-top-right-radius:4px;font-size:115%;">DATA &nbsp;</div>
+              <div class=ledpad style="left:0px;"><div id=d2 class=led></div></div>
+              <div class=ledpad style="left:22px;"><div id=d1 class=led></div></div>
+              <div class=ledpad style="left:44px;"><div id=d0 class=led></div></div>
             </div>
           </div>
-          <div style="position:absolute;top:0px;left:418px;font-size:110%;">
-            <div class="switch_background_bottom" style="width:240px;height:46px;border-radius:8px;">
-              <div style="position:absolute;top:12px;left:6px;display:table;text-align:left;table-layout:fixed;width:75%;height:70%;">
+            <div class=switch_background style="top:0px;left:418px;height:46px;width:240px;">
+              <div style="position:absolute;top:10px;left:6px;display:table;text-align:left;table-layout:fixed;width:80%;height:75%;font-size:110%;">
                 <div style="display:table-row;">
                   <div style="display:table-cell;width:48%;"><div class=leddiv id=s22></div>DATA PATHS</div>
                   <div style="display:table-cell;"><div class=leddiv id=s23></div>&micro; ADRS FPP/CPU</div>
@@ -385,116 +382,115 @@
                   <div style="display:table-cell;"><div class=leddiv id=s25></div>DISPLAY REGISTER</div>
                 </div>
               </div>
-              <div id=rotary1 class="rotary-switch" style="position:absolute;top:6px;right:7px;height:30px;width:30px" onclick="if (event && event.shiftKey) { if (--panel.rotary1 < 0) panel.rotary1 = 3; } else { if (++panel.rotary1 > 3) panel.rotary1 = 0; } rotary1.style.transform = 'rotate('+(panel.rotary1*45-45)+'deg)';">
-                <div class="rotary-centre"></div>
+              <div id=rotary1 class=rotary-switch style="position:absolute;top:6px;right:7px;height:30px;width:30px" onclick="if (event && event.shiftKey) { if (--panel.rotary1 < 0) panel.rotary1 = 3; } else { if (++panel.rotary1 > 3) panel.rotary1 = 0; } rotary1.style.transform = 'rotate('+(panel.rotary1*45-45)+'deg)';">
+                <div class=rotary-centre></div>
               </div>
             </div>
-          </div>
         </div>
 
         <div style="position:absolute;top:162px;left:32px;">
           <img src="pdp11-45.svg" alt="pdp11-45" style="position:absolute;top:6px;left:0px;" width="114px">
           <div style="position:absolute;top:0px;left:418px">
-            <div class="ledpad" style="left:0px;width:27px;">ADRS ERR<div id=s10 class=led style="left:9px;"></div></div>
-            <div class="ledpad" style="left:30px;width:27px;">RUN<div id=s9 class=led style="left:9px;"></div></div>
-            <div class="ledpad" style="left:60px;width:27px;">PAUSE<div id=s8 class=led style="left:9px;"></div></div>
-            <div class="ledpad" style="left:90px;width:27px;">MASTER<div id=s7 class=led style="left:9px;"></div></div>
-            <div class="ledpad" style="left:120px;width:27px;">USER<div id=s6 class=led style="left:9px;"></div></div>
-            <div class="ledpad" style="left:150px;width:27px;">SUPER<div id=s5 class=led style="left:9px;"></div></div>
-            <div class="ledpad" style="left:180px;width:27px;">KERNEL<div id=s4 class=led style="left:9px;"></div></div>
-            <div class="ledpad" style="left:210px;;width:27px;">DATA<div id=s3 class=led style="left:9px;"></div></div>
+            <div class=ledpad style="left:0px;width:27px;">ADRS ERR<div id=s10 class=led style="left:9px;"></div></div>
+            <div class=ledpad style="left:30px;width:27px;">RUN<div id=s9 class=led style="left:9px;"></div></div>
+            <div class=ledpad style="left:60px;width:27px;">PAUSE<div id=s8 class=led style="left:9px;"></div></div>
+            <div class=ledpad style="left:90px;width:27px;">MASTER<div id=s7 class=led style="left:9px;"></div></div>
+            <div class=ledpad style="left:120px;width:27px;">USER<div id=s6 class=led style="left:9px;"></div></div>
+            <div class=ledpad style="left:150px;width:27px;">SUPER<div id=s5 class=led style="left:9px;"></div></div>
+            <div class=ledpad style="left:180px;width:27px;">KERNEL<div id=s4 class=led style="left:9px;"></div></div>
+            <div class=ledpad style="left:210px;;width:27px;">DATA<div id=s3 class=led style="left:9px;"></div></div>
           </div>
         </div>
 
         <div style="position:absolute;top:212px;left:32px;">
           <div>
             <div style="position:absolute;left:0px;">
-              <div class="switch_pad" style="left:0px;"><br style="line-height:9px;">17</div>
-              <div class="switch_pad" style="left:22px;"><br style="line-height:9px;">16</div>
-              <div class="switch_pad" style="left:44px;"><br style="line-height:9px;">15</div>
+              <div class=switch_padRed style="left:0px;"><br style="line-height:9px;">17</div>
+              <div class=switch_padRed style="left:22px;"><br style="line-height:9px;">16</div>
+              <div class=switch_padRed style="left:44px;"><br style="line-height:9px;">15</div>
             </div>
             <div style="position:absolute;left:66px;">
-              <div class="switch_pad" style="left:0px;background-color:#701070;"><br style="line-height:9px;">14</div>
-              <div class="switch_pad" style="left:22px;background-color:#701070;"><br style="line-height:9px;">13</div>
-              <div class="switch_pad" style="left:44px;background-color:#701070;"><br style="line-height:9px;">12</div>
+              <div class=switch_padPurple style="left:0px;"><br style="line-height:9px;">14</div>
+              <div class=switch_padPurple style="left:22px;"><br style="line-height:9px;">13</div>
+              <div class=switch_padPurple style="left:44px;"><br style="line-height:9px;">12</div>
             </div>
             <div style="position:absolute;left:132px;">
-              <div class="switch_pad" style="left:0px;"><br style="line-height:9px;">11</div>
-              <div class="switch_pad" style="left:22px;"><br style="line-height:9px;">10</div>
-              <div class="switch_pad" style="left:44px;"><br style="line-height:9px;">9</div>
+              <div class=switch_padRed style="left:0px;"><br style="line-height:9px;">11</div>
+              <div class=switch_padRed style="left:22px;"><br style="line-height:9px;">10</div>
+              <div class=switch_padRed style="left:44px;"><br style="line-height:9px;">9</div>
             </div>
             <div style="position:absolute;left:198px;">
-              <div class="switch_pad" style="left:0px;background-color:#701070;"><br style="line-height:9px;">8</div>
-              <div class="switch_pad" style="left:22px;background-color:#701070;"><br style="line-height:9px;">7</div>
-              <div class="switch_pad" style="left:44px;background-color:#701070;"><br style="line-height:9px;">6</div>
+              <div class=switch_padPurple style="left:0px;"><br style="line-height:9px;">8</div>
+              <div class=switch_padPurple style="left:22px;"><br style="line-height:9px;">7</div>
+              <div class=switch_padPurple style="left:44px;"><br style="line-height:9px;">6</div>
             </div>
             <div style="position:absolute;left:264px;">
-              <div class="switch_pad" style="left:0px;"><br style="line-height:9px;">5</div>
-              <div class="switch_pad" style="left:22px;"><br style="line-height:9px;">4</div>
-              <div class="switch_pad" style="left:44px;"><br style="line-height:9px;">3</div>
+              <div class=switch_padRed style="left:0px;"><br style="line-height:9px;">5</div>
+              <div class=switch_padRed style="left:22px;"><br style="line-height:9px;">4</div>
+              <div class=switch_padRed style="left:44px;"><br style="line-height:9px;">3</div>
             </div>
             <div style="position:absolute;left:330px;">
-              <div class="switch_pad" style="left:0px;background-color:#701070;"><br style="line-height:9px;">2</div>
-              <div class="switch_pad" style="left:22px;background-color:#701070;"><br style="line-height:9px;">1</div>
-              <div class="switch_pad" style="left:44px;background-color:#701070;"><br style="line-height:9px;">0</div>
+              <div class=switch_padPurple style="left:0px;"><br style="line-height:9px;">2</div>
+              <div class=switch_padPurple style="left:22px;"><br style="line-height:9px;">1</div>
+              <div class=switch_padPurple style="left:44px;"><br style="line-height:9px;">0</div>
             </div>
             <div style="position:absolute;left:396px;">
-              <div class="switch_pad" style="left:22px;"><br style="line-height:9px;">LOAD<br>ADRS</div>
-              <div class="switch_pad" style="left:44px;background-color:#701070;"><br style="line-height:9px;">EXAM</div>
-              <div class="switch_pad" style="left:66px;"><br style="line-height:9px;">CONT</div>
-              <div class="switch_pad" style="left:88px;background-color:#701070;"><br style="line-height:4px;">ENABLE<div style="margin-top:3px;margin-bottom:2px;height:2px;background:#202020;"></div>HALT</div>
-              <div class="switch_pad" style="left:110px;"><br style="line-height:4px;">S INST<div style="margin-top:3px;margin-bottom:2px;height:2px;background:#202020;"></div>S BUS</div>
-              <div class="switch_pad" style="left:132px;background-color:#701070;"><br style="line-height:9px;">START</div>
-              <div class="switch_pad" style="left:176px;"><br style="line-height:9px;">DEP</div>
-              <div class="switch_pad" style="left:220px;background-color:#701070;"><br style="line-height:9px;">REG<br>EXAM</div>
-              <div class="switch_pad" style="left:242px;"><br style="line-height:9px;">REG<br>DEP</div>
+              <div class=switch_padRed style="left:22px;"><br style="line-height:9px;">LOAD<br>ADRS</div>
+              <div class=switch_padPurple style="left:44px;"><br style="line-height:9px;">EXAM</div>
+              <div class=switch_padRed style="left:66px;"><br style="line-height:9px;">CONT</div>
+              <div class=switch_padPurple style="left:88px;"><br style="line-height:4px;">ENABLE<div style="margin-top:3px;margin-bottom:2px;height:2px;background:#202020;"></div>HALT</div>
+              <div class=switch_padRed style="left:110px;"><br style="line-height:4px;">S INST<div style="margin-top:3px;margin-bottom:2px;height:2px;background:#202020;"></div>S BUS</div>
+              <div class=switch_padPurple style="left:132px;"><br style="line-height:9px;">START</div>
+              <div class=switch_padRed style="left:176px;"><br style="line-height:9px;">DEP</div>
+              <div class=switch_padPurple style="left:220px;"><br style="line-height:9px;">REG<br>EXAM</div>
+              <div class=switch_padRed style="left:242px;"><br style="line-height:9px;">REG<br>DEP</div>
             </div>
           </div>
           <div style="position:absolute;top:30px;left:0px;height:47px;width:647px;background-color:#373030;">
             <div style="position:absolute;left:0px;">
-              <div id=sw17 class="switchRed" style="left:0px;" onclick="setSwitch('sw17',131072);"></div>
-              <div id=sw16 class="switchRed" style="left:22px;" onclick="setSwitch('sw16',65536);"></div>
-              <div id=sw15 class="switchRed" style="left:44px;" onclick="setSwitch('sw15',32768);"></div>
+              <div id=sw17 class=switchRed style="left:0px;" onclick="setSwitch('sw17',131072);"></div>
+              <div id=sw16 class=switchRed style="left:22px;" onclick="setSwitch('sw16',65536);"></div>
+              <div id=sw15 class=switchRed style="left:44px;" onclick="setSwitch('sw15',32768);"></div>
             </div>
             <div style="position:absolute;left:66px;">
-              <div id=sw14 class="switchPurple" style="left:0px;" onclick="setSwitch('sw14',16384);"></div>
-              <div id=sw13 class="switchPurple" style="left:22px;" onclick="setSwitch('sw13',8192);"></div>
-              <div id=sw12 class="switchPurple" style="left:44px;" onclick="setSwitch('sw12',4096);"></div>
+              <div id=sw14 class=switchPurple style="left:0px;" onclick="setSwitch('sw14',16384);"></div>
+              <div id=sw13 class=switchPurple style="left:22px;" onclick="setSwitch('sw13',8192);"></div>
+              <div id=sw12 class=switchPurple style="left:44px;" onclick="setSwitch('sw12',4096);"></div>
             </div>
             <div style="position:absolute;left:132px;">
-              <div id=sw11 class="switchRed" style="left:0px;" onclick="setSwitch('sw11',2048);"></div>
-              <div id=sw10 class="switchRed" style="left:22px;" onclick="setSwitch('sw10',1024);"></div>
-              <div id=sw9 class="switchRed" style="left:44px;" onclick="setSwitch('sw9',512);"></div>
+              <div id=sw11 class=switchRed style="left:0px;" onclick="setSwitch('sw11',2048);"></div>
+              <div id=sw10 class=switchRed style="left:22px;" onclick="setSwitch('sw10',1024);"></div>
+              <div id=sw9 class=switchRed style="left:44px;" onclick="setSwitch('sw9',512);"></div>
             </div>
             <div style="position:absolute;left:198px;">
-              <div id=sw8 class="switchPurple" style="left:0px;" onclick="setSwitch('sw8',256);"></div>
-              <div id=sw7 class="switchPurple" style="left:22px;" onclick="setSwitch('sw7',128);"></div>
-              <div id=sw6 class="switchPurple" style="left:44px;" onclick="setSwitch('sw6',64);"></div>
+              <div id=sw8 class=switchPurple style="left:0px;" onclick="setSwitch('sw8',256);"></div>
+              <div id=sw7 class=switchPurple style="left:22px;" onclick="setSwitch('sw7',128);"></div>
+              <div id=sw6 class=switchPurple style="left:44px;" onclick="setSwitch('sw6',64);"></div>
             </div>
             <div style="position:absolute;left:264px;">
-              <div id=sw5 class="switchRed" style="left:0px;" onclick="setSwitch('sw5',32);"></div>
-              <div id=sw4 class="switchRed" style="left:22px;" onclick="setSwitch('sw4',16);"></div>
-              <div id=sw3 class="switchRed" style="left:44px;" onclick="setSwitch('sw3',8);"></div>
+              <div id=sw5 class=switchRed style="left:0px;" onclick="setSwitch('sw5',32);"></div>
+              <div id=sw4 class=switchRed style="left:22px;" onclick="setSwitch('sw4',16);"></div>
+              <div id=sw3 class=switchRed style="left:44px;" onclick="setSwitch('sw3',8);"></div>
             </div>
             <div style="position:absolute;left:330px;">
-              <div id=sw2 class="switchPurple" style="left:0px;" onclick="setSwitch('sw2',4);"></div>
-              <div id=sw1 class="switchPurple" style="left:22px;" onclick="setSwitch('sw1',2);"></div>
-              <div id=sw0 class="switchPurple" style="left:44px;;" onclick="setSwitch('sw0',1);"></div>
+              <div id=sw2 class=switchPurple style="left:0px;" onclick="setSwitch('sw2',4);"></div>
+              <div id=sw1 class=switchPurple style="left:22px;" onclick="setSwitch('sw1',2);"></div>
+              <div id=sw0 class=switchPurple style="left:44px;;" onclick="setSwitch('sw0',1);"></div>
             </div>
           </div>
           <div style="position:absolute;top:30px;left:396px;">
-            <div id=lt class="switchRed" style="left:0px;background-color: #d7d7d7;border-top-color:#c4c4c0;border-bottom-color:#707067;border-left-color:#575750;border-right-color:#404037;" onclick="panel.lampTest = 1 - panel.lampTest; moveSwitch('lt', (panel.lampTest ? 36 : 22)); if (!panel.powerSwitch) { if (panel.lamp) panel.lamp = 1; }"></div>
-            <div id=load class="switchRed" style="left:22px;" onclick="moveSwitch('load', 36); setTimeout(function() {moveSwitch('load', 22);},300); if (!panel.powerSwitch) { CPU.displayAddress = CPU.switchRegister; if (panel.rotary0 > 1) CPU.displayAddress &= 0xffff; panel.autoIncr = 0; }"></div>
-            <div id=examine class="switchPurple" style="left:44px;" onclick="moveSwitch('examine', 36); setTimeout(function() {moveSwitch('examine', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) examineDeposit(-1); }"></div>
-            <div id=continue class="switchPurple" style="left:66px;" onclick="moveSwitch('continue', 36); setTimeout(function() {moveSwitch('continue', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) { CPU.runState = STATE_RUN; if (panel.halt) {  emulate(0); CPU.runState = STATE_HALT; } else emulate(1000);}}"></div>
-            <div id=halt class="switchPurple" style="left:88px;" onclick="panel.halt = 1 - panel.halt; moveSwitch('halt', (panel.halt ? 36 : 22)); if (!panel.powerSwitch) { if (panel.halt && CPU.runState != STATE_HALT) { CPU.runState = STATE_HALT; }}"></div>
-            <div id=step class="switchRed" style="left:110px;" onclick="panel.step = 1 - panel.step; moveSwitch('step', (panel.step ? 36 : 22));"></div>
-            <div id=start class="switchRed" style="left:132px;" onclick="moveSwitch('start', 36); setTimeout(function() {moveSwitch('start', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) {reset_iopage(); CPU.registerVal[7] = CPU.displayAddress & 0xffff; if (!panel.halt) {CPU.runState = STATE_RUN; emulate(1000);}}}"></div>
-            <div class="switchRed" style="left:154px;background-color: #d7d7d7;border-top-color:#c4c4c0;border-bottom-color:#707067;border-left-color:#575750;border-right-color:#404037;"></div>
-            <div id=deposit class="switchRed" style="left:176px;"  onclick="moveSwitch('deposit', 8); setTimeout(function() {moveSwitch('deposit', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) examineDeposit(CPU.switchRegister); }"></div>
-            <div class="switchRed" style="left:198px;background-color: #d7d7d7;border-top-color:#c4c4c0;border-bottom-color:#707067;border-left-color:#575750;border-right-color:#404037;"></div>
-            <div id=regExam class="switchPurple" style="left:220px;" onclick="moveSwitch('regExam', 36); setTimeout(function() {moveSwitch('regExam', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) regExamineDeposit(-1); }"></div>
-            <div id=regDeposit class="switchRed" style="left:242px;" onclick="moveSwitch('regDeposit', 8); setTimeout(function() {moveSwitch('regDeposit', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) regExamineDeposit(CPU.switchRegister); }"></div>
+            <div id=lt class=switchRed style="left:0px;background-color: #d7d7d7;border-top-color:#c4c4c0;border-bottom-color:#707067;border-left-color:#575750;border-right-color:#404037;" onclick="panel.lampTest = 1 - panel.lampTest; moveSwitch('lt', (panel.lampTest ? 36 : 22)); if (!panel.powerSwitch) { if (panel.lamp) panel.lamp = 1; }"></div>
+            <div id=load class=switchRed style="left:22px;" onclick="moveSwitch('load', 36); setTimeout(function() {moveSwitch('load', 22);},300); if (!panel.powerSwitch) { CPU.displayAddress = CPU.switchRegister; if (panel.rotary0 > 1) CPU.displayAddress &= 0xffff; panel.autoIncr = 0; }"></div>
+            <div id=examine class=switchPurple style="left:44px;" onclick="moveSwitch('examine', 36); setTimeout(function() {moveSwitch('examine', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) examineDeposit(-1); }"></div>
+            <div id=continue class=switchPurple style="left:66px;" onclick="moveSwitch('continue', 36); setTimeout(function() {moveSwitch('continue', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) { CPU.runState = STATE_RUN; if (panel.halt) {  emulate(0); CPU.runState = STATE_HALT; } else emulate(1000);}}"></div>
+            <div id=halt class=switchPurple style="left:88px;" onclick="panel.halt = 1 - panel.halt; moveSwitch('halt', (panel.halt ? 36 : 22)); if (!panel.powerSwitch) { if (panel.halt && CPU.runState != STATE_HALT) { CPU.runState = STATE_HALT; }}"></div>
+            <div id=step class=switchRed style="left:110px;" onclick="panel.step = 1 - panel.step; moveSwitch('step', (panel.step ? 36 : 22));"></div>
+            <div id=start class=switchRed style="left:132px;" onclick="moveSwitch('start', 36); setTimeout(function() {moveSwitch('start', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) {reset_iopage(); CPU.registerVal[7] = CPU.displayAddress & 0xffff; if (!panel.halt) {CPU.runState = STATE_RUN; emulate(1000);}}}"></div>
+            <div class=switchRed style="left:154px;background-color: #d7d7d7;border-top-color:#c4c4c0;border-bottom-color:#707067;border-left-color:#575750;border-right-color:#404037;"></div>
+            <div id=deposit class=switchRed style="left:176px;"  onclick="moveSwitch('deposit', 8); setTimeout(function() {moveSwitch('deposit', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) examineDeposit(CPU.switchRegister); }"></div>
+            <div class=switchRed style="left:198px;background-color: #d7d7d7;border-top-color:#c4c4c0;border-bottom-color:#707067;border-left-color:#575750;border-right-color:#404037;"></div>
+            <div id=regExam class=switchPurple style="left:220px;" onclick="moveSwitch('regExam', 36); setTimeout(function() {moveSwitch('regExam', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) regExamineDeposit(-1); }"></div>
+            <div id=regDeposit class=switchRed style="left:242px;" onclick="moveSwitch('regDeposit', 8); setTimeout(function() {moveSwitch('regDeposit', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) regExamineDeposit(CPU.switchRegister); }"></div>
           </div>
         </div>
       </div>
@@ -532,8 +528,7 @@
     <div id="dl11"></div>
     <div id="lp11"></div>
     <br>
-    <h3>PDP 11/45 Emulator - March 2020
-    </h3>
+    <h3>PDP 11/45 Emulator - March 2020</h3>
     <p>
       This is a PDP 11/45 version of the
       <a href="pdp11.html">PDP 11/70
@@ -1730,15 +1725,24 @@ Have a nice day
 &gt;
 </pre>
 
-    <p><a href='http://skn.noip.me/pdp11/pdp11.html'>home</a></p>
-    <script src='bootcode.js?v=v2.1' type="text/javascript"></script>
-    <script src='pdp11.js?v=v2.1' type="text/javascript"></script>
-    <script src='iopage.js?v=v2.1' type="text/javascript"></script>
-    <script src='fpp.js?v=v2.1' type="text/javascript"></script>
-    <script src='vt11.js?v=v2.1' type="text/javascript"></script>
-    <script src='vg11.js?v=v2.1' type="text/javascript"></script>
-    <script src='vt52.js?v=v2.1' type="text/javascript"></script>
-    <script type="text/javascript">
+<h3>Software Sources</h3>
+<p>
+  Most of the software running in this emulator has been sourced from archives such as <a href="ftp://ftp.trailing-edge.com/pub/">ftp://ftp.trailing-edge.com/pub/</a>, <a href="https://www.tuhs.org/">https://www.tuhs.org/</a> or <a href="http://bitsavers.org/bits/DEC/pdp11/">http://bitsavers.org/bits/DEC/pdp11/</a> which are fantastic resources for historical software. However a lot of PDP 11 software has suffered tape corruption or has been simply lost over the years. If you know of other archives or have access to other software distributions I would love to hear from you!
+<p>
+  If you are looking for PDP 11 documentation a great resource is <a href="http://bitsavers.org/pdf/dec/pdp11/">http://bitsavers.org/pdf/dec/pdp11/</a>
+</p>
+
+<p><a href='http://skn.noip.me/pdp11/pdp11.html'>home</a></p>
+
+<script src='bootcode.js?v=v2.1' type="text/javascript"></script>
+<script src='pdp11.js?v=v2.1' type="text/javascript"></script>
+<script src='iopage.js?v=v2.1' type="text/javascript"></script>
+<script src='fpp.js?v=v2.1' type="text/javascript"></script>
+<script src='vt11.js?v=v2.1' type="text/javascript"></script>
+<script src='vg11.js?v=v2.1' type="text/javascript"></script>
+<script src='vt52.js?v=v2.1' type="text/javascript"></script>
+<script type="text/javascript">
+
 function moveSwitch(id, top) {
     document.getElementById(id).style.borderTopWidth = top;
     document.getElementById(id).style.borderBottomWidth = 44 - top;
