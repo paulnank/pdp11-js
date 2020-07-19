@@ -64,7 +64,7 @@ function vt11Read(physicalAddress) {
         CPU.CPU_Error |= 0x40;
         return trap(4, 26);
     } else {
-        return readWordByAddr(physicalAddress);
+        return readWordByPhysical(physicalAddress);
     }
 }
 
@@ -164,10 +164,9 @@ function vt11Execute() {
     if (vt11.DPC == vt11.refreshDPC || vt11.refreshTime < Date.now()) {
         vt11Refresh();
     }
-    count = 0;
     vt11.refreshOn = 1;
     vt11.DSR &= ~0x8000; // clear done
-    do {
+    for (count=0; count<8000; count++) {
         if ((instruction = vt11Read(vt11.DPC)) >= 0) {
             vt11.DPC = (vt11.DPC + 2) & 0xffff;
             if (!(instruction & 0x8000)) { // data vs control
@@ -271,7 +270,7 @@ function vt11Execute() {
                         vt11.YRegister = YValue;
                     }
                     if (penHit) {
-                        interrupt(1, 0, 4 << 5, 0324);
+                        interrupt(0, 4 << 5, 0o324, 0);
                         vt11.DSR |= 0x8000; // set done
                         return;
                     }
@@ -329,15 +328,17 @@ function vt11Execute() {
                 }
             }
         }
-        if (instruction >= 0 && ++count > 2000) {
-            setTimeout(vt11Execute, 0); // do a batch of instruction but if too many schedule more for later
-            return;
-        }
+		if (instruction < 0) {
+			break;
+		}
     }
-    while (instruction >= 0);
+	if (instruction >= 0) {
+		setTimeout(vt11Execute, 1); // do a batch of instruction but if too many schedule more for later
+		return;
+	}
     if (vt11.DEBUG) console.log((vt11.DPC).toString(8) + " **end** X " + vt11.XRegister + " Y " + vt11.YRegister);
     if (vt11.stopInterrupt) {
-        interrupt(1, 20, 4 << 5, 0320);
+        interrupt(20, 4 << 5, 0o320, 0);
     }
     vt11.DSR |= 0x8000; // set done
 }

@@ -1,11 +1,9 @@
-// Javascript PDP 11/70 Emulator v2.0
+// Javascript PDP 11/70 Emulator v3.0
 // written by Paul Nankervis
 // Please send suggestions, fixes and feedback to paulnank@hotmail.com
-// I'm particularly interested in hearing from anyone with real experience on a PDP 11/70 front panel
 //
 // This code may be used freely provided the original author name is maintained in any modified source code
 //
-// http://skn.noip.me/pdp11/pdp11.html
 //
 //
 var BOOTBASE=0140000;

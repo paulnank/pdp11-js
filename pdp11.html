@@ -1,7 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
   <head>
-    <title>Javascript PDP 11/70 Emulator v2.1
+    <title>Javascript PDP 11/70 Emulator
     </title>
     <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=utf-8">
     <meta name="description" content="Javascript PDP 11/70 Emulator">
@@ -567,15 +567,14 @@
     <div id="dl11"></div>
     <div id="lp11"></div>
     <br>
-    <h3>PDP 11/70 Emulator - March 2020</h3>
+    <h3>PDP 11/70 Emulator - v3.0 July 2020</h3>
     <p>
       This emulator came about because years ago I was a programmer for RSTS/E on a PDP 11/45 and had admired the console idle loop light pattern - but I couldn't quite remember how it looked. Given the unavailability of real systems it became time to write
       an emulator!
     </p>
     <p>
       I was going to start with a PDP 11/45 emulator but the extra memory of a PDP 11/70 became far too attractive (a whole 4MB!). It took some time before I finally produced a
-      <a href="pdp11-45.html">PDP 11/45
-      </a> version.
+      <a href="pdp11-45.html">PDP 11/45</a> version.
     </p>
     <p>
       I have met my core objective - I can now see the RSTS/E console light pattern that I was looking for, and found that newer versions (eg v9.6) have a different light pattern. Also I have now seen some of the light patterns for other OSes. RSX and BSD 2.11
@@ -583,13 +582,39 @@
     </p>
     <p>
       Getting all of the operating systems used here presents its own set of challenges - one of which is finding the software in the first place. But one of the most interesting was RSTS/E V06C which has its own
-      <a href='RSTSv06c.html'>story
-      </a>.
+      <a href='RSTSv06c.html'>story</a>.
     </p>
     <p>
       Note: The boot code in this emulator is a custom PDP 11 program running with it's own set of light patterns. It is initially loaded at address 140000 and has a LIGHTS command which operates by mapping and executing a WAIT instruction from a pattern of virtual addresses located in Supervisor
       mode. You can also use the BOOT command to start one of the guest operating systems listed below, or the ODT command to start a version of the Octal Debugging Tool.
     </p>
+    <p>
+      However boot code like this was not part of early PDP 11s. These systems had no BIOS or other software to help get the bare metal started. If you were lucky perhaps the previous boot code would still be intact in non-volatile magnetic core memory, but in general booting the system required toggling in a small bootstrap loader from the front panel. There are listings of bootstrap loaders for various devices
+	  <a href='https://www.sydney.edu.au/science/psychology/pdp-11/bootstraps.html'>here</a>.
+	  If you are a purist don't use the boot code! Instead find the bootstrap code for the device you want to boot from and toggle it in through the switches. However be warned - the boot program will not work unless toggled in perfectly which often takes a few goes.
+    </p>
+    <p>
+	  Here is an example of the switch commands for booting from an RK05 where the value at address 1002 selects the unit number (rk0, rk1, rk2, etc). Goodluck!
+    </p>
+    <pre>
+<b>
+Address Data    Code           Switch commands
+</b>
+                               HALT, 001000, LOAD ADDRESS
+001000  012737	mov #unit,rkda 012737, DEPOSIT
+001002  000000                 000000, DEPOSIT or 020000 for rk1, 040000 for rk2, etc
+001004	177412                 177412, DEPOSIT
+001006	012700	mov #rkwc, r0  012700, DEPOSIT
+001010	177406                 177406, DEPOSIT
+001012	012710	mov #-256,(r0) 012710, DEPOSIT
+001014	177400                 177400, DEPOSIT
+001016	012740	mov #5,-(r0)   012740, DEPOSIT
+001020	000005                 000005, DEPOSIT
+001022	105710	tstb (r0)      105710, DEPOSIT
+001024	100376  bpl .-2        100376, DEPOSIT
+001026	005007	clr pc         005007, DEPOSIT
+                               001000, LOAD ADDRESS, ENABLE, START
+</pre>
     <p>
       If you wish to toggle in a simple light chaser to the front panel then here are some switch commands which can be used:
     </p>
@@ -604,7 +629,8 @@ Address Data    Code        Switch commands
 001006  000005  reset       000005, DEPOSIT
 001010  000775  br .-4      000775, DEPOSIT
                             001000, LOAD ADDRESS, ENABLE, START
-</pre> To restart the initial boot code (if it has not been overwritten) use the switch commands:
+</pre>
+To restart the initial boot code (if it has not been overwritten) use the switch commands:
     <pre>
 HALT, 140000, LOAD ADDRESS, ENABLE, START
 </pre>
@@ -2775,13 +2801,13 @@ There is a small mailbox here.
 
 <p><a href='http://skn.noip.me/pdp11/pdp11.html'>home</a></p>
 
-<script src='bootcode.js?v=v2.1' type="text/javascript"></script>
-<script src='pdp11.js?v=v2.1' type="text/javascript"></script>
-<script src='iopage.js?v=v2.1' type="text/javascript"></script>
-<script src='fpp.js?v=v2.1' type="text/javascript"></script>
-<script src='vt11.js?v=v2.1' type="text/javascript"></script>
-<script src='vg11.js?v=v2.1' type="text/javascript"></script>
-<script src='vt52.js?v=v2.1' type="text/javascript"></script>
+<script src='bootcode.js?v=v3.0' type="text/javascript"></script>
+<script src='pdp11.js?v=v3.0' type="text/javascript"></script>
+<script src='iopage.js?v=v3.0' type="text/javascript"></script>
+<script src='fpp.js?v=v3.0' type="text/javascript"></script>
+<script src='vt11.js?v=v3.0' type="text/javascript"></script>
+<script src='vg11.js?v=v3.0' type="text/javascript"></script>
+<script src='vt52.js?v=v3.0' type="text/javascript"></script>
 <script type="text/javascript">
 
 function moveSwitch(id, top) {

@@ -1,16 +1,13 @@
-// Javascript PDP 11/70 Emulator v2.0
+// Javascript PDP 11/70 Emulator v3.0
 // written by Paul Nankervis
 // Please send suggestions, fixes and feedback to paulnank@hotmail.com
-// I'm particularly interested in hearing from anyone with real experience on a PDP 11/70 front panel
 //
 // This code may be used freely provided the original author name is acknowledged in any modified source code
 //
-// http://skn.noip.me/pdp11/pdp11.html
 //
 // Note: PDF listings of PDP 11 FPP diagnistics can be found at:
 //          http://bitsavers.org/pdf/dec/pdp11/microfiche/ftp.j-hoppe.de/bw/gh/
 //
-// This is a work in progress - but surely most things now work?
 //
 //
 // This is the second version of FPP emulation for the above Javascript emulator. When the
@@ -42,10 +39,10 @@
 // NaN  = sign=1 & exponent=0 (undefined variable usually traps on read from memory but generally treated as zero)
 //
 // In this code double floating point PDP 11 numbers are stored as an array of four 16 bit
-// Javascript numbers. Real numbers are kept in an array of two 16 bit numbers. In both cases
-// array element 0 contains the sign, then 8 bits of the exponent (biased by +128), then the
-// first 7 bits of the fraction, including an assumed hidden bit. The remaining array elements
-// contain any additional fraction bits.
+// Javascript numbers. Real numbers (the short form) are kept in an array of two 16 bit numbers.
+// In both cases array element 0 contains the sign, then 8 bits of the exponent (biased by +128),
+// then the first 7 bits of the fraction, including an assumed hidden bit. The remaining array
+// elements contain any additional fraction bits.
 //
 // In Javascript the exact zero PDP 11 double FPP number would be represented by [0, 0, 0, 0]
 // Similarly 1 is represented as [16512,0,0,0], -7 as [49632,0,0,0] and 3.14159 as [16713,4047,32988,13168]
@@ -53,11 +50,11 @@
 // Addresses of floating point numbers are stored as virtual addresses (17 bit I/D), unlike
 // words and bytes in the main emulator modules which use 22 bit physical addresses.
 // This is because floating point numbers may be up to eight bytes in length and cross virtual
-// memory page boundaries, which may not be contiguous in physical memory. The extra length
-// also means floating point autoincrement and autodecrement addressing may increment and decrement
-// registers by 8, 4 or 2 bytes. Note also that immediate mode {(R7)+ and -(R7)} always assume an
-// operand length of two bytes - the PC is incremented by 2 regardless of data type, probably for
-// easier coupling with the asyncronous FPP co-processor where the CPU doesn't have to know FPP
+// memory page boundaries, which may not be contiguous in physical memory (may cross page boundaries).
+// The extra length also means floating point autoincrement and autodecrement addressing may increment
+// and decrement registers by 8, 4 or 2 bytes. Note also that immediate mode {(R7)+ and -(R7)} always
+// assume an operand length of two bytes - the PC is incremented by 2 regardless of data type, probably
+// for easier coupling with the asyncronous FPP co-processor where the CPU doesn't have to know FPP
 // data types or current FPP precision (OK, I can't really justify it - maybe it really is just to
 // provide short literal FPP numbers to conserve program memory?).
 //
@@ -113,7 +110,7 @@
 // occurs after execution. When FIUV is reset, -0 can be loaded and
 // used in any FPP operation. Note that the interrupt is not activated by
 // the presence of -0 in an AC operand of an arithmetic instruction. In
-// particular, trap on -0 never occurs in mode 0.
+// particular, trap on -0 never occurs in mode 0 (register mode).
 //
 // The floating point processor recognizes seven floating point
 // exceptions:
@@ -129,6 +126,8 @@
 // occurrence of either of the last two exceptions can be disabled only by
 // setting a bit which disables interrupts on all seven of the exceptions as
 // a group.
+//
+// Diagnostics are KFPA, KFPB and KFPC
 //
 "use strict";
 
@@ -843,7 +842,6 @@ function fppLDCIF(number, addressMode) { // Load converting from integer to FPP
     }
 }
 
-
 function fppSTCFI(number, addressMode) { // Store converting from floating to integer
     "use strict";
     var result = 0,
@@ -907,25 +905,14 @@ function fppSTCFI(number, addressMode) { // Store converting from floating to in
     }
 }
 
-function writeWordByVirtual(virtualAddress, data) { // Write word to a virtual address (17 bit I&D)
-    "use strict";
-    //if (virtualAddress >= MAX_ADDRESS) panic(12);
-    return writeWordByAddr(mapVirtualToPhysical(virtualAddress, MMU_WRITE), data);
-}
-
 function writeFloatByVirtual(virtualAddress, number) { // Write FPP number by virtual address (17 bit I&D)
     "use strict";
     var result, i;
-    if (virtualAddress >= MAX_ADDRESS) { // Is it a special virtual address for a FPP register?
-        fppCopy(FPP.AC[virtualAddress - MAX_ADDRESS], number); // Copy to register
-        result = 0;
-    } else {
-        for (i = 0; i < FPP.modeLength; i++) { // FPP.modeLength set by prior call to getFloatVirtualByMode()
-            if ((result = writeWordByVirtual(virtualAddress, number[i])) < 0) { // Write each word of the FPP number
-                break;
-            }
-            virtualAddress = incrementVirtual(virtualAddress);
+    for (i = 0; i < FPP.modeLength; i++) { // FPP.modeLength set by prior call to getFloatVirtualByMode()
+        if ((result = writeWordByVirtual(virtualAddress, number[i])) < 0) { // Write each word of the FPP number
+            break;
         }
+        virtualAddress = incrementVirtual(virtualAddress);
     }
     return result;
 }
@@ -933,28 +920,23 @@ function writeFloatByVirtual(virtualAddress, number) { // Write FPP number by vi
 function readFloatByVirtual(number, virtualAddress) { // Read FPP number by virtual address (17 bit I&D)
     "use strict";
     var result, i;
-    if (virtualAddress >= MAX_ADDRESS) { // Is it a special virtual address for a FPP register?
-        fppCopy(number, FPP.AC[virtualAddress - MAX_ADDRESS]); // Copy from register
-        result = 0;
-    } else {
-        for (i = 0; i < FPP.modeLength; i++) { // FPP.modeLength set by prior call to getFloatVirtualByMode()
-            if ((result = readWordByVirtual(virtualAddress)) < 0) { // Read in each word of the FPP number
-                break;
-            }
-            number[i] = result; // Return each word of the FPP number
-            virtualAddress = incrementVirtual(virtualAddress);
+    for (i = 0; i < FPP.modeLength; i++) { // FPP.modeLength set by prior call to getFloatVirtualByMode()
+        if ((result = readWordByVirtual(virtualAddress)) < 0) { // Read in each word of the FPP number
+            break;
         }
-        if (result >= 0) { // If all ok zero fill any remaining words
-            while (i < FPP.precisionLength) {
-                number[i++] = 0;
-            }
+        number[i] = result; // Return each word of the FPP number
+        virtualAddress = incrementVirtual(virtualAddress);
+    }
+    if (result >= 0) { // If all ok zero fill any remaining words
+        while (i < FPP.precisionLength) {
+            number[i++] = 0;
         }
-        // For the undefined variable (-0) trap and return a -2 so instructions can do any special handling
-        if (result >= 0 && (number[0] & FPPsignMask) && !(number[0] & FPPexpMask)) { // Is it -0?
-            if (FPP.FPS & 0x0800) { // Are undefined variable traps enabled?
-                if (fppTrap(12) < 0) { // 12 Floating undefined variable
-                    result = -2; // -2 is the special case for read undefined variable trap
-                }
+    }
+    // For the undefined variable (-0) trap and return a -2 so instructions can do any special handling
+    if (result >= 0 && (number[0] & FPPsignMask) && !(number[0] & FPPexpMask)) { // Is it -0?
+        if (FPP.FPS & 0x0800) { // Are undefined variable traps enabled?
+            if (fppTrap(12) < 0) { // 12 Floating undefined variable
+                result = -2; // -2 is the special case for read undefined variable trap
             }
         }
     }
@@ -965,38 +947,29 @@ function readFloatByVirtual(number, virtualAddress) { // Read FPP number by virt
 // Virtual addresses are used because up to 8 byte floating numbers can extend across pages
 // Side effect is that FPP.modeLength is set for subsequent readFloatByVirtual and writeFloatByVirtual calls
 
-function getFloatVirtualByMode(addressMode, accessMode) { // Determine Virtual Address for instruction mode
+function getFloatVirtualByMode(addressMode) { // Determine Virtual Address for instruction mode
     "use strict";
-    var result;
-    if (!(addressMode & 0x38)) { // Register mode returns a special address (out of range) to indicate a register
-        if ((addressMode & 7) < 6) {
-            result = MAX_ADDRESS + (addressMode & 7);
-        } else {
-            result = fppTrap(2); // Illegal register trap
-        }
+    if ((addressMode & 0x3f) == 0x17) { // (addressMode & 077) == 027 or (PC)+ as in MOV #xx,....
+        FPP.modeLength = 1; // Immediate mode is always 1 word (2 bytes)!! Another perculiarity!
     } else {
-        if ((addressMode & 0x3f) == 0x17) { // (addressMode & 077) == 027
-            FPP.modeLength = 1; // Immediate mode is always 1 word (2 bytes)!! Another perculiarity!
-        } else {
-            FPP.modeLength = FPP.precisionLength; // Set mode length for subsequent memory read or write operations
-        }
-        result = getVirtualByMode(addressMode, accessMode | (FPP.modeLength << 1));
+        FPP.modeLength = FPP.precisionLength; // Set mode length for subsequent memory read or write operations
     }
-    return result;
+    return getVirtualByMode(addressMode, (FPP.modeLength << 1)); // No read/write flags - just autoincrement length
 }
 
 function writeFloatByMode(addressMode, number) { // Write FPP number by instruction mode
     "use strict";
     var result;
     if (!(addressMode & 0x38)) { // If register mode write to register
-        if ((addressMode & 7) < 6) {
-            fppCopy(FPP.AC[addressMode & 7], number);
+        addressMode &= 7; // Now just register number
+        if (addressMode < 6) {
+            fppCopy(FPP.AC[addressMode], number);
             result = 0;
         } else {
             result = fppTrap(2); // Illegal register
         }
     } else {
-        if ((result = getFloatVirtualByMode(addressMode, MMU_WRITE)) >= 0) { // (mode sets FPP.modeLength)
+        if ((result = getFloatVirtualByMode(addressMode)) >= 0) { // (mode sets FPP.modeLength)
             result = writeFloatByVirtual(result, number); // Write to memory (uses FPP.modeLength)
         }
     }
@@ -1005,34 +978,48 @@ function writeFloatByMode(addressMode, number) { // Write FPP number by instruct
 
 function readFloatByMode(number, addressMode) { // Read FPP number by instruction mode
     "use strict";
-    var result;
+    var virtualAddress, result;
     if (!(addressMode & 0x38)) { // If register mode copy from register
-        if ((addressMode & 7) < 6) {
-            fppCopy(number, FPP.AC[addressMode & 7]);
+        addressMode &= 7; // Now just register number
+        if (addressMode < 6) {
+            fppCopy(number, FPP.AC[addressMode]);
+            CPU.modifyRegister = addressMode; // Remember register number in case of modify
             result = 0;
         } else {
             result = fppTrap(2); // Illegal register
         }
     } else {
-        if ((result = getFloatVirtualByMode(addressMode, MMU_READ)) >= 0) { // (mode sets FPP.modeLength)
-            result = readFloatByVirtual(number, result); // Read from memory (uses FPP.modeLength)
+        if ((virtualAddress = getFloatVirtualByMode(addressMode)) < 0) { // (mode sets FPP.modeLength)
+            return virtualAddress;
         }
+        result = readFloatByVirtual(number, virtualAddress); // Read from memory (uses FPP.modeLength)
+        CPU.modifyRegister = -1;
+        CPU.modifyAddress = virtualAddress; // Remember virtual address in case of modify
     }
     return result;
+}
+
+function modifyFloat(number) { // Update last FPP number read
+    "use strict";
+    if (CPU.modifyRegister >= 0) {
+        fppCopy(FPP.AC[CPU.modifyRegister], number); // Write back to register
+    } else {
+        return writeFloatByVirtual(CPU.modifyAddress, number); // Write back to memory (uses FPP.modeLength)
+    }
+    return 0;
 }
 
 function executeFPP(instruction) { // Main entry point call by mainline emulation when a FPP instruction is encountered
     "use strict";
     var AC,
         result,
-        dstAddr,
         virtualAddress;
     //var mmrUnwind = 0;  // DEBUG code to help validate CPU.MMR1 works correctly
     //if (!(CPU.MMR0 & 0xe000)) {
     //    mmrUnwind = 1;
     //}
     FPP.backupPC = CPU.registerVal[7];
-    AC = (instruction >> 6) & 3;
+    AC = (instruction >>> 6) & 3;
     switch (instruction & 0xf00) { // 007400 FPP OP code
         case 0: // 0000000 Miscellaneous FPP
             switch (AC) {
@@ -1051,9 +1038,9 @@ function executeFPP(instruction) { // Main entry point call by mainline emulatio
                             //FPP_INSTRUCTION(instruction, 2, "SETI");
                             FPP.FPS &= 0xffbf;
                             break;
-                        //case 3: // 003 LDUP - not valid on all systems
-                        //    //FPP_INSTRUCTION(instruction, 2, "LDUP");
-                        //    break;
+                            //case 3: // 003 LDUP - not valid on all systems
+                            //    //FPP_INSTRUCTION(instruction, 2, "LDUP");
+                            //    break;
                         case 9: // 011 SETD Set Floating Double Mode
                             //FPP_INSTRUCTION(instruction, 2, "SETD");
                             FPP.FPS |= 0x80;
@@ -1082,9 +1069,7 @@ function executeFPP(instruction) { // Main entry point call by mainline emulatio
                     break;
                 case 2: // Store FPP Program Status
                     //FPP_INSTRUCTION(instruction, 2, "STFPS");
-                    if ((dstAddr = getAddrByMode(instruction, MMU_WORD_WRITE)) >= 0) { // write word
-                        writeWordByAddr(dstAddr, FPP.FPS);
-                    }
+                    writeWordByMode(instruction, FPP.FPS);
                     break;
                 case 3: // STST Store FEC and FEA
                     //FPP_INSTRUCTION(instruction, 2, "STST");
@@ -1118,31 +1103,27 @@ function executeFPP(instruction) { // Main entry point call by mainline emulatio
                     break;
                 case 2: // 02 ABSF Make Absolute Floating/Double
                     //FPP_INSTRUCTION(instruction, 2, "ABSF");
-                    if ((virtualAddress = getFloatVirtualByMode(instruction, MMU_READ | MMU_WRITE)) >= 0) {
-                        if (readFloatByVirtual(FPP.scratch, virtualAddress) != -1) { // Allow for undefined variable trap (-2)
-                            if (!(FPP.scratch[0] & FPPexpMask)) {
-                                fppZero(FPP.scratch);
-                            } else {
-                                FPP.scratch[0] &= ~FPPsignMask;
-                            }
-                            if (writeFloatByVirtual(virtualAddress, FPP.scratch) >= 0) {
-                                fppTest(FPP.scratch);
-                            }
+                    if (readFloatByMode(FPP.scratch, instruction) != -1) { // Allow for undefined variable trap (-2)
+                        if (!(FPP.scratch[0] & FPPexpMask)) {
+                            fppZero(FPP.scratch);
+                        } else {
+                            FPP.scratch[0] &= ~FPPsignMask;
+                        }
+                        if (modifyFloat(FPP.scratch) >= 0) {
+                            fppTest(FPP.scratch);
                         }
                     }
                     break;
                 case 3: // 03 NEGF Negate Floating/Double
                     //FPP_INSTRUCTION(instruction, 2, "NEGF");
-                    if ((virtualAddress = getFloatVirtualByMode(instruction, MMU_READ | MMU_WRITE)) >= 0) {
-                        if (readFloatByVirtual(FPP.scratch, virtualAddress) != -1) { // Allow for undefined variable trap (-2)
-                            if (!(FPP.scratch[0] & FPPexpMask)) {
-                                fppZero(FPP.scratch);
-                            } else {
-                                FPP.scratch[0] ^= FPPsignMask;
-                            }
-                            if (writeFloatByVirtual(virtualAddress, FPP.scratch) >= 0) {
-                                fppTest(FPP.scratch);
-                            }
+                    if (readFloatByMode(FPP.scratch, instruction) != -1) { // Allow for undefined variable trap (-2)
+                        if (!(FPP.scratch[0] & FPPexpMask)) {
+                            fppZero(FPP.scratch);
+                        } else {
+                            FPP.scratch[0] ^= FPPsignMask;
+                        }
+                        if (modifyFloat(FPP.scratch) >= 0) {
+                            fppTest(FPP.scratch);
                         }
                     }
                     break;
@@ -1202,11 +1183,9 @@ function executeFPP(instruction) { // Main entry point call by mainline emulatio
         case 0xa00: // 0005000 STEXP Store Exponent
             //FPP_INSTRUCTION(instruction, 2, "STEXP");
             result = ((FPP.AC[AC][0] & FPPexpMask) >>> FPPexpShift) - FPPexpBias;
-            if ((dstAddr = getAddrByMode(instruction, MMU_WORD_WRITE)) >= 0) {
-                if (writeWordByAddr(dstAddr, result) >= 0) {
-                    fppTestInt(result);
-                    fppFlags();
-                }
+            if (writeWordByMode(instruction, result) >= 0) {
+                fppTestInt(result);
+                fppFlags();
             }
             break;
         case 0xb00: // 0005400 STCFI Convert Floating/Double to Integer/Long Integer
