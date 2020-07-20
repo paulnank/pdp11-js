@@ -1786,9 +1786,9 @@ function examineDeposit(data) {
         if (data < 0) {
             result = readWordByVirtual(CPU.displayAddress | (((~panel.rotary0) & 1) << 16));
         } else {
-            result = mapVirtualToPhysical(CPU.displayAddress  | (((~panel.rotary0) & 1) << 16));
+            result = writeWordByVirtual(CPU.displayAddress  | (((~panel.rotary0) & 1) << 16), data & 0xffff);
             if (result >= 0) {
-                result = writeWordByAddr(result, data & 0xffff);
+                result = data & 0xffff; // Write return may just be a status
             }
         }
         if (result >= 0) {
@@ -1802,10 +1802,16 @@ function examineDeposit(data) {
         } else {
             CPU.statusLights &= ~0x400; // Clear ADRS ERR light (may be set again by fallowing calls)
             if (data < 0) {
-                result = readWordByAddr(CPU.displayAddress); // examine -> read
+                result = readWordByPhysical(CPU.displayAddress); // examine -> read
             } else {
-                result = writeWordByAddr(CPU.displayAddress, data & 0xffff); // deposit -> write
-                if (result < 0 && CPU.displayAddress == 017777776) result = readPSW(); // Knew that PSW write kludge would get me
+                result = writeWordByPhysical(CPU.displayAddress, data & 0xffff); // deposit -> write
+				if (result >= 0) {
+					result = data & 0xffff; // Write return may just be a status
+				} else {
+					if (CPU.displayAddress == 017777776) {
+						result = readPSW(); // PSW write signals false error (to stop CPU flag updates)
+					}
+				}
             }
         }
     }
@@ -1833,10 +1839,10 @@ function regExamineDeposit(data) {
     }
     CPU.displayAddress &= 017;
     if (data < 0) {
-        result = readWordByAddr((CPU.displayAddress & 017) | 017777700);
+        result = readWordByPhysical((CPU.displayAddress & 017) | 017777700);
         // register examine -> read
     } else {
-        result = writeWordByAddr((CPU.displayAddress & 017) | 017777700, data & 0xffff);
+        result = writeWordByPhysical((CPU.displayAddress & 017) | 017777700, data & 0xffff);
         // register deposit -> write
     }
     if (result >= 0) {
