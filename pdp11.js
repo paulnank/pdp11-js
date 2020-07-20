@@ -14,11 +14,10 @@ const
     IOBASE_UNIBUS = 0o17000000,
     IOBASE_22BIT = 0o17760000,
     MAX_MEMORY = IOBASE_UNIBUS - 16384, // Maximum memory address (need less memory for BSD 2.9 boot)
-    MMU_BYTE_MODE = 1, // accessMode auto-increment length of 1 and flag for byte addressing
     MMU_READ = 16, // READ & WRITE bits used to indicate access type in memory operations
     MMU_WRITE = 32, // but beware lower 4 bits used as auto-increment length when getting virtual address
     MMU_LENGTH_MASK = 0xf, // Mask for operand length (which can be up to 8 for FPP)
-    MMU_BYTE = 1, // Byte length in 4 bits
+    MMU_BYTE = 1, // Byte length in 4 bits - also used as byte test mask
     MMU_WORD = 2, // Word length
     MMU_BYTE_READ = MMU_READ | MMU_BYTE, // Read flag with byte length
     MMU_WORD_READ = MMU_READ | MMU_WORD,
@@ -132,11 +131,11 @@ function LOG_INSTRUCTION(instruction, format, name) {
 
 function interrupt(delay, priority, vector, unit, callback, callarg) {
     "use strict";
-    var i = CPU.interruptQueue.length;
+    var i;
     if (typeof callback == "undefined") {
         callback = null;
     }
-    while (i-- > 0) { // Remove any matching entries
+    for (i = CPU.interruptQueue.length; i-- > 0; ) { // Remove any matching entries
         if (CPU.interruptQueue[i].vector == vector && (unit < 0 || CPU.interruptQueue[i].unit == unit)) {
             if (i > 0) {
                 CPU.interruptQueue[i - 1].delay += CPU.interruptQueue[i].delay;
@@ -146,8 +145,7 @@ function interrupt(delay, priority, vector, unit, callback, callarg) {
         }
     }
     if (delay >= 0) { // Delay below 0 doesn't create queue entry
-        i = CPU.interruptQueue.length; // queue in delay 'difference' order
-        while (i-- > 0) {
+        for (i = CPU.interruptQueue.length; i-- > 0; ) { 
             if (CPU.interruptQueue[i].delay > delay) {
                 CPU.interruptQueue[i].delay -= delay;
                 break;
@@ -181,8 +179,7 @@ function interruptWaitRelease() {
     "use strict";
     var savePSW, i;
     savePSW = CPU.PSW & 0xe0;
-    i = CPU.interruptQueue.length;
-    while (i-- > 0) {
+    for (i = CPU.interruptQueue.length; i-- > 0; ) { 
         CPU.interruptQueue[i].delay = 0;
         if (CPU.interruptQueue[i].priority > (CPU.PSW & 0xe0)) {
             CPU.priorityReview = 1;
@@ -218,8 +215,7 @@ function interruptReview() {
     CPU.priorityReview = 0;
     high = -1;
     highPriority = CPU.PIR & 0xe0;
-    i = CPU.interruptQueue.length;
-    while (--i >= 0) {
+    for (i = CPU.interruptQueue.length; i-- > 0; ) {
         if (CPU.interruptQueue[i].delay > 0) { // If delay then all following entries are also delayed
             CPU.interruptQueue[i].delay--; // Decrement one delay 'difference' per cycle
             CPU.priorityReview = 1;
@@ -280,7 +276,7 @@ function writePSW(newPSW) {
     CPU.flagV = newPSW << 14;
     CPU.flagC = newPSW << 16;
     if ((newPSW ^ CPU.PSW) & 0x0800) { // register set change?
-        for (i = 0; i < 6; i++) {
+        for (i = 0; i <= 5; i++) {
             temp = CPU.registerVal[i];
             CPU.registerVal[i] = CPU.registerAlt[i];
             CPU.registerAlt[i] = temp; // swap the active register sets
@@ -455,7 +451,7 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
         if (physicalAddress >= IOBASE_VIRT) {
             physicalAddress |= IOBASE_22BIT;
         } else { // no max_memory check in 16 bit mode
-            if ((physicalAddress & 1) && !(accessMask & MMU_BYTE_MODE)) { // odd address check
+            if ((physicalAddress & 1) && !(accessMask & MMU_BYTE)) { // odd address check
                 CPU.statusLights |= 0x400; // Set ADRS ERR light
                 CPU.CPU_Error |= 0x40;
                 return trap(4, 22);
@@ -472,7 +468,7 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
             }
         }
         if (physicalAddress < MAX_MEMORY) { // Ordinary memory space only needs an odd address check
-            if ((physicalAddress & 1) && !(accessMask & MMU_BYTE_MODE)) {
+            if ((physicalAddress & 1) && !(accessMask & MMU_BYTE)) {
                 CPU.statusLights |= 0x400; // Set ADRS ERR light
                 CPU.CPU_Error |= 0x40;
                 return trap(4, 26);
@@ -668,7 +664,7 @@ function getVirtualByMode(addressMode, accessMode) {
             return trap(4, 34);
         case 1: // Mode 1: (R)
             virtualAddress = CPU.registerVal[reg];
-            if (reg < 7) {
+            if (reg != 7) {
                 if (reg == 6) {
                     if (accessMode & MMU_WRITE) {
                         if ((virtualAddress = stackCheck(virtualAddress)) < 0) {
@@ -686,7 +682,7 @@ function getVirtualByMode(addressMode, accessMode) {
                 virtualAddress |= 0x10000; // Use D space
             } else {
                 if (reg == 6) {
-                    if (accessMode & MMU_BYTE_MODE) {
+                    if (accessMode & MMU_BYTE) {
                         autoIncrement = 2; // R6 doesn't autoIncrement by 1
                     }
                     if (accessMode & MMU_WRITE) {
@@ -716,7 +712,7 @@ function getVirtualByMode(addressMode, accessMode) {
             if (reg < 6) {
                 virtualAddress = ((CPU.registerVal[reg] + autoIncrement) & 0xffff) | 0x10000;
             } else {
-                if ((accessMode & MMU_BYTE_MODE) || reg == 7) {
+                if ((accessMode & MMU_BYTE) || reg == 7) {
                     autoIncrement = -2;
                 }
                 virtualAddress = (CPU.registerVal[reg] + autoIncrement) & 0xffff;
