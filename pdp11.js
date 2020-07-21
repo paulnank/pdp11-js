@@ -80,7 +80,8 @@ var CPU = {
     MMR1: 0,
     MMR2: 0,
     MMR3: 0,
-    MMR3Mask: [7, 7, 7, 7], // I&D page mask by mode from KSU bits in MMR3
+    MMR3Mask: [0x07, 0x17, 0x27, 0x37], // I&D page mask with mode from KSU bits in MMR3
+    mmu22Bit: 0, // Copy of MMR3 22 bit flag
     mmuEnable: 0, // MMU enable mask for MMU_READ and/or MMU_WRITE
     mmuLastPage: 0, // last used MMU page for MMR0 - 2 bits of mode and 4 bits of I/D page - used as an index into PAR/PDR
     mmuMode: 0, // current memory management mode (0=kernel,1=super,2=undefined,3=user)
@@ -135,7 +136,7 @@ function interrupt(delay, priority, vector, unit, callback, callarg) {
     if (typeof callback == "undefined") {
         callback = null;
     }
-    for (i = CPU.interruptQueue.length; i-- > 0; ) { // Remove any matching entries
+    for (i = CPU.interruptQueue.length; i-- > 0;) { // Remove any matching entries
         if (CPU.interruptQueue[i].vector == vector && (unit < 0 || CPU.interruptQueue[i].unit == unit)) {
             if (i > 0) {
                 CPU.interruptQueue[i - 1].delay += CPU.interruptQueue[i].delay;
@@ -145,7 +146,7 @@ function interrupt(delay, priority, vector, unit, callback, callarg) {
         }
     }
     if (delay >= 0) { // Delay below 0 doesn't create queue entry
-        for (i = CPU.interruptQueue.length; i-- > 0; ) { 
+        for (i = CPU.interruptQueue.length; i-- > 0;) {
             if (CPU.interruptQueue[i].delay > delay) {
                 CPU.interruptQueue[i].delay -= delay;
                 break;
@@ -179,7 +180,7 @@ function interruptWaitRelease() {
     "use strict";
     var savePSW, i;
     savePSW = CPU.PSW & 0xe0;
-    for (i = CPU.interruptQueue.length; i-- > 0; ) { 
+    for (i = CPU.interruptQueue.length; i-- > 0;) {
         CPU.interruptQueue[i].delay = 0;
         if (CPU.interruptQueue[i].priority > (CPU.PSW & 0xe0)) {
             CPU.priorityReview = 1;
@@ -215,7 +216,7 @@ function interruptReview() {
     CPU.priorityReview = 0;
     high = -1;
     highPriority = CPU.PIR & 0xe0;
-    for (i = CPU.interruptQueue.length; i-- > 0; ) {
+    for (i = CPU.interruptQueue.length; i-- > 0;) {
         if (CPU.interruptQueue[i].delay > 0) { // If delay then all following entries are also delayed
             CPU.interruptQueue[i].delay--; // Decrement one delay 'difference' per cycle
             CPU.priorityReview = 1;
@@ -401,7 +402,6 @@ function writeByteByPhysical(physicalAddress, data) {
     return 0;
 }
 
-
 // mapVirtualToPhysical() does memory management by converting a 17 bit I/D virtual
 // address to a 22 bit physical address.
 // A real PDP 11/70 memory management unit can be enabled separately for read and
@@ -447,21 +447,20 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
     CPU.displayAddress = virtualAddress & 0xffff; // Remember the 16b virtual address for display purposes
     if (!(accessMask & CPU.mmuEnable)) { // This access does not require the MMU
         physicalAddress = virtualAddress & 0xffff; // virtual address without MMU is 16 bit (no I&D)
-        CPU.statusLights = 0; // Remember data light (off if no mapping)
+        CPU.mmuLastPage = 0; // Data light off for no mapping
         if (physicalAddress >= IOBASE_VIRT) {
             physicalAddress |= IOBASE_22BIT;
         } else { // no max_memory check in 16 bit mode
             if ((physicalAddress & 1) && !(accessMask & MMU_BYTE)) { // odd address check
-                CPU.statusLights |= 0x400; // Set ADRS ERR light
+                CPU.displayPhysical = -1; // Set ADRS ERR light
                 CPU.CPU_Error |= 0x40;
                 return trap(4, 22);
             }
         }
     } else { // This access is mapped by the MMU
-        page = ((virtualAddress >>> 13) & CPU.MMR3Mask[CPU.mmuMode]) | (CPU.mmuMode << 4); // Determine PDR/PAR page index using mode and I&D
-        physicalAddress = ((CPU.mmuPAR[page] << 6) + (virtualAddress & 0x1fff)) & 0x3fffff;
-        CPU.statusLights = page & 8; // Remember data light
-        if (!(CPU.MMR3 & 0x10)) { // 18 bit mapping needs extra trimming
+        page = ((virtualAddress >>> 13) | 0x30) & CPU.MMR3Mask[CPU.mmuMode]; // Determine PDR/PAR page index using mode and I&D
+        physicalAddress = (CPU.mmuPAR[page] + (virtualAddress & 0x1fff)) & 0x3fffff;
+        if (!CPU.mmu22Bit) { // 18 bit mapping needs extra trimming
             physicalAddress &= 0x3ffff;
             if (physicalAddress >= IOBASE_18BIT) {
                 physicalAddress |= IOBASE_22BIT;
@@ -469,7 +468,7 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
         }
         if (physicalAddress < MAX_MEMORY) { // Ordinary memory space only needs an odd address check
             if ((physicalAddress & 1) && !(accessMask & MMU_BYTE)) {
-                CPU.statusLights |= 0x400; // Set ADRS ERR light
+                CPU.displayPhysical = -1; // Set ADRS ERR light
                 CPU.CPU_Error |= 0x40;
                 return trap(4, 26);
             }
@@ -479,12 +478,12 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
                 if (physicalAddress >= IOBASE_UNIBUS) {
                     physicalAddress = mapUnibus(physicalAddress & 0x3ffff); // 18bit unibus space
                     if (physicalAddress >= MAX_MEMORY && physicalAddress < IOBASE_22BIT) {
-                        CPU.statusLights |= 0x400; // Set ADRS ERR light
+                        CPU.displayPhysical = -1; // Set ADRS ERR light
                         CPU.CPU_Error |= 0x10; // Unibus timeout
                         return trap(4, 24); // KB11-EM does this after ABORT handling - KB11-CM before
                     }
                 } else {
-                    CPU.statusLights |= 0x400; // Set ADRS ERR light
+                    CPU.displayPhysical = -1; // Set ADRS ERR light
                     CPU.CPU_Error |= 0x20; // Non-existent main memory
                     return trap(4, 24);
                 }
@@ -499,7 +498,7 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
             case 1: // read-only with trap
                 errorMask = 0x1000; // MMU trap - then fall thru
             case 2: // read-only
-                CPU.mmuPDR[page] = pdr | 0x80; // Set A bit
+                CPU.mmuPDR[page] |= 0x80; // Set A bit
                 if (accessMask & MMU_WRITE) {
                     errorMask = 0x2000; // read-only abort
                 }
@@ -511,19 +510,21 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
                     errorMask = 0x1000; // MMU trap - then fall thru
                 }
                 case 6: // read-write
-                    CPU.mmuPDR[page] = pdr | ((accessMask & MMU_WRITE) ? 0xc0 : 0x80); // Set A & W bits
+                    CPU.mmuPDR[page] |= ((accessMask & MMU_WRITE) ? 0xc0 : 0x80); // Set A & W bits
                     break;
                 default:
                     errorMask = 0x8000; // non-resident abort
                     break;
         }
-        if ((pdr & 0x7f08) != 0x7f00) { // Skip page length check for full page expand upwards
-            if (pdr & 0x8) { // Page expands downwards
-                if ((virtualAddress & 0x1fc0) < ((pdr >>> 2) & 0x1fc0)) {
+        if (pdr & 0x8) { // Page expands downwards
+            if (pdr &= 0x7f00) { // If a length to check
+                if (((virtualAddress << 2) & 0x7f00) < pdr) {
                     errorMask |= 0x4000; // page length error abort
                 }
-            } else { // Page expand upwards
-                if ((virtualAddress & 0x1fc0) > ((pdr >>> 2) & 0x1fc0)) {
+            }
+        } else { // Page expand upwards
+            if ((pdr &= 0x7f00) != 0x7f00) { // If length not maximum check it
+                if (((virtualAddress << 2) & 0x7f00) > pdr) {
                     errorMask |= 0x4000; // page length error abort
                 }
             }
@@ -537,7 +538,7 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
                 if (!(CPU.MMR0 & 0xe000)) {
                     CPU.MMR0 |= errorMask | (CPU.mmuLastPage << 1);
                 }
-                CPU.statusLights |= 0x400; // Set ADRS ERR light
+                CPU.displayPhysical = -1; // Set ADRS ERR light
                 return trap(0xa8, 28); // 0250
             }
             if (!(CPU.MMR0 & 0xf000)) {
@@ -550,7 +551,7 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
             }
         }
     }
-    return (CPU.displayPhysical = physicalAddress);
+    return CPU.displayPhysical = physicalAddress;
 }
 
 function readWordByVirtual(virtualAddress) { // input address is 17 bit (I&D)
@@ -579,7 +580,7 @@ function stackCheck(virtualAddress) {
     if (!CPU.mmuMode) { // Kernel mode 0 checking only
         if (virtualAddress <= CPU.stackLimit || virtualAddress >= 0xfffe) {
             if (virtualAddress + 32 <= CPU.stackLimit || virtualAddress >= 0xfffe) {
-                CPU.statusLights |= 0x400; // Set ADRS ERR light
+                CPU.displayPhysical = -1; // Set ADRS ERR light
                 CPU.CPU_Error |= 4; // Red stack
                 CPU.registerVal[6] = 4;
                 return trap(4, 38);
@@ -799,7 +800,7 @@ function writeWordByMode(addressMode, data) {
     "use strict";
     data &= 0xffff;
     var physicalAddress;
-    if (!(addressMode & 0x38)) { // If register mode write to the register 
+    if (!(addressMode & 0x38)) { // If register mode write to the register
         CPU.registerVal[addressMode & 7] = data;
     } else {
         if ((physicalAddress = mapPhysicalByMode(addressMode, MMU_WORD_WRITE)) < 0) {
@@ -856,7 +857,7 @@ function writeByteByMode(addressMode, data) {
     "use strict";
     var physicalAddress;
     data &= 0xff;
-    if (!(addressMode & 0x38)) { // If register mode write to the register 
+    if (!(addressMode & 0x38)) { // If register mode write to the register
         CPU.registerVal[addressMode & 7] = (CPU.registerVal[addressMode & 7] & 0xff00) | data;
     } else {
         if ((physicalAddress = mapPhysicalByMode(addressMode, MMU_BYTE_WRITE)) < 0) {
@@ -2032,7 +2033,10 @@ function updateLights() {
             if (panel.rotary0 != 1) {
                 addressLights = CPU.displayAddress;
             } else {
-                addressLights = CPU.displayPhysical;
+                addressLights = 0;
+                if (CPU.displayPhysical >= 0) {
+                    addressLights = CPU.displayPhysical;
+                }
             }
             switch (panel.rotary1) {
                 case 0:
@@ -2047,7 +2051,7 @@ function updateLights() {
                     break;
             }
             statusLights = (0x400000 << panel.rotary1) | (0x4000 << panel.rotary0) | // switch lights
-                0x3000 | CPU.statusLights | // Parity (always on), address error and data lights
+                0x3000 | (CPU.displayPhysical < 0 ? 0x400 : 0) | (CPU.mmuLastPage & 8) | // Parity (always on), address error and data lights
                 panel.LIGHTS_STATE[CPU.runState] | panel.LIGHTS_MODE[CPU.mmuMode] | // State and mode lights
                 ((CPU.mmuEnable) ? (CPU.MMR3 & 0x10) ? 1 : 2 : 4); // MMU status (16, 18, 22)
         }

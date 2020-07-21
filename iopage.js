@@ -241,7 +241,7 @@ function rk11_go() {
     if (rk11.TRACKS[drive] == 0) {
         rk11.rker |= 0x8080; // NXD
     } else {
-		//console.log("RK11 function " + ((rk11.rkcs >>> 1) & 7)+" for "+drive+" e:"+rk11.rker.toString(8));
+        //console.log("RK11 function " + ((rk11.rkcs >>> 1) & 7)+" for "+drive+" e:"+rk11.rker.toString(8));
         switch ((rk11.rkcs >>> 1) & 7) { // function code
             case 0: // controller reset
                 interrupt(-1, 5 << 5, 0o220, -1); // clear any pending interrupts (-1 -> no interrupt queued)
@@ -1309,7 +1309,7 @@ var kw11 = {
 };
 
 function kw11_init() {
-	"use strict";
+    "use strict";
     kw11.csr = 0x80;
     if (kw11.timerId == null) { // If not initialized set timer for every 20ms (50Hz)
         kw11.timerId = setTimeout(kw11_interrupt, 20);
@@ -1317,7 +1317,7 @@ function kw11_init() {
 }
 
 function kw11_interrupt() { // Called every 20 ms (50 Hz) to check whether time exhausted
-	"use strict";
+    "use strict";
     var timeNow = Date.now();
     kw11.interruptTime += 20;
     if (timeNow - kw11.interruptTime > 30000) { // Try to time accurately but give up if 30 seconds behind
@@ -1336,13 +1336,16 @@ function kw11_interrupt() { // Called every 20 ms (50 Hz) to check whether time 
 // Initialize unibus things for a reset instruction
 
 function reset_iopage() {
-	"use strict";
+    "use strict";
     CPU.PIR = 0;
     CPU.stackLimit = 0xff;
     CPU.CPU_Error = 0;
     CPU.interruptQueue = [];
     CPU.MMR0 = CPU.MMR3 = CPU.mmuEnable = 0;
-    CPU.MMR3Mask[0] = CPU.MMR3Mask[1] = CPU.MMR3Mask[3] = 7;
+    CPU.mmu22Bit = 0;
+    CPU.MMR3Mask[0] = 0x07;
+    CPU.MMR3Mask[1] = 0x17;
+    CPU.MMR3Mask[3] = 0x37;
     CPU.mmuLastPage = 0;
     dl11_reset();
     ptr11_init();
@@ -1360,7 +1363,7 @@ function reset_iopage() {
 //
 //
 function mapUnibus(unibusAddress) {
-	"use strict";
+    "use strict";
     var idx = (unibusAddress >>> 13) & 0x1f;
     if (idx < 31) {
         if (CPU.MMR3 & 0x20) {
@@ -1375,7 +1378,7 @@ function mapUnibus(unibusAddress) {
 // Update a word with new byte or word data allowing for odd addressing
 
 function insertData(original, physicalAddress, data, byteFlag) {
-	"use strict";
+    "use strict";
     if (physicalAddress & 1) {
         if (!byteFlag) {
             return trap(4, 212); // trap word access to odd addresses
@@ -1400,7 +1403,7 @@ function insertData(original, physicalAddress, data, byteFlag) {
 // Access to the 4K unibus I/O page - data is positive for a write or negative for a read
 
 function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() handles all I/O page requests
-	"use strict";
+    "use strict";
     var result, idx;
     switch (physicalAddress & ~0o77) { // Break addressing up into blocks with common lower 6 bits
         case 0o17777700: // 017777700 - 017777777 First block is highest addresses including PSW, stack limit, PIR, etc
@@ -1555,16 +1558,16 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
             break;
         case 0o17777600: // 017777600 - 017777677 MMU user mode 3 Map
             idx = (physicalAddress >>> 1) & 0o37;
-            if (idx <= 15) {
+            if (idx <= 15) { // PDR's come first
                 result = insertData(CPU.mmuPDR[48 | idx], physicalAddress, data, byteFlag);
                 if (result >= 0) {
                     CPU.mmuPDR[48 | idx] = result & 0xff0f;
                 }
-            } else {
+            } else { // Then PAR's
                 idx &= 0xf;
-                result = insertData(CPU.mmuPAR[48 | idx], physicalAddress, data, byteFlag);
+                result = insertData(CPU.mmuPAR[48 | idx] >>> 6, physicalAddress, data, byteFlag);
                 if (result >= 0) {
-                    CPU.mmuPAR[48 | idx] = result;
+                    CPU.mmuPAR[48 | idx] = result << 6; // PARs are shifted 6 bits for use in address calculations
                     CPU.mmuPDR[48 | idx] &= 0xff0f;
                 }
             }
@@ -1705,10 +1708,10 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
                     if (result >= 0 & data >= 0) {
                         if (CPU.cpuType != 70) result &= ~0x30; // don't allow 11/45 to do 22 bit or use unibus map
                         CPU.MMR3 = result;
-                        CPU.MMR3Mode = ((result & 4) >>> 2) | (result & 2) | ((result & 1) << 2); // KSU bits in reverse order for ease of access
-                        CPU.MMR3Mask[0] = 7 | ((result & 4) << 1);
-                        CPU.MMR3Mask[1] = 7 | ((result & 2) << 2);
-                        CPU.MMR3Mask[3] = 7 | ((result & 1) << 3);
+                        CPU.mmu22Bit = result & 0x10; // Extract out 22 bit flag
+                        CPU.MMR3Mask[0] = 0x07 | ((result & 4) << 1);
+                        CPU.MMR3Mask[1] = 0x17 | ((result & 2) << 2);
+                        CPU.MMR3Mask[3] = 0x37 | ((result & 1) << 3);
                     }
                     break;
                 default:
@@ -1718,32 +1721,32 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
             break;
         case 0o17772300: // 017772300 - 017772377 MMU kernel mode 0 Map
             idx = (physicalAddress >>> 1) & 0o37;
-            if (idx <= 15) {
+            if (idx <= 15) { // PDR's come first
                 result = insertData(CPU.mmuPDR[0 | idx], physicalAddress, data, byteFlag);
                 if (result >= 0) {
                     CPU.mmuPDR[0 | idx] = result & 0xff0f;
                 }
-            } else {
+            } else { // Then PAR's
                 idx &= 0xf;
-                result = insertData(CPU.mmuPAR[0 | idx], physicalAddress, data, byteFlag);
+                result = insertData(CPU.mmuPAR[0 | idx] >>> 6, physicalAddress, data, byteFlag);
                 if (result >= 0) {
-                    CPU.mmuPAR[0 | idx] = result;
+                    CPU.mmuPAR[0 | idx] = result << 6; // PARs are shifted 6 bits for use in address calculations
                     CPU.mmuPDR[0 | idx] &= 0xff0f;
                 }
             }
             break;
         case 0o17772200: // 017772200 - 017772277 MMU super mode 1 Map
             idx = (physicalAddress >>> 1) & 0o37;
-            if (idx <= 15) {
+            if (idx <= 15) { // PDR's come first
                 result = insertData(CPU.mmuPDR[16 | idx], physicalAddress, data, byteFlag);
                 if (result >= 0) {
                     CPU.mmuPDR[16 | idx] = result & 0xff0f;
                 }
-            } else {
+            } else { // Then PAR's
                 idx &= 0xf;
-                result = insertData(CPU.mmuPAR[16 | idx], physicalAddress, data, byteFlag);
+                result = insertData(CPU.mmuPAR[16 | idx] >>> 6, physicalAddress, data, byteFlag);
                 if (result >= 0) {
-                    CPU.mmuPAR[16 | idx] = result;
+                    CPU.mmuPAR[16 | idx] = result << 6; // PARs are shifted 6 bits for use in address calculations
                     CPU.mmuPDR[16 | idx] &= 0xff0f;
                 }
             }
@@ -1794,7 +1797,7 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
         }
     }
     if (result < 0) { // on failure set Address Error light
-        CPU.statusLights |= 0x400; // Set ADRS ERR light
+        CPU.displayPhysical = -1; // Set ADRS ERR light
         console.log("IOPAGE nxm failure " + physicalAddress.toString(8) + " " + data.toString(8) + " @" + CPU.registerVal[7].toString(8));
     }
     return result;

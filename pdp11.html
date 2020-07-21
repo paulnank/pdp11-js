@@ -643,6 +643,27 @@ HALT, 140000, LOAD ADDRESS, ENABLE, START
 	  policy may prevent local emulator pages from booting disk images so please read the information in <b>StartChrome.cmd</b>
     </p>
     <p>
+      There are many PDP emulators out there and I have never seen what I consider to be a complete list. Some of the really interesting ones can be found by googling terms such as "vhdl pdp 11". However the gold standard is SIMH at
+      <a href='http://simh.trailing-edge.com'>Trailing Edge</a>.
+      A different approach to Javascript PDP 11 emulation can be found at
+      <a href="http://www.pcjs.org/devices/pdp11/">www.pcjs.org</a>.
+    </p>
+    <p>
+      I believe that the first PDP 11 emulator would be SIM-11 written in FORTRAN before the first PDP 11/20 hardware was even built - see
+      <a href="http://www.hampage.hu/pdp-11/birth.html"> How the PDP-11 Was Born</a>. There is more PDP 11 history at
+      <a href="http://www.hampage.hu/pdp-11/main.html">www.hampage.hu</a>.
+    </p>
+    <p>
+      Of course if you want your own PDP 11/70 front panel you might consider a
+      <a href="http://obsolescence.wixsite.com/obsolescence/pidp-11">PiDP-11</a>.
+    </p>
+    <p>
+      Happy emulating!
+    </p>
+    <p>
+      Paul Nankervis
+    </p>
+    <p>
       This emulator matches approximately the following SIMH configuration:
     </p>
     <pre>
@@ -676,33 +697,6 @@ attach tm0 tm0.tap  !Backup of RSTS 4B-17
 attach tm1 tm1.tap  !Distribution for RSTS V06C-03
 attach tm2 tm2.tap  !Distribution for RSTS V7.0
 </pre>
-    <br> This emulator then loads in the BOOT.MAC code to location 140000 and begins execution there.
-    <p>
-      There are many PDP emulators out there and I have never seen what I consider to be a complete list. Some of the really interesting ones can be found by googling terms such as "vhdl pdp 11". However the gold standard seems to be SIMH at
-      <a href='http://simh.trailing-edge.com'>Trailing Edge
-      </a>.
-      A different approach to Javascript PDP 11 emulation can be found at
-      <a href="http://www.pcjs.org/devices/pdp11/">www.pcjs.org
-      </a>.
-    </p>
-    <p>
-      I believe that the first PDP 11 emulator would be SIM-11 written in FORTRAN before the first PDP 11/20 hardware was even built - see
-      <a href="http://www.hampage.hu/pdp-11/birth.html"> How the PDP-11 Was Born
-      </a>. There is more PDP 11 history at
-      <a href="http://www.hampage.hu/pdp-11/main.html">www.hampage.hu
-      </a>.
-    </p>
-    <p>
-      Of course if you want your own PDP 11/70 front panel you might consider a
-      <a href="http://obsolescence.wixsite.com/obsolescence/pidp-11">PiDP-11
-      </a>.
-    </p>
-    <p>
-      Happy emulating!
-    </p>
-    <p>
-      Paul Nankervis
-    </p>
     <h3>List of guest OS's:
     </h3>
     <table style="margin-left:25px" cellpadding=3>
