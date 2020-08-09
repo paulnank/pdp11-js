@@ -73,6 +73,31 @@ function vt52Paint(unit, remove, ch) {
     }, 0);
 }
 
+function vt52Refresh(unit) { // Delayed refresh for hardcopy mode - to make darned iPad behaviour better!
+	var vt52 = VT52[unit];
+    var elementId = DL11[unit].elementId;
+	if (vt52.buffer.length > 0) {
+		if (elementId.value.length > 24000) {
+            elementId.value = elementId.value.substring(elementId.value.length - 4000) + vt52.buffer;
+		} else {
+			elementId.value += vt52.buffer;
+		}
+		vt52.buffer = '';
+	}
+	if (vt52.setCursor) {
+		elementId.scrollTop = elementId.scrollHeight;
+		vt52.setCursor = 0;
+	}
+}
+
+function vt52Write(unit, ch) { // Harcopy mode write - too hard to think about buffering in vt52 mode
+	var vt52 = VT52[unit];
+	if (vt52.buffer.length <= 0) { // No write queued then make one
+		setTimeout(vt52Refresh, 16, unit);
+	}
+	vt52.buffer += String.fromCharCode(ch);
+}
+
 function vt52Put(unit, ch) {
     "use strict";
     var vt52, elementId;
@@ -84,7 +109,9 @@ function vt52Put(unit, ch) {
             graphics: 0,
             row: 0,
             col: 0,
-            screen: []
+            screen: [],
+			setCursor: 0,
+			buffer: ''
         };
     }
     vt52 = VT52[unit];
@@ -95,26 +122,29 @@ function vt52Put(unit, ch) {
                 case 0: // Hardcopy Mode - Normal scolling (don't care about VT52 things)
                     switch (ch) {
                         case 8: // 010 BS
-                            elementId.value = elementId.value.substring(0, elementId.value.length - 1);
+							if (vt52.buffer.length > 0) {
+								vt52.buffer = vt52.buffer.substring(0, vt52.buffer.length - 1);
+							} else {
+								elementId.value = elementId.value.substring(0, elementId.value.length - 1);
+							}
                             break;
                         case 9: // 011 TAB
-                            elementId.value += '\t';
+							vt52Write(unit, ch);
                             break;
                         case 10: // 012 LF
-                            elementId.value += '\n';
-                            elementId.scrollTop = elementId.scrollHeight;
-                            break;
-                        case 13: // 015 CR
-                            if (elementId.value.length > 16000) {
-                                elementId.value = elementId.value.substring(elementId.value.length - 4000);
-                            }
+							vt52.setCursor = 1;
+							vt52Write(unit, ch);
                             break;
                         case 27: // 033 ESC
+							if (vt52.buffer.length > 0) {
+								elementId.value += vt52.buffer; // Empty print buffer before going to vt52 mode
+								vt52.buffer = '';
+							}
                             vt52.escape = 1; // Next char will be part of escape sequence
                             break;
                         default:
                             if (ch >= 32 && ch <= 126) { // If printable add it to the canvas
-                                elementId.value += String.fromCharCode(ch);
+								vt52Write(unit, ch);
                             }
                     }
                     break;

@@ -1,4 +1,4 @@
-// Javascript PDP 11/70 Emulator v3.0
+// Javascript PDP 11/70 Emulator v3.1
 // written by Paul Nankervis
 // Please send suggestions, fixes and feedback to paulnank@hotmail.com
 //
@@ -173,10 +173,7 @@ function incrementVirtual(virtualAddress) {
 
 function fppFlags() { // 8 - N,  4 - Z,  2 - V,  1 - C Copy FPP flags to CPU flags
     "use strict";
-    CPU.flagN = FPP.FPS << 12;
-    CPU.flagZ = (~FPP.FPS) & 4;
-    CPU.flagV = FPP.FPS << 14;
-    CPU.flagC = FPP.FPS << 16;
+	setFlags(0xf, FPP.FPS); // Set CPU flags based on FPS flags
 }
 
 function fppZero(number) { // Zero a FPP number

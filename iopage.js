@@ -1323,7 +1323,7 @@ function kw11_interrupt() { // Called every 20 ms (50 Hz) to check whether time 
     if (timeNow - kw11.interruptTime > 30000) { // Try to time accurately but give up if 30 seconds behind
         kw11.interruptTime = timeNow + 20;
     }
-    setTimeout(kw11_interrupt, Math.max(4, kw11.interruptTime - timeNow));
+    setTimeout(kw11_interrupt, Math.max(0, kw11.interruptTime - timeNow));
     if (CPU.runState != STATE_HALT) {
         kw11.csr |= 0x80; //Set DONE
         if (kw11.csr & 0x40) { // If IE

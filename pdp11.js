@@ -1,4 +1,4 @@
-// Javascript PDP 11/70 Emulator v3.0
+// Javascript PDP 11/70 Emulator v3.1
 // written by Paul Nankervis
 // Please send suggestions, fixes and feedback to paulnank@hotmail.com
 //
@@ -72,7 +72,6 @@ var CPU = {
     flagN: 0x8000, // PSW N bit
     flagV: 0x8000, // PSW V bit
     flagZ: 0xffff, // ~ PSW Z bit
-    loopCount: 1000, // Guess at number of instructions per 20ms loop (50Hz)
     memory: [], // Main memory (in words - addresses must be halved for indexing)
     modifyRegister: -1, // Remember the address of a register in a read/write (modify) cycle
     modifyAddress: -1, // If the register is < 0 then remember the memory physical address
@@ -116,7 +115,7 @@ var CPU = {
 };
 
 function LOG_INSTRUCTION(instruction, format, name) {
-    console.log((CPU.registerVal[7] - 2).toString(8) + " " + instruction.toString(8) + " " + name);
+    //console.log((CPU.registerVal[7] - 2).toString(8) + " " + instruction.toString(8) + " " + name);
 }
 
 // Interrupts are stored in a queue in delay order with the delay expressed as
@@ -166,7 +165,7 @@ function interrupt(delay, priority, vector, unit, callback, callarg) {
         }
         if (CPU.runState == STATE_WAIT) { // if currently in wait then resume
             CPU.runState = STATE_RUN;
-            emulate(1000); // Kick start processor
+            emulate(10); // Kick start processor
         }
     }
 }
@@ -272,10 +271,6 @@ function interruptReview() {
 function writePSW(newPSW) {
     "use strict";
     var i, temp;
-    CPU.flagN = newPSW << 12;
-    CPU.flagZ = (~newPSW) & 4;
-    CPU.flagV = newPSW << 14;
-    CPU.flagC = newPSW << 16;
     if ((newPSW ^ CPU.PSW) & 0x0800) { // register set change?
         for (i = 0; i <= 5; i++) {
             temp = CPU.registerVal[i];
@@ -291,19 +286,132 @@ function writePSW(newPSW) {
     if ((newPSW & 0xe0) < (CPU.PSW & 0xe0)) { // priority lowered?
         CPU.priorityReview = 1; // trigger check of priority levels
     }
-    CPU.PSW = newPSW;
+    CPU.PSW = newPSW & 0xf8ff;
+    CPU.flagN = newPSW << 12; // Extract PSW flags into external fields
+    CPU.flagZ = (~newPSW) & 4;
+    CPU.flagV = newPSW << 14;
+    CPU.flagC = newPSW << 16;
 }
-
 
 // readPSW() reassembles the  N, Z, V, and C flags back into the PSW (CPU.PSW)
 
 function readPSW() {
     "use strict";
-    CPU.PSW = (CPU.PSW & 0xf8f0) | ((CPU.flagN & 0x8000) >>> 12) | ((CPU.flagV & 0x8000) >>> 14) | ((CPU.flagC & 0x10000) >>> 16);
-    if (!(CPU.flagZ & 0xffff)) {
-        CPU.PSW |= 4;
+    var flags = 0;
+    if (testN()) {
+        flags |= 8;
     }
-    return CPU.PSW;
+    if (testZ()) {
+        flags |= 4;
+    }
+    if (testV()) {
+        flags |= 2;
+    }
+    if (testC()) {
+        flags |= 1;
+    }
+    return (CPU.PSW = (CPU.PSW & 0xf8f0) | flags);
+}
+
+// All condition setting code abstracted from instruction routines to here
+// (to enable experimentation with other approaches).
+
+function setFlags(mask, value) { // Set or clear selected flags in mask
+    "use strict";
+    if (mask & 8) {
+        CPU.flagN = value << 12;
+    }
+    if (mask & 4) {
+        CPU.flagZ = (~value) & 4;
+    }
+    if (mask & 2) {
+        CPU.flagV = value << 14;
+    }
+    if (mask & 1) {
+        CPU.flagC = value << 16;
+    }
+}
+
+function zeroNZVC() { // Set flags for 0 value (Z becomes 1)
+    "use strict";
+    CPU.flagN = CPU.flagZ = CPU.flagV = CPU.flagC = 0;
+}
+
+function setNZ(result) { // Set N & Z clearing V (C unchanged)
+    "use strict";
+    CPU.flagN = CPU.flagZ = result;
+    CPU.flagV = 0;
+}
+
+function setNZV(result, flagV) { // Set N, Z & V (C unchanged)
+    "use strict";
+    CPU.flagN = CPU.flagZ = result;
+    CPU.flagV = flagV;
+}
+
+function setNZC(result) { // Set N, Z & C clearing V
+    "use strict";
+    CPU.flagN = CPU.flagZ = CPU.flagC = result;
+    CPU.flagV = 0;
+}
+
+function setNZVC(result, flagV) { // Set all flag conditions
+    "use strict";
+    CPU.flagN = CPU.flagZ = CPU.flagC = result;
+    CPU.flagV = flagV;
+}
+
+function setByteNZ(result) { // Set N & Z clearing V (C unchanged) (byte)
+    "use strict";
+    CPU.flagN = CPU.flagZ = result << 8;
+    CPU.flagV = 0;
+}
+
+function setByteNZV(result, flagV) { // Set N, Z & V (C unchanged) (byte)
+    "use strict";
+    CPU.flagN = CPU.flagZ = result << 8;
+    CPU.flagV = flagV << 8;
+}
+
+function setByteNZC(result) { // Set N, Z & C clearing V (byte)
+    "use strict";
+    CPU.flagN = CPU.flagZ = CPU.flagC = result << 8;
+    CPU.flagV = 0;
+}
+
+function setByteNZVC(result, flagV) { // Set all flag conditions (byte)
+    "use strict";
+    CPU.flagN = CPU.flagZ = CPU.flagC = result << 8;
+    CPU.flagV = flagV << 8;
+}
+
+function testN() { // Test N
+    "use strict";
+    return CPU.flagN & 0x8000;
+}
+
+function testZ() { // Test Z
+    "use strict";
+    return !(CPU.flagZ & 0xffff);
+}
+
+function testV() { // Test V
+    "use strict";
+    return CPU.flagV & 0x8000;
+}
+
+function testC() { // Test C
+    "use strict";
+    return CPU.flagC & 0x10000;
+}
+
+function logicalXOR(a, b) { // XOR of logical conditions
+    "use strict";
+    if (!a) {
+        return b;
+    } else {
+        return !b;
+    }
 }
 
 
@@ -488,7 +596,7 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
                     return trap(4, 24);
                 }
             }
-            if ((physicalAddress != 0x3fff7a) || CPU.mmuMode) { // MMR0 is 017777572 and doesn't affect MMR0 bits
+            if (CPU.mmuMode || (physicalAddress != 0x3fff7a)) { // MMR0 is 017777572 and doesn't affect MMR0 bits
                 CPU.mmuLastPage = page;
             }
         }
@@ -509,12 +617,12 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
                 if (accessMask & MMU_WRITE) {
                     errorMask = 0x1000; // MMU trap - then fall thru
                 }
-            case 6: // read-write
-                CPU.mmuPDR[page] |= ((accessMask & MMU_WRITE) ? 0xc0 : 0x80); // Set A & W bits
-                break;
-            default:
-                errorMask = 0x8000; // non-resident abort
-                break;
+			case 6: // read-write
+				CPU.mmuPDR[page] |= ((accessMask & MMU_WRITE) ? 0xc0 : 0x80); // Set A & W bits
+				break;
+			default:
+				errorMask = 0x8000; // non-resident abort
+				break;
         }
         if (pdr & 0x8) { // Page expands downwards
             if ((pdr &= 0x7f00)) { // If a length to check
@@ -898,9 +1006,9 @@ function modifyByte(data) {
 
 // branch() calculates the branch to PC from a branch instruction offset
 
-function branch(PC, instruction) {
+function branch(instruction) {
     "use strict";
-    return (PC + ((instruction & 0x80 ? instruction | 0xff00 : instruction & 0xff) << 1)) & 0xffff;
+    CPU.registerVal[7] = (CPU.registerVal[7] + ((instruction & 0x80 ? instruction | 0xff00 : instruction & 0xff) << 1)) & 0xffff;
 }
 
 
@@ -967,7 +1075,7 @@ function branch(PC, instruction) {
 //
 // Instruction execution is performed by the emulate() function which processes a
 // batch of instructions. The current strategy is to execute 1000 instructions
-// repeating until 10 milliseconds have passed.
+// repeating until 8 milliseconds have passed.
 //
 // Batching instructions in this way is required in Javascript as it is necessary
 // to relinquish control periodically to let timer and I/O functions execute, and to
@@ -982,7 +1090,7 @@ function emulate(loopCount) {
         dst,
         result = 0, // used for light data
         virtualAddress, savePSW, reg;
-    var loopTime = Date.now() + 8;
+    var loopTime = Date.now() + 8; // Run for 8ms then schedule another batch of instructions
     var CPU = window.CPU;
     if (CPU.runState != STATE_RUN) {
         return;
@@ -1020,8 +1128,8 @@ function emulate(loopCount) {
         // Remember if T-bit trap required at the end of this instruction
         CPU.trapMask = CPU.PSW & 0x10;
         if ((instruction = readWordByVirtual(CPU.registerVal[7])) >= 0) {
-            //if (CPU.registerVal[7] == 002034) { // DDEEBBUUGG
-            //  console.log("PC " + CPU.registerVal[7].toString(8) + " instruction: " + instruction.toString(8) + " R0: " + CPU.registerVal[0].toString(8) + " R4: " + CPU.registerVal[4].toString(8));
+            //if (CPU.registerVal[7] == 0o26576) { // DDEEBBUUGG
+            //    console.log("PC " + CPU.registerVal[7].toString(8) + " instruction: " + instruction.toString(8) + " R0: " + CPU.registerVal[0].toString(8) + " R4: " + CPU.registerVal[4].toString(8));
             //}
             CPU.registerVal[7] = (CPU.registerVal[7] + 2) & 0xffff;
             switch (instruction & 0o170000) { // Double operand instructions xxSSDD
@@ -1029,8 +1137,7 @@ function emulate(loopCount) {
                     //LOG_INSTRUCTION(instruction, 2, "MOV");
                     if ((result = readWordByMode(instruction >>> 6)) >= 0) {
                         if (writeWordByMode(instruction, result) >= 0) {
-                            CPU.flagN = CPU.flagZ = result;
-                            CPU.flagV = 0;
+                            setNZ(result);
                         }
                     }
                     break;
@@ -1039,8 +1146,7 @@ function emulate(loopCount) {
                     if ((src = readWordByMode(instruction >>> 6)) >= 0) {
                         if ((dst = readWordByMode(instruction)) >= 0) {
                             result = src - dst;
-                            CPU.flagN = CPU.flagZ = CPU.flagC = result;
-                            CPU.flagV = (src ^ dst) & (src ^ result);
+                            setNZVC(result, (result ^ src) & (src ^ dst));
                         }
                     }
                     break;
@@ -1048,8 +1154,7 @@ function emulate(loopCount) {
                     //LOG_INSTRUCTION(instruction, 2, "BIT");
                     if ((src = readWordByMode(instruction >>> 6)) >= 0) {
                         if ((result = readWordByMode(instruction)) >= 0) {
-                            CPU.flagN = CPU.flagZ = src & result;
-                            CPU.flagV = 0;
+                            setNZ(src & result);
                         }
                     }
                     break;
@@ -1059,8 +1164,7 @@ function emulate(loopCount) {
                         if ((dst = modifyWordByMode(instruction)) >= 0) {
                             result = dst & ~src;
                             if (modifyWord(result) >= 0) {
-                                CPU.flagN = CPU.flagZ = result;
-                                CPU.flagV = 0;
+                                setNZ(result);
                             }
                         }
                     }
@@ -1071,8 +1175,7 @@ function emulate(loopCount) {
                         if ((dst = modifyWordByMode(instruction)) >= 0) {
                             result = dst | src;
                             if (modifyWord(result) >= 0) {
-                                CPU.flagN = CPU.flagZ = result;
-                                CPU.flagV = 0;
+                                setNZ(result);
                             }
                         }
                     }
@@ -1083,8 +1186,7 @@ function emulate(loopCount) {
                         if ((dst = modifyWordByMode(instruction)) >= 0) {
                             result = src + dst;
                             if (modifyWord(result) >= 0) {
-                                CPU.flagN = CPU.flagZ = CPU.flagC = result;
-                                CPU.flagV = (src ^ result) & (dst ^ result);
+                                setNZVC(result, (result ^ src) & (result ^ dst));
                             }
                         }
                     }
@@ -1097,12 +1199,10 @@ function emulate(loopCount) {
                                 result |= 0xff00; // Special case: movb sign extends register to word size
                             }
                             CPU.registerVal[instruction & 7] = result;
-                            CPU.flagN = CPU.flagZ = result;
-                            CPU.flagV = 0;
+                            setByteNZ(result);
                         } else {
                             if (writeByteByMode(instruction, result) >= 0) {
-                                CPU.flagN = CPU.flagZ = result << 8;
-                                CPU.flagV = 0;
+                                setByteNZ(result);
                             }
                         }
                     }
@@ -1112,8 +1212,7 @@ function emulate(loopCount) {
                     if ((src = readByteByMode(instruction >>> 6)) >= 0) {
                         if ((dst = readByteByMode(instruction)) >= 0) {
                             result = src - dst;
-                            CPU.flagN = CPU.flagZ = CPU.flagC = result << 8;
-                            CPU.flagV = ((src ^ dst) & (src ^ result)) << 8;
+                            setByteNZVC(result, (result ^ src) & (src ^ dst));
                         }
                     }
                     break;
@@ -1121,8 +1220,7 @@ function emulate(loopCount) {
                     //LOG_INSTRUCTION(instruction, 2, "BITB");
                     if ((src = readByteByMode(instruction >>> 6)) >= 0) {
                         if ((result = readByteByMode(instruction)) >= 0) {
-                            CPU.flagN = CPU.flagZ = (src & result) << 8;
-                            CPU.flagV = 0;
+                            setByteNZ(src & result);
                         }
                     }
                     break;
@@ -1132,8 +1230,7 @@ function emulate(loopCount) {
                         if ((dst = modifyByteByMode(instruction)) >= 0) {
                             result = dst & ~src;
                             if (modifyByte(result) >= 0) {
-                                CPU.flagN = CPU.flagZ = result << 8;
-                                CPU.flagV = 0;
+                                setByteNZ(result);
                             }
                         }
                     }
@@ -1144,8 +1241,7 @@ function emulate(loopCount) {
                         if ((dst = modifyByteByMode(instruction)) >= 0) {
                             result = dst | src;
                             if (modifyByte(result) >= 0) {
-                                CPU.flagN = CPU.flagZ = result << 8;
-                                CPU.flagV = 0;
+                                setByteNZ(result);
                             }
                         }
                     }
@@ -1156,8 +1252,7 @@ function emulate(loopCount) {
                         if ((dst = modifyWordByMode(instruction)) >= 0) {
                             result = dst - src;
                             if (modifyWord(result) >= 0) {
-                                CPU.flagN = CPU.flagZ = CPU.flagC = result;
-                                CPU.flagV = (src ^ dst) & (dst ^ result);
+                                setNZVC(result, (result ^ dst) & (src ^ dst));
                             }
                         }
                     }
@@ -1196,21 +1291,15 @@ function emulate(loopCount) {
                                 result = src * dst;
                                 CPU.registerVal[reg] = (result >>> 16) & 0xffff;
                                 CPU.registerVal[reg | 1] = result & 0xffff;
-                                CPU.flagN = result >>> 16;
-                                CPU.flagZ = CPU.flagN | result;
-                                CPU.flagC = CPU.flagV = 0;
-                                if (result < -32768 || result > 32767) {
-                                    CPU.flagC = 0x10000;
-                                }
+                                result = (result >>> 16) | ((result & 0xffff) ? 1 : 0) | ((result < -32768 || result > 32767) ? 0x10000 : 0);
+                                setNZC(result);
                             }
                             break;
                         case 0o071000: // DIV 071RSS
                             //LOG_INSTRUCTION(instruction, 3, "DIV");
                             if ((src = readWordByMode(instruction)) >= 0) {
                                 if (!src) { // divide by zero
-                                    CPU.flagN = CPU.flagZ = 0;
-                                    CPU.flagV = 0x8000;
-                                    CPU.flagC = 0x10000;
+                                    setNZVC(0x10000, 0x8000);
                                 } else {
                                     reg = (instruction >>> 6) & 7;
                                     dst = (CPU.registerVal[reg] << 16) | CPU.registerVal[reg | 1];
@@ -1220,19 +1309,16 @@ function emulate(loopCount) {
                                     if (dst & 0x80000000) {
                                         dst = (dst & 0x7fffffff) - 0x80000000;
                                     }
-                                    CPU.flagC = CPU.flagV = 0;
                                     result = ~~(dst / src);
                                     if (result >= -32768 && result <= 32767) {
                                         CPU.registerVal[reg] = result & 0xffff;
                                         CPU.registerVal[reg | 1] = (dst - (result * src)) & 0xffff;
-                                        CPU.flagZ = (result >>> 16) | result;
-                                        CPU.flagN = result >>> 16;
+                                        setNZC((result >>> 16) | (result ? 1 : 0));
                                     } else {
-                                        CPU.flagV = 0x8000; // overflow - following are indeterminate
-                                        CPU.flagZ = (result >>> 15) | result; // dodgy
-                                        CPU.flagN = dst >>> 16; // just as dodgy
+                                        setNZVC(((dst >>> 16) & 0x8000) | (result ? 1 : 0), 0x8000); // Bad result
+                                        if (!(result & 0x7fffffff)) setFlags(4, 4); // Set zero flag
                                         if (src == -1 && CPU.registerVal[reg] == 0xfffe) {
-                                            CPU.registerVal[reg] = CPU.registerVal[reg | 1] = 1; // etc
+                                            CPU.registerVal[reg] = CPU.registerVal[reg | 1] = 1;
                                         }
                                     }
                                 }
@@ -1243,32 +1329,36 @@ function emulate(loopCount) {
                             if ((src = readWordByMode(instruction)) >= 0) {
                                 reg = (instruction >>> 6) & 7;
                                 result = CPU.registerVal[reg];
-                                CPU.flagC = CPU.flagV = 0;
                                 src &= 0x3f;
-                                if (src) {
-                                    if (src & 0x20) { // if shift right (1-32)
-                                        dst = result;
-                                        result >>= (63 - src);
-                                        CPU.flagC = result << 16;
-                                        result >>= 1;
-                                        if (dst & 0x8000) {
-                                            if (src < 49) {
-                                                src = 49;
-                                            }
-                                            result |= 0xffffffff << (src - 49);
+                                if (!(src && result)) {
+                                    setNZC(result);
+                                } else {
+                                    if (src & 0x20) { // ASH right (1-32)
+                                        src = 64 - src; // Make into count
+                                        if (src > 16) {
+                                            src = 16; // Enforce limit (beyond 16 C copies sign)
                                         }
-                                    } else { // shift left (1-31)
-                                        dst = result << 16;
-                                        dst >>>= (31 - src); // EQKC confirms ANY change of sign during shift sets V :-(
-                                        if (dst && dst != (0xffff0000 >>> (31 - src))) {
-                                            CPU.flagV = 0x8000;
+                                        dst = result >>> (src - 1); // Low bit becomes carry
+                                        if (result & 0x8000) { // If sign bit 1's fill
+                                            result = ((0xffff0000 | result) >>> src) & 0xffff;
+                                        } else {
+                                            result >>>= src;
+                                        }
+                                        setNZC((dst << 16) | result);
+                                    } else { // ASH left (1-31)
+                                        if (src > 17) {
+                                            src = 17; // Enforce limit (beyond 16 C becomes 0)
                                         }
                                         result <<= src;
-                                        CPU.flagC = result;
+                                        dst = result & 0xffff8000; // Get bits shifted out plus sign
+                                        if (dst && dst != ((0xffff << src) & 0xffff8000)) { // Check bits shifted out match sign
+                                            setNZVC(result, 0x8000); // Set V if not
+                                        } else {
+                                            setNZC(result);
+                                        }
                                     }
+                                    CPU.registerVal[reg] = result & 0xffff;
                                 }
-                                CPU.registerVal[reg] = result & 0xffff;
-                                CPU.flagN = CPU.flagZ = result;
                             }
                             break;
                         case 0o73000: // ASHC 073RSS
@@ -1276,43 +1366,40 @@ function emulate(loopCount) {
                             if ((src = readWordByMode(instruction)) >= 0) {
                                 reg = (instruction >>> 6) & 7;
                                 result = (CPU.registerVal[reg] << 16) | CPU.registerVal[reg | 1];
-                                CPU.flagC = CPU.flagV = 0;
                                 src &= 0x3f;
-                                if (src) {
-                                    if (src & 0x20) { // if shift right (1-32)
-                                        dst = result;
-                                        result >>= (63 - src);
-                                        CPU.flagC = result << 16;
-                                        result >>= 1;
-                                        if (dst & 0x80000000) {
-                                            if (src < 33) {
-                                                src = 33;
-                                            }
-                                            result |= 0xffffffff << (src - 33);
+                                if (!(src && result)) {
+                                    setNZC(result >>> 16 | (result ? 1 : 0));
+                                } else {
+                                    if (src & 0x20) { // ASHC right (1-32)
+                                        src = 64 - src; // Make into count
+                                        dst = result >>> (src - 1); // Low bit becomes carry
+                                        if (result & 0x80000000) { // If sign bit shift with 1's fill
+                                            result = (0xffffffff << (32 - src)) | (result >>> src);
+                                        } else {
+                                            result >>>= src;
                                         }
-                                    } else { // shift left (1-31)
+                                        setNZC((dst << 16) | (result ? (result >>> 16) | 1 : 0));
+                                    } else { // ASHC left (1-31)
                                         dst = result >>> (31 - src); // EQKC confirms ANY change of sign during shift sets V :-(
-                                        if (dst && dst != (0xffffffff >>> (31 - src))) {
-                                            CPU.flagV = 0x8000;
+                                        result <<= src;
+                                        if (dst && dst != (0xffffffff >>> (31 - src))) { // Low bits are carry and sign
+                                            setNZVC((dst << 15) | (result ? 1 : 0), 0x8000); // Set V if any change of sign
+                                        } else {
+                                            setNZC((dst << 15) | (result ? 1 : 0));
                                         }
-                                        result <<= (src - 1);
-                                        CPU.flagC = result >>> 15;
-                                        result <<= 1;
                                     }
+                                    CPU.registerVal[reg] = (result >>> 16) & 0xffff;
+                                    CPU.registerVal[reg | 1] = result & 0xffff;
                                 }
-                                CPU.registerVal[reg] = (result >>> 16) & 0xffff;
-                                CPU.registerVal[reg | 1] = result & 0xffff;
-                                CPU.flagN = result >>> 16;
-                                CPU.flagZ = CPU.flagN | result;
                             }
                             break;
                         case 0o074000: // XOR 074RSS
                             //LOG_INSTRUCTION(instruction, 3, "XOR");
+                            src = CPU.registerVal[(instruction >>> 6) & 7];
                             if ((result = modifyWordByMode(instruction)) >= 0) {
-                                result ^= CPU.registerVal[(instruction >>> 6) & 7];
+                                result ^= src;
                                 if (modifyWord(result) >= 0) {
-                                    CPU.flagN = CPU.flagZ = result;
-                                    CPU.flagV = 0;
+                                    setNZ(result);
                                 }
                             }
                             break;
@@ -1327,90 +1414,90 @@ function emulate(loopCount) {
                             switch (instruction & 0o177400) { // Program control instructions & traps
                                 case 0o000400: // BR
                                     //LOG_INSTRUCTION(instruction, 4, "BR");
-                                    CPU.registerVal[7] = branch(CPU.registerVal[7], instruction);
+                                    branch(instruction);
                                     break;
                                 case 0o001000: // BNE
                                     //LOG_INSTRUCTION(instruction, 4, "BNE");
-                                    if (CPU.flagZ & 0xffff) {
-                                        CPU.registerVal[7] = branch(CPU.registerVal[7], instruction);
+                                    if (!testZ()) {
+                                        branch(instruction);
                                     }
                                     break;
                                 case 0o001400: // BEQ
                                     //LOG_INSTRUCTION(instruction, 4, "BEQ");
-                                    if (!(CPU.flagZ & 0xffff)) {
-                                        CPU.registerVal[7] = branch(CPU.registerVal[7], instruction);
+                                    if (testZ()) {
+                                        branch(instruction);
                                     }
                                     break;
                                 case 0o002000: // BGE
                                     //LOG_INSTRUCTION(instruction, 4, "BGE");
-                                    if (!((CPU.flagN ^ CPU.flagV) & 0x8000)) {
-                                        CPU.registerVal[7] = branch(CPU.registerVal[7], instruction);
+                                    if (!logicalXOR(testN(), testV())) {
+                                        branch(instruction);
                                     }
                                     break;
                                 case 0o002400: // BLT
                                     //LOG_INSTRUCTION(instruction, 4, "BLT");
-                                    if ((CPU.flagN ^ CPU.flagV) & 0x8000) {
-                                        CPU.registerVal[7] = branch(CPU.registerVal[7], instruction);
+                                    if (logicalXOR(testN(), testV())) {
+                                        branch(instruction);
                                     }
                                     break;
                                 case 0o003000: // BGT
                                     //LOG_INSTRUCTION(instruction, 4, "BGT");
-                                    if ((CPU.flagZ & 0xffff) && !((CPU.flagN ^ CPU.flagV) & 0x8000)) {
-                                        CPU.registerVal[7] = branch(CPU.registerVal[7], instruction);
+                                    if (!testZ() && !logicalXOR(testN(), testV())) {
+                                        branch(instruction);
                                     }
                                     break;
                                 case 0o003400: // BLE
                                     //LOG_INSTRUCTION(instruction, 4, "BLE");
-                                    if (!(CPU.flagZ & 0xffff) || ((CPU.flagN ^ CPU.flagV) & 0x8000)) {
-                                        CPU.registerVal[7] = branch(CPU.registerVal[7], instruction);
+                                    if (testZ() || logicalXOR(testN(), testV())) {
+                                        branch(instruction);
                                     }
                                     break;
                                 case 0o100000: // BPL
                                     //LOG_INSTRUCTION(instruction, 4, "BPL");
-                                    if (!(CPU.flagN & 0x8000)) {
-                                        CPU.registerVal[7] = branch(CPU.registerVal[7], instruction);
+                                    if (!testN()) {
+                                        branch(instruction);
                                     }
                                     break;
                                 case 0o101000: // BHI
                                     //LOG_INSTRUCTION(instruction, 4, "BHI");
-                                    if (!(CPU.flagC & 0x10000) && (CPU.flagZ & 0xffff)) {
-                                        CPU.registerVal[7] = branch(CPU.registerVal[7], instruction);
+                                    if (!testC() && !testZ()) {
+                                        branch(instruction);
                                     }
                                     break;
                                 case 0o100400: // BMI
                                     //LOG_INSTRUCTION(instruction, 4, "BMI");
-                                    if (CPU.flagN & 0x8000) {
-                                        CPU.registerVal[7] = branch(CPU.registerVal[7], instruction);
+                                    if (testN()) {
+                                        branch(instruction);
                                     }
                                     break;
                                 case 0o101400: // BLOS
                                     //LOG_INSTRUCTION(instruction, 4, "BLOS");
-                                    if ((CPU.flagC & 0x10000) || !(CPU.flagZ & 0xffff)) {
-                                        CPU.registerVal[7] = branch(CPU.registerVal[7], instruction);
+                                    if (testC() || testZ()) {
+                                        branch(instruction);
                                     }
                                     break;
                                 case 0o102000: // BVC
                                     //LOG_INSTRUCTION(instruction, 4, "BVC");
-                                    if (!(CPU.flagV & 0x8000)) {
-                                        CPU.registerVal[7] = branch(CPU.registerVal[7], instruction);
+                                    if (!testV()) {
+                                        branch(instruction);
                                     }
                                     break;
                                 case 0o102400: // BVS
                                     //LOG_INSTRUCTION(instruction, 4, "BVS");
-                                    if (CPU.flagV & 0x8000) {
-                                        CPU.registerVal[7] = branch(CPU.registerVal[7], instruction);
+                                    if (testV()) {
+                                        branch(instruction);
                                     }
                                     break;
                                 case 0o103000: // BCC
                                     //LOG_INSTRUCTION(instruction, 4, "BCC");
-                                    if (!(CPU.flagC & 0x10000)) {
-                                        CPU.registerVal[7] = branch(CPU.registerVal[7], instruction);
+                                    if (!testC()) {
+                                        branch(instruction);
                                     }
                                     break;
                                 case 0o103400: // BCS
                                     //LOG_INSTRUCTION(instruction, 4, "BCS");
-                                    if (CPU.flagC & 0x10000) {
-                                        CPU.registerVal[7] = branch(CPU.registerVal[7], instruction);
+                                    if (testC()) {
+                                        branch(instruction);
                                     }
                                     break;
                                 case 0o104000: // EMT 104000 -> 104377
@@ -1434,15 +1521,14 @@ function emulate(loopCount) {
                                             if ((dst = modifyWordByMode(instruction)) >= 0) {
                                                 result = (dst << 8) | (dst >>> 8);
                                                 if (modifyWord(result) >= 0) {
-                                                    CPU.flagN = CPU.flagZ = dst & 0xff00;
-                                                    CPU.flagV = CPU.flagC = 0;
+                                                    setNZC(dst & 0xff00);
                                                 }
                                             }
                                             break;
                                         case 0o005000: // CLR 0050DD
                                             //LOG_INSTRUCTION(instruction, 1, "CLR");
                                             if (writeWordByMode(instruction, 0) >= 0) {
-                                                CPU.flagN = CPU.flagZ = CPU.flagV = CPU.flagC = 0;
+                                                zeroNZVC();
                                             }
                                             break;
                                         case 0o005100: // COM 0051DD
@@ -1450,9 +1536,7 @@ function emulate(loopCount) {
                                             if ((dst = modifyWordByMode(instruction)) >= 0) {
                                                 result = ~dst;
                                                 if (modifyWord(result) >= 0) {
-                                                    CPU.flagN = CPU.flagZ = result;
-                                                    CPU.flagC = 0x10000;
-                                                    CPU.flagV = 0;
+                                                    setNZC(result);
                                                 }
                                             }
                                             break;
@@ -1461,8 +1545,7 @@ function emulate(loopCount) {
                                             if ((dst = modifyWordByMode(instruction)) >= 0) {
                                                 result = dst + 1;
                                                 if (modifyWord(result) >= 0) {
-                                                    CPU.flagN = CPU.flagZ = result;
-                                                    CPU.flagV = result & (result ^ dst);
+                                                    setNZV(result, result & (result ^ dst));
                                                 }
                                             }
                                             break;
@@ -1471,8 +1554,7 @@ function emulate(loopCount) {
                                             if ((dst = modifyWordByMode(instruction)) >= 0) {
                                                 result = dst + 0xffff;
                                                 if (modifyWord(result) >= 0) {
-                                                    CPU.flagN = CPU.flagZ = result;
-                                                    CPU.flagV = (result ^ dst) & dst;
+                                                    setNZV(result, (result ^ dst) & dst);
                                                 }
                                             }
 
@@ -1482,67 +1564,70 @@ function emulate(loopCount) {
                                             if ((dst = modifyWordByMode(instruction)) >= 0) {
                                                 result = -dst;
                                                 if (modifyWord(result) >= 0) {
-                                                    CPU.flagN = CPU.flagZ = CPU.flagC = result;
-                                                    CPU.flagV = result & dst;
+                                                    setNZVC(result, result & dst);
                                                 }
                                             }
                                             break;
                                         case 0o005500: // ADC 0055DD
                                             //LOG_INSTRUCTION(instruction, 1, "ADC");
                                             if ((dst = modifyWordByMode(instruction)) >= 0) {
-                                                result = dst + ((CPU.flagC >>> 16) & 1);
+                                                result = dst;
+                                                if (testC()) {
+                                                    result++;
+                                                }
                                                 if (modifyWord(result) >= 0) {
-                                                    CPU.flagN = CPU.flagZ = CPU.flagC = result;
-                                                    CPU.flagV = result & (result ^ dst);
+                                                    setNZVC(result, result & (result ^ dst));
                                                 }
                                             }
                                             break;
                                         case 0o005600: // SBC 0056DD
                                             //LOG_INSTRUCTION(instruction, 1, "SBC");
                                             if ((dst = modifyWordByMode(instruction)) >= 0) {
-                                                result = dst - ((CPU.flagC >>> 16) & 1);
+                                                result = dst;
+                                                if (testC()) {
+                                                    result--;
+                                                }
                                                 if (modifyWord(result) >= 0) {
-                                                    CPU.flagN = CPU.flagZ = CPU.flagC = result;
-                                                    CPU.flagV = (result ^ dst) & dst;
+                                                    setNZVC(result, (result ^ dst) & dst);
                                                 }
                                             }
                                             break;
                                         case 0o005700: // TST 0057DD
                                             //LOG_INSTRUCTION(instruction, 1, "TST");
                                             if ((result = readWordByMode(instruction)) >= 0) {
-                                                CPU.flagN = CPU.flagZ = result;
-                                                CPU.flagC = CPU.flagV = 0;
+                                                setNZC(result);
                                             }
                                             break;
                                         case 0o006000: // ROR 0060DD
                                             //LOG_INSTRUCTION(instruction, 1, "ROR");
                                             if ((dst = modifyWordByMode(instruction)) >= 0) {
-                                                result = ((CPU.flagC & 0x10000) | dst) >>> 1;
+                                                result = (dst << 16) | (dst >>> 1);
+                                                if (testC()) {
+                                                    result |= 0x8000;
+                                                }
                                                 if (modifyWord(result) >= 0) {
-                                                    CPU.flagC = (dst << 16);
-                                                    CPU.flagN = CPU.flagZ = result;
-                                                    CPU.flagV = result ^ (CPU.flagC >>> 1);
+                                                    setNZVC(result, result ^ (result >>> 1));
                                                 }
                                             }
                                             break;
                                         case 0o006100: // ROL 0061DD
                                             //LOG_INSTRUCTION(instruction, 1, "ROL");
                                             if ((dst = modifyWordByMode(instruction)) >= 0) {
-                                                result = (dst << 1) | ((CPU.flagC >>> 16) & 1);
+                                                result = dst << 1;
+                                                if (testC()) {
+                                                    result |= 1;
+                                                }
                                                 if (modifyWord(result) >= 0) {
-                                                    CPU.flagN = CPU.flagZ = CPU.flagC = result;
-                                                    CPU.flagV = result ^ dst;
+                                                    setNZVC(result, result ^ dst);
                                                 }
                                             }
                                             break;
                                         case 0o006200: // ASR 0062DD
                                             //LOG_INSTRUCTION(instruction, 1, "ASR");
                                             if ((dst = modifyWordByMode(instruction)) >= 0) {
-                                                result = (dst & 0x8000) | (dst >>> 1);
+                                                result = (dst << 16) | (dst & 0x8000) | (dst >>> 1);
                                                 if (modifyWord(result) >= 0) {
-                                                    CPU.flagC = dst << 16;
-                                                    CPU.flagN = CPU.flagZ = result;
-                                                    CPU.flagV = CPU.flagN ^ (CPU.flagC >>> 1);
+                                                    setNZVC(result, result ^ (result >>> 1));
                                                 }
                                             }
                                             break;
@@ -1551,8 +1636,7 @@ function emulate(loopCount) {
                                             if ((dst = modifyWordByMode(instruction)) >= 0) {
                                                 result = dst << 1;
                                                 if (modifyWord(result) >= 0) {
-                                                    CPU.flagN = CPU.flagZ = CPU.flagC = result;
-                                                    CPU.flagV = result ^ dst;
+                                                    setNZVC(result, result ^ dst);
                                                 }
                                             }
                                             break;
@@ -1570,13 +1654,12 @@ function emulate(loopCount) {
                                             if (!(instruction & 0x38)) {
                                                 reg = instruction & 7;
                                                 if (reg != 6 || ((CPU.PSW >>> 12) & 3) == CPU.mmuMode) {
-                                                    src = CPU.registerVal[reg];
+                                                    result = CPU.registerVal[reg];
                                                 } else {
-                                                    src = CPU.stackPointer[(CPU.PSW >>> 12) & 3];
+                                                    result = CPU.stackPointer[(CPU.PSW >>> 12) & 3];
                                                 }
-                                                if (pushWord(src, 0) >= 0) {
-                                                    CPU.flagN = CPU.flagZ = src;
-                                                    CPU.flagV = 0;
+                                                if (pushWord(result, 0) >= 0) {
+                                                    setNZ(result);
                                                 }
                                             } else {
                                                 if ((virtualAddress = getVirtualByMode(instruction, MMU_WORD)) >= 0) {
@@ -1584,11 +1667,10 @@ function emulate(loopCount) {
                                                         virtualAddress &= 0xffff;
                                                     }
                                                     CPU.mmuMode = (CPU.PSW >>> 12) & 3; // Use PM
-                                                    if ((src = readWordByVirtual(virtualAddress)) >= 0) {
+                                                    if ((result = readWordByVirtual(virtualAddress)) >= 0) {
                                                         CPU.mmuMode = (CPU.PSW >>> 14) & 3; // Restore CM
-                                                        if (pushWord(src, 0) >= 0) {
-                                                            CPU.flagN = CPU.flagZ = src;
-                                                            CPU.flagV = 0;
+                                                        if (pushWord(result, 0) >= 0) {
+                                                            setNZ(result);
                                                         }
                                                     }
                                                 }
@@ -1607,15 +1689,13 @@ function emulate(loopCount) {
                                                     } else {
                                                         CPU.stackPointer[(CPU.PSW >>> 12) & 3] = result;
                                                     }
-                                                    CPU.flagN = CPU.flagZ = result;
-                                                    CPU.flagV = 0;
+                                                    setNZ(result);
                                                 } else { // Must extract virtual address before mode change...
                                                     if ((virtualAddress = getVirtualByMode(instruction, MMU_WORD)) >= 0) {
                                                         CPU.mmuMode = (CPU.PSW >>> 12) & 3; // Use previous mode
                                                         if (writeWordByVirtual(virtualAddress & 0xffff, result) >= 0) {
                                                             CPU.mmuMode = (CPU.PSW >>> 14) & 3; // Restore CM
-                                                            CPU.flagN = CPU.flagZ = result;
-                                                            CPU.flagV = 0;
+                                                            setNZ(result);
                                                         }
                                                     }
                                                 }
@@ -1623,16 +1703,18 @@ function emulate(loopCount) {
                                             break;
                                         case 0o006700: // SXT 0067DD
                                             //LOG_INSTRUCTION(instruction, 1, "SXT");
-                                            result = ((CPU.flagN & 0x8000) ? 0xffff : 0);
+                                            result = 0;
+                                            if (testN()) {
+                                                result = 0xffff;
+                                            }
                                             if (writeWordByMode(instruction, result) >= 0) {
-                                                CPU.flagZ = result;
-                                                CPU.flagV = 0;
+                                                setNZ(result);
                                             }
                                             break;
                                         case 0o105000: // CLRB 1050DD
                                             //LOG_INSTRUCTION(instruction, 1, "CLRB");
                                             if (writeByteByMode(instruction, 0) >= 0) {
-                                                CPU.flagN = CPU.flagZ = CPU.flagV = CPU.flagC = 0;
+                                                zeroNZVC();
                                             }
                                             break;
                                         case 0o105100: // COMB 1051DD
@@ -1640,9 +1722,7 @@ function emulate(loopCount) {
                                             if ((dst = modifyByteByMode(instruction)) >= 0) {
                                                 result = ~dst;
                                                 if (modifyByte(result) >= 0) {
-                                                    CPU.flagN = CPU.flagZ = result << 8;
-                                                    CPU.flagC = 0x10000;
-                                                    CPU.flagV = 0;
+                                                    setByteNZC(result);
                                                 }
                                             }
                                             break;
@@ -1651,8 +1731,7 @@ function emulate(loopCount) {
                                             if ((dst = modifyByteByMode(instruction)) >= 0) {
                                                 result = dst + 1;
                                                 if (modifyByte(result) >= 0) {
-                                                    CPU.flagN = CPU.flagZ = result << 8;
-                                                    CPU.flagV = (result & (result ^ dst)) << 8;
+                                                    setByteNZV(result, result & (result ^ dst));
                                                 }
                                             }
                                             break;
@@ -1661,8 +1740,7 @@ function emulate(loopCount) {
                                             if ((dst = modifyByteByMode(instruction)) >= 0) {
                                                 result = dst + 0xffff;
                                                 if (modifyByte(result) >= 0) {
-                                                    CPU.flagN = CPU.flagZ = result << 8;
-                                                    CPU.flagV = ((result ^ dst) & dst) << 8;
+                                                    setByteNZV(result, (result ^ dst) & dst);
                                                 }
                                             }
                                             break;
@@ -1671,67 +1749,70 @@ function emulate(loopCount) {
                                             if ((dst = modifyByteByMode(instruction)) >= 0) {
                                                 result = -dst;
                                                 if (modifyByte(result) >= 0) {
-                                                    CPU.flagN = CPU.flagZ = CPU.flagC = result << 8;
-                                                    CPU.flagV = (result & dst) << 8;
+                                                    setByteNZVC(result, result & dst);
                                                 }
                                             }
                                             break;
                                         case 0o105500: // ADCB 01055DD
                                             //LOG_INSTRUCTION(instruction, 1, "ADCB");
                                             if ((dst = modifyByteByMode(instruction)) >= 0) {
-                                                result = dst + ((CPU.flagC >>> 16) & 1);
+                                                result = dst;
+                                                if (testC()) {
+                                                    result++;
+                                                }
                                                 if (modifyByte(result) >= 0) {
-                                                    CPU.flagN = CPU.flagZ = CPU.flagC = result << 8;
-                                                    CPU.flagV = (result & (result ^ dst)) << 8;
+                                                    setByteNZVC(result, result & (result ^ dst));
                                                 }
                                             }
                                             break;
                                         case 0o105600: // SBCB 01056DD
                                             //LOG_INSTRUCTION(instruction, 1, "SBCB");
                                             if ((dst = modifyByteByMode(instruction)) >= 0) {
-                                                result = dst - ((CPU.flagC >>> 16) & 1);
+                                                result = dst;
+                                                if (testC()) {
+                                                    result--;
+                                                }
                                                 if (modifyByte(result) >= 0) {
-                                                    CPU.flagN = CPU.flagZ = CPU.flagC = result << 8;
-                                                    CPU.flagV = ((result ^ dst) & dst) << 8;
+                                                    setByteNZVC(result, (result ^ dst) & dst);
                                                 }
                                             }
                                             break;
                                         case 0o105700: // TSTB 1057DD
                                             //LOG_INSTRUCTION(instruction, 1, "TSTB");
                                             if ((result = readByteByMode(instruction)) >= 0) {
-                                                CPU.flagN = CPU.flagZ = result << 8;
-                                                CPU.flagC = CPU.flagV = 0;
+                                                setByteNZC(result);
                                             }
                                             break;
                                         case 0o106000: // RORB 1060DD
                                             //LOG_INSTRUCTION(instruction, 1, "RORB");
                                             if ((dst = modifyByteByMode(instruction)) >= 0) {
-                                                result = (((CPU.flagC & 0x10000) >>> 8) | dst) >>> 1;
+                                                result = (dst << 8) | (dst >>> 1);
+                                                if (testC()) {
+                                                    result |= 0x80;
+                                                }
                                                 if (modifyByte(result) >= 0) {
-                                                    CPU.flagC = (dst << 16);
-                                                    CPU.flagN = CPU.flagZ = (result << 8);
-                                                    CPU.flagV = CPU.flagN ^ (CPU.flagC >>> 1);
+                                                    setByteNZVC(result, result ^ (result >> 1));
                                                 }
                                             }
                                             break;
                                         case 0o106100: // ROLB 1061DD
                                             //LOG_INSTRUCTION(instruction, 1, "ROLB");
                                             if ((dst = modifyByteByMode(instruction)) >= 0) {
-                                                result = (dst << 1) | ((CPU.flagC >>> 16) & 1);
+                                                result = dst << 1;
+                                                if (testC()) {
+                                                    result |= 1;
+                                                }
                                                 if (modifyByte(result) >= 0) {
-                                                    CPU.flagN = CPU.flagZ = CPU.flagC = result << 8;
-                                                    CPU.flagV = (result ^ dst) << 8;
+                                                    setByteNZVC(result, result ^ dst);
                                                 }
                                             }
                                             break;
                                         case 0o106200: // ASRB 1062DD
                                             //LOG_INSTRUCTION(instruction, 1, "ASRB");
                                             if ((dst = modifyByteByMode(instruction)) >= 0) {
-                                                result = (dst & 0x80) | (dst >>> 1);
+                                                result = (dst << 8) | (dst & 0x80) | (dst >>> 1);
                                                 if (modifyByte(result) >= 0) {
-                                                    CPU.flagC = dst << 16;
-                                                    CPU.flagN = CPU.flagZ = result << 8;
-                                                    CPU.flagV = CPU.flagN ^ (CPU.flagC >>> 1);
+                                                    setByteNZVC(result, result ^ (result >>> 1));
                                                 }
                                             }
                                             break;
@@ -1740,8 +1821,7 @@ function emulate(loopCount) {
                                             if ((dst = modifyByteByMode(instruction)) >= 0) {
                                                 result = dst << 1;
                                                 if (modifyByte(result) >= 0) {
-                                                    CPU.flagN = CPU.flagZ = CPU.flagC = result << 8;
-                                                    CPU.flagV = (result ^ dst) << 8;
+                                                    setByteNZVC(result, result ^ dst);
                                                 }
                                             }
                                             break;
@@ -1756,22 +1836,20 @@ function emulate(loopCount) {
                                             if (!(instruction & 0x38)) {
                                                 reg = instruction & 7;
                                                 if (reg != 6 || ((CPU.PSW >>> 12) & 3) == CPU.mmuMode) {
-                                                    src = CPU.registerVal[reg];
+                                                    result = CPU.registerVal[reg];
                                                 } else {
-                                                    src = CPU.stackPointer[(CPU.PSW >>> 12) & 3];
+                                                    result = CPU.stackPointer[(CPU.PSW >>> 12) & 3];
                                                 }
-                                                if (pushWord(src, 0) >= 0) {
-                                                    CPU.flagN = CPU.flagZ = src;
-                                                    CPU.flagV = 0;
+                                                if (pushWord(result, 0) >= 0) {
+                                                    setNZ(result);
                                                 }
                                             } else {
                                                 if ((virtualAddress = getVirtualByMode(instruction, MMU_WORD)) >= 0) {
                                                     CPU.mmuMode = (CPU.PSW >>> 12) & 3; // Use PM
-                                                    if ((src = readWordByVirtual(virtualAddress | 0x10000)) >= 0) {
+                                                    if ((result = readWordByVirtual(virtualAddress | 0x10000)) >= 0) {
                                                         CPU.mmuMode = (CPU.PSW >>> 14) & 3; // Restore CM
-                                                        if (pushWord(src, 0) >= 0) {
-                                                            CPU.flagN = CPU.flagZ = src;
-                                                            CPU.flagV = 0;
+                                                        if (pushWord(result, 0) >= 0) {
+                                                            setNZ(result);
                                                         }
                                                     }
                                                 }
@@ -1790,15 +1868,13 @@ function emulate(loopCount) {
                                                     } else {
                                                         CPU.stackPointer[(CPU.PSW >>> 12) & 3] = result;
                                                     }
-                                                    CPU.flagN = CPU.flagZ = result;
-                                                    CPU.flagV = 0;
+                                                    setNZ(result);
                                                 } else { // Must extract virtual address before mode change...
                                                     if ((virtualAddress = getVirtualByMode(instruction, MMU_WORD)) >= 0) {
                                                         CPU.mmuMode = (CPU.PSW >>> 12) & 3; // Use PM
                                                         if (writeWordByVirtual(virtualAddress | 0x10000, result) >= 0) {
                                                             CPU.mmuMode = (CPU.PSW >>> 14) & 3; // Restore CM
-                                                            CPU.flagN = CPU.flagZ = result;
-                                                            CPU.flagV = 0;
+                                                            setNZ(result);
                                                         }
                                                     }
                                                 }
@@ -1812,12 +1888,10 @@ function emulate(loopCount) {
                                             //            result |= 0xff00;
                                             //        }
                                             //        CPU.registerVal[instruction & 7] = result;
-                                            //        CPU.flagN = CPU.flagZ = result << 8;
-                                            //        CPU.flagV = 0;
+                                            //        setByteNZ(result);
                                             //    } else {
                                             //        if (writeByteByMode(instruction, result) >= 0) {
-                                            //            CPU.flagN = CPU.flagZ = result << 8;
-                                            //            CPU.flagV = 0;
+                                            //            setByteNZ(result);
                                             //        }
                                             //    } // Temporary PDP 11/34A
                                             //    break;
@@ -1841,34 +1915,12 @@ function emulate(loopCount) {
                                                 case 0o000240: // CLR CC 00024M Part 1 without N
                                                 case 0o000250: // CLR CC 00025M Part 2 with N
                                                     //LOG_INSTRUCTION(instruction, 10, "CLR CC");
-                                                    if (instruction & 1) {
-                                                        CPU.flagC = 0; // CLC
-                                                    }
-                                                    if (instruction & 2) {
-                                                        CPU.flagV = 0; // CLV
-                                                    }
-                                                    if (instruction & 4) {
-                                                        CPU.flagZ = 1; // CLZ
-                                                    }
-                                                    if (instruction & 8) {
-                                                        CPU.flagN = 0; // CLN
-                                                    }
+                                                    setFlags(instruction & 0xf, 0);
                                                     break;
                                                 case 0o000260: // SET CC 00026M Part 1 without N
                                                 case 0o000270: // SET CC 00026M Part 2 with N
                                                     //LOG_INSTRUCTION(instruction, 10, "SET CC");
-                                                    if (instruction & 1) {
-                                                        CPU.flagC = 0x10000; // SEC
-                                                    }
-                                                    if (instruction & 2) {
-                                                        CPU.flagV = 0x8000; // SEV
-                                                    }
-                                                    if (instruction & 4) {
-                                                        CPU.flagZ = 0; // SEZ
-                                                    }
-                                                    if (instruction & 8) {
-                                                        CPU.flagN = 0x8000; // SEN
-                                                    }
+                                                    setFlags(instruction & 0xf, 0xf);
                                                     break;
                                                 default: // Misc instructions (decode ALL remaining bits) xxxxxx
                                                     switch (instruction) {
@@ -1942,22 +1994,23 @@ function emulate(loopCount) {
         }
 
         if (--loopCount <= 0) { // When loopCount reaches zero do timer/exit checks
-            if (Date.now() >= loopTime || loopCount < 0) {
+			src = loopTime - Date.now(); // How many ms to go?
+            if (src <= 0 || loopCount < 0) {
                 break;
             }
-            loopCount = 1000;
+            loopCount = 64 << Math.min(src, 8); // Do more iterations before checking time again (compensating for browser speed)
         }
     } while (1);
 
     if (CPU.runState == STATE_RUN) {
         CPU.displayDataPaths = result & 0xffff;
-        setTimeout(emulate, 0, 1000); // immediately schedule another batch of instructions
+        setTimeout(emulate, 1, 512); // immediately schedule another batch of instructions
     } else {
         CPU.displayDataPaths = CPU.registerVal[0];
         CPU.displayAddress = CPU.registerVal[7];
         if (CPU.runState == STATE_RESET) {
             CPU.runState = STATE_RUN;
-            setTimeout(emulate, 60, 1000); // schedule instructions after a reset pause
+            setTimeout(emulate, 60, 10); // schedule instructions after a reset pause
         }
     }
 }
@@ -2092,6 +2145,6 @@ function boot() { // Reset processor, copy bootcode into memory, jump to start o
     reset_iopage();
     if (CPU.runState != STATE_RUN) {
         CPU.runState = STATE_RUN;
-        emulate(1000);
+        emulate(10);
     }
 }

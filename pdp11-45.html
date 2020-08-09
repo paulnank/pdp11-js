@@ -15,31 +15,31 @@
      width: 760px;
      position: relative;
      background: linear-gradient( #c3bcaa, #a39c8a );
+	 -webkit-text-size-adjust: none;
+	 text-size-adjust: none;
 }
  .logo_base {
      position: absolute;
      top: 8px;
      left: 12px;
      height: 28px;
-     width: 440px;
+     width: 404px;
      border: 1px solid #736c62;
      border-radius: 5px;
 }
  .dec {
      position: absolute;
-     top: 3px;
-     left: 145px;
-     height: 22px;
-     font-size: 55%;
-     line-height: 22px;
-     text-align: center;
+     top: 8px;
+     left: 134px;
+     height: 12px;
+     font-size: 10px;
      color: #736c62;
      font-family: arial, helvetica, sans-serif;
 }
  .logo {
      position: absolute;
      top: 2px;
-     left: 30px;
+     left: 20px;
      height: 22px;
      width: 140px;
      font-size: 80%;
@@ -482,10 +482,10 @@
             <div id=lt class=switchRed style="left:0px;background-color: #d7d7d7;border-top-color:#c4c4c0;border-bottom-color:#707067;border-left-color:#575750;border-right-color:#404037;" onclick="panel.lampTest = 1 - panel.lampTest; moveSwitch('lt', (panel.lampTest ? 36 : 22)); if (!panel.powerSwitch) { if (panel.lamp) panel.lamp = 1; }"></div>
             <div id=load class=switchRed style="left:22px;" onclick="moveSwitch('load', 36); setTimeout(function() {moveSwitch('load', 22);},300); if (!panel.powerSwitch) { CPU.displayAddress = CPU.switchRegister; if (panel.rotary0 > 1) CPU.displayAddress &= 0xffff; panel.autoIncr = 0; }"></div>
             <div id=examine class=switchPurple style="left:44px;" onclick="moveSwitch('examine', 36); setTimeout(function() {moveSwitch('examine', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) examineDeposit(-1); }"></div>
-            <div id=continue class=switchPurple style="left:66px;" onclick="moveSwitch('continue', 36); setTimeout(function() {moveSwitch('continue', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) { CPU.runState = STATE_RUN; if (panel.halt) {  emulate(0); CPU.runState = STATE_HALT; } else emulate(1000);}}"></div>
+            <div id=continue class=switchPurple style="left:66px;" onclick="moveSwitch('continue', 36); setTimeout(function() {moveSwitch('continue', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) { CPU.runState = STATE_RUN; if (panel.halt) {  emulate(0); CPU.runState = STATE_HALT; } else emulate(10);}}"></div>
             <div id=halt class=switchPurple style="left:88px;" onclick="panel.halt = 1 - panel.halt; moveSwitch('halt', (panel.halt ? 36 : 22)); if (!panel.powerSwitch) { if (panel.halt && CPU.runState != STATE_HALT) { CPU.runState = STATE_HALT; }}"></div>
             <div id=step class=switchRed style="left:110px;" onclick="panel.step = 1 - panel.step; moveSwitch('step', (panel.step ? 36 : 22));"></div>
-            <div id=start class=switchRed style="left:132px;" onclick="moveSwitch('start', 36); setTimeout(function() {moveSwitch('start', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) {reset_iopage(); CPU.registerVal[7] = CPU.displayAddress & 0xffff; if (!panel.halt) {CPU.runState = STATE_RUN; emulate(1000);}}}"></div>
+            <div id=start class=switchRed style="left:132px;" onclick="moveSwitch('start', 36); setTimeout(function() {moveSwitch('start', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) {reset_iopage(); CPU.registerVal[7] = CPU.displayAddress & 0xffff; if (!panel.halt) {CPU.runState = STATE_RUN; emulate(10);}}}"></div>
             <div class=switchRed style="left:154px;background-color: #d7d7d7;border-top-color:#c4c4c0;border-bottom-color:#707067;border-left-color:#575750;border-right-color:#404037;"></div>
             <div id=deposit class=switchRed style="left:176px;"  onclick="moveSwitch('deposit', 8); setTimeout(function() {moveSwitch('deposit', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) examineDeposit(CPU.switchRegister); }"></div>
             <div class=switchRed style="left:198px;background-color: #d7d7d7;border-top-color:#c4c4c0;border-bottom-color:#707067;border-left-color:#575750;border-right-color:#404037;"></div>
@@ -528,7 +528,7 @@
     <div id="dl11"></div>
     <div id="lp11"></div>
     <br>
-    <h3>PDP 11/45 Emulator - v3.0 July 2020</h3>
+    <h3>PDP 11/45 Emulator - v3.1 August 2020</h3>
     <p>
       This is a PDP 11/45 version of the
       <a href="pdp11.html">PDP 11/70
@@ -1734,13 +1734,13 @@ Have a nice day
 
 <p><a href='http://skn.noip.me/pdp11/pdp11.html'>home</a></p>
 
-<script src='bootcode.js?v=v3.0' type="text/javascript"></script>
-<script src='pdp11.js?v=v3.0' type="text/javascript"></script>
-<script src='iopage.js?v=v3.0' type="text/javascript"></script>
-<script src='fpp.js?v=v3.0' type="text/javascript"></script>
-<script src='vt11.js?v=v3.0' type="text/javascript"></script>
-<script src='vg11.js?v=v3.0' type="text/javascript"></script>
-<script src='vt52.js?v=v3.0' type="text/javascript"></script>
+<script src='bootcode.js?v=v3.1' type="text/javascript"></script>
+<script src='pdp11.js?v=v3.1' type="text/javascript"></script>
+<script src='iopage.js?v=v3.1' type="text/javascript"></script>
+<script src='fpp.js?v=v3.1' type="text/javascript"></script>
+<script src='vt11.js?v=v3.1' type="text/javascript"></script>
+<script src='vg11.js?v=v3.1' type="text/javascript"></script>
+<script src='vt52.js?v=v3.1' type="text/javascript"></script>
 <script type="text/javascript">
 
 function moveSwitch(id, top) {
