@@ -76,11 +76,17 @@ function vt52Paint(unit, remove, ch) {
 function vt52Refresh(unit) { // Delayed refresh for hardcopy mode - to make darned iPad behaviour better!
 	var vt52 = VT52[unit];
     var elementId = DL11[unit].elementId;
+	var valueLength;
 	if (vt52.buffer.length > 0) {
-		if (elementId.value.length > 24000) {
-            elementId.value = elementId.value.substring(elementId.value.length - 4000) + vt52.buffer;
+		valueLength = elementId.value.length;
+		if (valueLength > 64000) {
+            elementId.value = elementId.value.substring(4000) + vt52.buffer;
 		} else {
-			elementId.value += vt52.buffer;
+			if (elementId.setRangeText) {
+				elementId.setRangeText(vt52.buffer, valueLength, valueLength, 'end');
+			} else {
+				elementId.value += vt52.buffer; // :-( takes too long and breaks animation
+			}
 		}
 		vt52.buffer = '';
 	}

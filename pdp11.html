@@ -526,10 +526,10 @@
               <div id=load class=switchRed style="left:0px;" onclick="moveSwitch('load', 36); setTimeout(function() {moveSwitch('load', 22);},300); if (!panel.powerSwitch) { CPU.displayAddress = CPU.switchRegister; if (panel.rotary0 > 1) CPU.displayAddress &= 0xffff; panel.autoIncr = 0; }"></div>
               <div id=examine class=switchPurple style="left:22px;" onclick="moveSwitch('examine', 36); setTimeout(function() {moveSwitch('examine', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) examineDeposit(-1); }"></div>
               <div id=deposit class=switchRed style="left:44px;" onclick="moveSwitch('deposit', 8); setTimeout(function() {moveSwitch('deposit', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) examineDeposit(CPU.switchRegister); }"></div>
-              <div id=continue class=switchPurple style="left:66px;" onclick="moveSwitch('continue', 36); setTimeout(function() {moveSwitch('continue', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) { CPU.runState = STATE_RUN; if (panel.halt) {  emulate(0); CPU.runState = STATE_HALT; } else emulate(10);}}"></div>
+              <div id=continue class=switchPurple style="left:66px;" onclick="moveSwitch('continue', 36); setTimeout(function() {moveSwitch('continue', 22);},300); if (!panel.powerSwitch && CPU.runState == STATE_HALT) { if (!panel.halt) CPU.runState = STATE_RUN; emulate(); }"></div>
               <div id=halt class=switchRed style="left:88px;" onclick="panel.halt = 1 - panel.halt; moveSwitch('halt', (panel.halt ? 36 : 22)); if (!panel.powerSwitch) { if (panel.halt && CPU.runState != STATE_HALT) { CPU.runState = STATE_HALT; }}"></div>
               <div id=step class=switchPurple style="left:110px;" onclick="panel.step = 1 - panel.step; moveSwitch('step', (panel.step ? 36 : 22));"></div>
-              <div id=start class=switchRed style="left:132px;" onclick="moveSwitch('start', 36); setTimeout(function() {moveSwitch('start', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) {reset_iopage(); CPU.registerVal[7] = CPU.displayAddress & 0xffff; if (!panel.halt) {CPU.runState = STATE_RUN; emulate(10);}}}"></div>
+              <div id=start class=switchRed style="left:132px;" onclick="moveSwitch('start', 36); setTimeout(function() {moveSwitch('start', 22);},300); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) {reset_iopage(); CPU.registerVal[7] = CPU.displayAddress & 0xffff; if (!panel.halt) {CPU.runState = STATE_RUN; emulate();}}}"></div>
             </div>
           </div>
         </div>
@@ -2798,7 +2798,7 @@ There is a small mailbox here.
 
 <script src='bootcode.js?v=v3.1' type="text/javascript"></script>
 <script src='pdp11.js?v=v3.1' type="text/javascript"></script>
-<script src='iopage.js?v=v3.1' type="text/javascript"></script>
+<script src='iopage.js?v=v3.1a' type="text/javascript"></script>
 <script src='fpp.js?v=v3.1' type="text/javascript"></script>
 <script src='vt11.js?v=v3.1' type="text/javascript"></script>
 <script src='vg11.js?v=v3.1' type="text/javascript"></script>

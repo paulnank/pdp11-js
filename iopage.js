@@ -314,6 +314,7 @@ function accessRK11(physicalAddress, data, byteFlag) {
                     rk11.rkcs &= ~0x81; // Turn off done & go bits (done is RO and go is WO)
                     rk11.rker &= ~0x03; // Turn off soft errors
                     interrupt(20, 0, 220, 0, rk11_go, 0); // Wait DOS 10 can't handle instant I/O
+					//setTimeout(rk11_go, 0); // Alternate approach
                 }
             }
             break;
@@ -1342,10 +1343,7 @@ function reset_iopage() {
     CPU.CPU_Error = 0;
     CPU.interruptQueue = [];
     CPU.MMR0 = CPU.MMR3 = CPU.mmuEnable = 0;
-    CPU.mmu22Bit = 0;
-    CPU.MMR3Mask[0] = 0x07;
-    CPU.MMR3Mask[1] = 0x17;
-    CPU.MMR3Mask[3] = 0x37;
+    CPU.MMR3Mask[0] = CPU.MMR3Mask[1] = CPU.MMR3Mask[3] = 7;
     CPU.mmuLastPage = 0;
     dl11_reset();
     ptr11_init();
@@ -1708,10 +1706,9 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
                     if (result >= 0 & data >= 0) {
                         if (CPU.cpuType != 70) result &= ~0x30; // don't allow 11/45 to do 22 bit or use unibus map
                         CPU.MMR3 = result;
-                        CPU.mmu22Bit = result & 0x10; // Extract out 22 bit flag
-                        CPU.MMR3Mask[0] = 0x07 | ((result & 4) << 1);
-                        CPU.MMR3Mask[1] = 0x17 | ((result & 2) << 2);
-                        CPU.MMR3Mask[3] = 0x37 | ((result & 1) << 3);
+                        CPU.MMR3Mask[0] = 7 | ((result & 4) << 1);
+                        CPU.MMR3Mask[1] = 7 | ((result & 2) << 2);
+                        CPU.MMR3Mask[3] = 7 | ((result & 1) << 3);
                     }
                     break;
                 default:
