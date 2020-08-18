@@ -53,7 +53,7 @@ function vt52Paint(unit, remove, ch) {
 
     if (ch) { // Put character in current line
         if (vt52.graphics) {
-            if (ch == 97) { // This version subsets ONE graphics character. If this catches on more may be required.
+            if (ch === 97) { // This version subsets ONE graphics character. If this catches on more may be required.
                 ch = 182;
             }
         }
@@ -82,11 +82,7 @@ function vt52Refresh(unit) { // Delayed refresh for hardcopy mode - to make darn
 		if (valueLength > 64000) {
             elementId.value = elementId.value.substring(4000) + vt52.buffer;
 		} else {
-			if (elementId.setRangeText) {
-				elementId.setRangeText(vt52.buffer, valueLength, valueLength, 'end');
-			} else {
-				elementId.value += vt52.buffer; // :-( takes too long and breaks animation
-			}
+			elementId.value += vt52.buffer; // :-( takes too long and breaks animation
 		}
 		vt52.buffer = '';
 	}
@@ -304,7 +300,7 @@ function vt52KeyDown(unit, code, event) {
     var i;
     if (typeof VT52[unit] !== "undefined" && VT52[unit].keypad) {
         for (i = 0; i < vt52KeyMap.length; i++) {
-            if (code == vt52KeyMap[i][0]) {
+            if (code === vt52KeyMap[i][0]) {
                 dl11_input(unit, String.fromCharCode(27) + vt52KeyMap[i][1]);
                 return false; // Replace key with our version
             }
@@ -312,7 +308,7 @@ function vt52KeyDown(unit, code, event) {
                 break;
             }
         }
-        if (code == 13 && event.location === 3) {
+        if (code === 13 && event.location === 3) {
             dl11_input(unit, String.fromCharCode(27) + "?M");
             return false; // Replace key with our version
         }

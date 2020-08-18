@@ -72,7 +72,7 @@ var CPU = {
     flagN: 0x8000, // PSW N bit
     flagV: 0x8000, // PSW V bit
     flagZ: 0xffff, // ~ PSW Z bit
-    loopBase: 60, // Base for loop count calculation (trying to allow for vastly different browser speeds)
+    loopBase: 100, // Base for loop count calculation (trying to allow for vastly different browser speeds)
     memory: [], // Main memory (in words - addresses must be halved for indexing)
     modifyRegister: -1, // Remember the address of a register in a read/write (modify) cycle
     modifyAddress: -1, // If the register is < 0 then remember the memory physical address
@@ -132,11 +132,11 @@ function LOG_INSTRUCTION(instruction, format, name) {
 function interrupt(delay, priority, vector, unit, callback, callarg) {
     "use strict";
     var i;
-    if (typeof callback == "undefined") {
+    if (typeof callback === "undefined") {
         callback = null;
     }
     for (i = CPU.interruptQueue.length; i-- > 0;) { // Remove any matching entries
-        if (CPU.interruptQueue[i].vector == vector && (unit < 0 || CPU.interruptQueue[i].unit == unit)) {
+        if (CPU.interruptQueue[i].vector === vector && (unit < 0 || CPU.interruptQueue[i].unit === unit)) {
             if (i > 0) {
                 CPU.interruptQueue[i - 1].delay += CPU.interruptQueue[i].delay;
             }
@@ -153,7 +153,7 @@ function interrupt(delay, priority, vector, unit, callback, callarg) {
             delay -= CPU.interruptQueue[i].delay;
         }
         CPU.interruptQueue.splice(i + 1, 0, {
-            "delay": CPU.runState == STATE_WAIT ? 0 : delay,
+            "delay": CPU.runState === STATE_WAIT ? 0 : delay,
             "priority": priority & 0xe0,
             "vector": vector,
             "unit": unit < 0 ? 0 : unit,
@@ -163,7 +163,7 @@ function interrupt(delay, priority, vector, unit, callback, callarg) {
         if (delay > 0 || (priority & 0xe0) > (CPU.PSW & 0xe0)) {
             CPU.priorityReview = 1; // Schedule an interrupt priority review if required
         }
-        if (CPU.runState == STATE_WAIT) { // if currently in wait then resume
+        if (CPU.runState === STATE_WAIT) { // if currently in wait then resume
             CPU.runState = STATE_RUN;
             emulate(1); // Kick start processor
         }
@@ -271,6 +271,7 @@ function interruptReview() {
 function writePSW(newPSW) {
     "use strict";
     var i, temp;
+    newPSW &= 0xf8ff;
     if ((newPSW ^ CPU.PSW) & 0x0800) { // register set change?
         for (i = 0; i <= 5; i++) {
             temp = CPU.registerVal[i];
@@ -278,7 +279,7 @@ function writePSW(newPSW) {
             CPU.registerAlt[i] = temp; // swap the active register sets
         }
     }
-    CPU.mmuMode = (newPSW >>> 14) & 3; // must always reset mmuMode
+    CPU.mmuMode = newPSW >>> 14; // must always reset mmuMode
     if ((newPSW ^ CPU.PSW) & 0xc000) { // mode change?
         CPU.stackPointer[(CPU.PSW >>> 14) & 3] = CPU.registerVal[6];
         CPU.registerVal[6] = CPU.stackPointer[CPU.mmuMode]; // swap to new mode SP
@@ -286,7 +287,7 @@ function writePSW(newPSW) {
     if ((newPSW & 0xe0) < (CPU.PSW & 0xe0)) { // priority lowered?
         CPU.priorityReview = 1; // trigger check of priority levels
     }
-    CPU.PSW = newPSW & 0xf8ff;
+    CPU.PSW = newPSW;
     CPU.flagN = newPSW << 12; // Extract PSW flags into external fields
     CPU.flagZ = (~newPSW) & 4;
     CPU.flagV = newPSW << 14;
@@ -549,9 +550,6 @@ function writeByteByPhysical(physicalAddress, data) {
 function mapVirtualToPhysical(virtualAddress, accessMask) {
     "use strict";
     var page, pdr, physicalAddress, errorMask;
-    //var CPU = window.CPU;
-    //if (virtualAddress & ~0x1ffff) panic(89); // check VA range
-    //if (!accessMask) panic(93); // Must have MMU_READ or MMU_WRITE
     CPU.displayAddress = virtualAddress & 0xffff; // Remember the 16b virtual address for display purposes
     if (!(accessMask & CPU.mmuEnable)) { // This access does not require the MMU
         physicalAddress = virtualAddress & 0xffff; // virtual address without MMU is 16 bit (no I&D)
@@ -567,7 +565,7 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
         }
     } else { // This access is mapped by the MMU
         page = (CPU.mmuMode << 4) | ((virtualAddress >>> 13) & CPU.MMR3Mask[CPU.mmuMode]);
-        physicalAddress = (CPU.mmuPAR[page] + (virtualAddress & 0x1fff)) & 0x3fffff;
+        physicalAddress = ((CPU.mmuPAR[page] << 6) + (virtualAddress & 0x1fff)) & 0x3fffff;
         if (!(CPU.MMR3 & 0x10)) { // 18 bit mapping needs extra trimming
             physicalAddress &= 0x3ffff;
             if (physicalAddress >= IOBASE_18BIT) {
@@ -596,7 +594,7 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
                     return trap(4, 24);
                 }
             }
-            if (CPU.mmuMode || (physicalAddress != 0x3fff7a)) { // MMR0 is 017777572 and doesn't affect MMR0 bits
+            if (CPU.mmuMode || (physicalAddress !== 0x3fff7a)) { // MMR0 is 017777572 and doesn't affect MMR0 bits
                 CPU.mmuLastPage = page;
             }
         }
@@ -631,7 +629,7 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
                 }
             }
         } else { // Page expand upwards
-            if ((pdr &= 0x7f00) != 0x7f00) { // If length not maximum check it
+            if ((pdr &= 0x7f00) !== 0x7f00) { // If length not maximum check it
                 if (((virtualAddress << 2) & 0x7f00) > pdr) {
                     errorMask |= 0x4000; // page length error abort
                 }
@@ -773,8 +771,8 @@ function getVirtualByMode(addressMode, accessMode) {
             return trap(4, 34);
         case 1: // Mode 1: (R)
             virtualAddress = CPU.registerVal[reg];
-            if (reg != 7) {
-                if (reg == 6) {
+            if (reg !== 7) {
+                if (reg === 6) {
                     if (accessMode & MMU_WRITE) {
                         if ((virtualAddress = stackCheck(virtualAddress)) < 0) {
                             return virtualAddress;
@@ -790,7 +788,7 @@ function getVirtualByMode(addressMode, accessMode) {
             if (reg < 6) {
                 virtualAddress |= 0x10000; // Use D space
             } else {
-                if (reg == 6) {
+                if (reg === 6) {
                     if (accessMode & MMU_BYTE) {
                         autoIncrement = 2; // R6 doesn't autoIncrement by 1
                     }
@@ -808,7 +806,7 @@ function getVirtualByMode(addressMode, accessMode) {
         case 3: // Mode 3: @(R)+
             autoIncrement = 2;
             virtualAddress = CPU.registerVal[reg];
-            if (reg != 7) {
+            if (reg !== 7) {
                 virtualAddress |= 0x10000; // Use D space if not R7
             }
             if ((virtualAddress = readWordByVirtual(virtualAddress)) < 0) {
@@ -821,11 +819,11 @@ function getVirtualByMode(addressMode, accessMode) {
             if (reg < 6) {
                 virtualAddress = ((CPU.registerVal[reg] + autoIncrement) & 0xffff) | 0x10000;
             } else {
-                if ((accessMode & MMU_BYTE) || reg == 7) {
+                if ((accessMode & MMU_BYTE) || reg === 7) {
                     autoIncrement = -2;
                 }
                 virtualAddress = (CPU.registerVal[reg] + autoIncrement) & 0xffff;
-                if (reg == 6) {
+                if (reg === 6) {
                     if (accessMode & MMU_WRITE) {
                         if ((virtualAddress = stackCheck(virtualAddress)) < 0) {
                             return virtualAddress;
@@ -838,7 +836,7 @@ function getVirtualByMode(addressMode, accessMode) {
         case 5: // Mode 5: @-(R)
             autoIncrement = -2;
             virtualAddress = (CPU.registerVal[reg] - 2) & 0xffff;
-            if (reg != 7) {
+            if (reg !== 7) {
                 virtualAddress |= 0x10000; // Use D space if not R7
             }
             if ((virtualAddress = readWordByVirtual(virtualAddress)) < 0) {
@@ -852,7 +850,7 @@ function getVirtualByMode(addressMode, accessMode) {
             }
             CPU.registerVal[7] = (CPU.registerVal[7] + 2) & 0xffff;
             virtualAddress = (virtualAddress + CPU.registerVal[reg]) & 0xffff;
-            if (reg == 6 && (accessMode & MMU_WRITE)) {
+            if (reg === 6 && (accessMode & MMU_WRITE)) {
                 if ((virtualAddress = stackCheck(virtualAddress)) < 0) {
                     return virtualAddress;
                 }
@@ -1092,12 +1090,12 @@ function emulate() {
         virtualAddress, savePSW, reg;
     var loopCount, loopTime;
     var CPU = window.CPU;
-    if (CPU.runState == STATE_RUN) {
-        loopTime = Date.now() + 8; // Execute for 8ms
-        loopCount = CPU.loopBase << 8; // Estimate a count before time checks
+    if (CPU.runState === STATE_RUN) {
+        loopTime = Date.now();
+        loopCount = CPU.loopBase;
     } else {
         loopTime = loopCount = 0; // CPU not running - assume instruction stepping from console
-        if (CPU.runState != STATE_HALT) {
+        if (CPU.runState !== STATE_HALT) {
             return;
         }
     }
@@ -1134,7 +1132,7 @@ function emulate() {
         // Remember if T-bit trap required at the end of this instruction
         CPU.trapMask = CPU.PSW & 0x10;
         if ((instruction = readWordByVirtual(CPU.registerVal[7])) >= 0) {
-            //if (CPU.registerVal[7] == 0o26576) { // DDEEBBUUGG
+            //if (CPU.registerVal[7] === 0o26576) { // DDEEBBUUGG
             //    console.log("PC " + CPU.registerVal[7].toString(8) + " instruction: " + instruction.toString(8) + " R0: " + CPU.registerVal[0].toString(8) + " R4: " + CPU.registerVal[4].toString(8));
             //}
             CPU.registerVal[7] = (CPU.registerVal[7] + 2) & 0xffff;
@@ -1159,7 +1157,7 @@ function emulate() {
                                         case 1: // WAIT 000001
                                             //LOG_INSTRUCTION(instruction, 0, "WAIT");
                                             if (!interruptWaitRelease()) {
-                                                if (CPU.runState != STATE_HALT) { // Halt means we are instruction stepping
+                                                if (CPU.runState !== STATE_HALT) { // Halt means we are instruction stepping
                                                     CPU.runState = STATE_WAIT; // WAIT; // Go to wait state and exit loop
                                                 }
                                                 loopCount = 0; // force exit
@@ -1177,7 +1175,7 @@ function emulate() {
                                             //LOG_INSTRUCTION(instruction, 0, "RESET");
                                             if (!CPU.mmuMode) {
                                                 reset_iopage();
-                                                if (CPU.runState != STATE_HALT) { // Halt means we are instruction stepping
+                                                if (CPU.runState !== STATE_HALT) { // Halt means we are instruction stepping
                                                     CPU.runState = STATE_RESET; // reset state for special pause
                                                 }
                                                 loopCount = 0; // force exit
@@ -1196,7 +1194,7 @@ function emulate() {
                                                     CPU.registerVal[7] = result;
                                                     writePSW(savePSW);
                                                     CPU.trapMask &= ~0x10; // turn off Trace trap
-                                                    if (instruction == 2) {
+                                                    if (instruction === 2) {
                                                         CPU.trapMask |= CPU.PSW & 0x10; // RTI enables immediate trace
                                                     }
                                                 }
@@ -1442,7 +1440,7 @@ function emulate() {
                                     //LOG_INSTRUCTION(instruction, 1, "MFPI");
                                     if (!(instruction & 0x38)) {
                                         reg = instruction & 7;
-                                        if (reg != 6 || ((CPU.PSW >>> 12) & 3) == CPU.mmuMode) {
+                                        if (reg !== 6 || ((CPU.PSW >>> 12) & 3) === CPU.mmuMode) {
                                             result = CPU.registerVal[reg];
                                         } else {
                                             result = CPU.stackPointer[(CPU.PSW >>> 12) & 3];
@@ -1452,7 +1450,7 @@ function emulate() {
                                         }
                                     } else {
                                         if ((virtualAddress = getVirtualByMode(instruction, MMU_WORD)) >= 0) {
-                                            if ((CPU.PSW & 0xf000) != 0xf000) {
+                                            if ((CPU.PSW & 0xf000) !== 0xf000) {
                                                 virtualAddress &= 0xffff;
                                             }
                                             CPU.mmuMode = (CPU.PSW >>> 12) & 3; // Use PM
@@ -1473,7 +1471,7 @@ function emulate() {
                                         }
                                         if (!(instruction & 0x38)) {
                                             reg = instruction & 7;
-                                            if (reg != 6 || ((CPU.PSW >>> 12) & 3) == CPU.mmuMode) {
+                                            if (reg !== 6 || ((CPU.PSW >>> 12) & 3) === CPU.mmuMode) {
                                                 CPU.registerVal[reg] = result;
                                             } else {
                                                 CPU.stackPointer[(CPU.PSW >>> 12) & 3] = result;
@@ -1607,7 +1605,7 @@ function emulate() {
                                     } else {
                                         setNZVC(((dst >>> 16) & 0x8000) | (result ? 1 : 0), 0x8000); // Bad result
                                         if (!(result & 0x7fffffff)) setFlags(4, 4); // Set zero flag
-                                        if (src == -1 && CPU.registerVal[reg] == 0xfffe) {
+                                        if (src === -1 && CPU.registerVal[reg] === 0xfffe) {
                                             CPU.registerVal[reg] = CPU.registerVal[reg | 1] = 1;
                                         }
                                     }
@@ -1641,7 +1639,7 @@ function emulate() {
                                         }
                                         result <<= src;
                                         dst = result & 0xffff8000; // Get bits shifted out plus sign
-                                        if (dst && dst != ((0xffff << src) & 0xffff8000)) { // Check bits shifted out match sign
+                                        if (dst && dst !== ((0xffff << src) & 0xffff8000)) { // Check bits shifted out match sign
                                             setNZVC(result, 0x8000); // Set V if not
                                         } else {
                                             setNZC(result);
@@ -1672,7 +1670,7 @@ function emulate() {
                                     } else { // ASHC left (1-31)
                                         dst = result >>> (31 - src); // EQKC confirms ANY change of sign during shift sets V :-(
                                         result <<= src;
-                                        if (dst && dst != (0xffffffff >>> (31 - src))) { // Low bits are carry and sign
+                                        if (dst && dst !== (0xffffffff >>> (31 - src))) { // Low bits are carry and sign
                                             setNZVC((dst << 15) | (result ? 1 : 0), 0x8000); // Set V if any change of sign
                                         } else {
                                             setNZC((dst << 15) | (result ? 1 : 0));
@@ -1890,7 +1888,7 @@ function emulate() {
                                     //LOG_INSTRUCTION(instruction, 1, "MFPD");
                                     if (!(instruction & 0x38)) {
                                         reg = instruction & 7;
-                                        if (reg != 6 || ((CPU.PSW >>> 12) & 3) == CPU.mmuMode) {
+                                        if (reg !== 6 || ((CPU.PSW >>> 12) & 3) === CPU.mmuMode) {
                                             result = CPU.registerVal[reg];
                                         } else {
                                             result = CPU.stackPointer[(CPU.PSW >>> 12) & 3];
@@ -1918,7 +1916,7 @@ function emulate() {
                                         }
                                         if (!(instruction & 0x38)) {
                                             reg = instruction & 7;
-                                            if (reg != 6 || ((CPU.PSW >>> 12) & 3) == CPU.mmuMode) {
+                                            if (reg !== 6 || ((CPU.PSW >>> 12) & 3) === CPU.mmuMode) {
                                                 CPU.registerVal[reg] = result;
                                             } else {
                                                 CPU.stackPointer[(CPU.PSW >>> 12) & 3] = result;
@@ -2034,31 +2032,26 @@ function emulate() {
                     break;
             }
         }
+    } while (--loopCount > 0);
 
-        if (--loopCount <= 0) { // When loopCount reaches zero do timer/exit checks
-            if (loopCount < 0) {
-                break; // loopCount was 0: force exit
+    if (loopCount === 0) { // Count expired so check timing
+        src = Date.now() - loopTime - 8;
+        if (src > 0) { // over time
+            CPU.loopBase = Math.max(20, CPU.loopBase - src * 32); // Reduce loop counts
+        } else {
+            if (src < 0) { // under time - increase count
+                CPU.loopBase -= src * 33;
             }
-            if ((src = loopTime - Date.now()) <= 0) { // How many ms to go?
-                if (src < -2 && CPU.loopBase > 4) { // Loop count too big?
-                    CPU.loopBase--;
-                }
-                break; // Out of time
-            }
-            if (src < 4) { // Loop count too small? (used less than half allotted time)
-                CPU.loopBase++;
-            }
-            loopCount = CPU.loopBase << Math.min(src, 8); // Do more iterations before checking time
         }
-    } while (1);
+    }
 
-    if (CPU.runState == STATE_RUN) {
+    if (CPU.runState === STATE_RUN) {
         CPU.displayDataPaths = result & 0xffff;
-        setTimeout(emulate, 1); // immediately schedule another batch of instructions
+        setTimeout(emulate, 0); // immediately schedule another batch of instructions
     } else {
         CPU.displayDataPaths = CPU.registerVal[0];
         CPU.displayAddress = CPU.registerVal[7];
-        if (CPU.runState == STATE_RESET) {
+        if (CPU.runState === STATE_RESET) {
             CPU.runState = STATE_RUN;
             setTimeout(emulate, 60); // schedule instructions after a reset pause
         }
@@ -2132,7 +2125,7 @@ function updateLights() {
             displayLights = 0xffff;
             statusLights = 0x3ffffff;
         } else {
-            if (panel.rotary0 != 1) {
+            if (panel.rotary0 !== 1) {
                 addressLights = CPU.displayAddress;
             } else {
                 addressLights = 0;
@@ -2158,15 +2151,15 @@ function updateLights() {
                 ((CPU.mmuEnable) ? (CPU.MMR3 & 0x10) ? 1 : 2 : 4); // MMU status (16, 18, 22)
         }
     }
-    if (addressLights != panel.addressLights) {
+    if (addressLights !== panel.addressLights) {
         updatePanel(panel.addressLights, addressLights, panel.addressId);
         panel.addressLights = addressLights;
     }
-    if (displayLights != panel.displayLights) {
+    if (displayLights !== panel.displayLights) {
         updatePanel(panel.displayLights, displayLights, panel.displayId);
         panel.displayLights = displayLights;
     }
-    if (statusLights != panel.statusLights) {
+    if (statusLights !== panel.statusLights) {
         updatePanel(panel.statusLights, statusLights, panel.statusId);
         panel.statusLights = statusLights;
     }
@@ -2193,7 +2186,7 @@ function boot() { // Reset processor, copy bootcode into memory, jump to start o
     CPU.PIR = 0;
     writePSW(0);
     reset_iopage();
-    if (CPU.runState != STATE_RUN) {
+    if (CPU.runState !== STATE_RUN) {
         CPU.runState = STATE_RUN;
         emulate(1);
     }
