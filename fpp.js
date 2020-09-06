@@ -50,7 +50,7 @@
 // Addresses of floating point numbers are stored as virtual addresses (17 bit I/D), unlike
 // words and bytes in the main emulator modules which use 22 bit physical addresses.
 // This is because floating point numbers may be up to eight bytes in length and cross virtual
-// memory page boundaries, which may not be contiguous in physical memory (may cross page boundaries).
+// memory page boundaries which means they may not be contiguous in physical memory.
 // The extra length also means floating point autoincrement and autodecrement addressing may increment
 // and decrement registers by 8, 4 or 2 bytes. Note also that immediate mode {(R7)+ and -(R7)} always
 // assume an operand length of two bytes - the PC is incremented by 2 regardless of data type, probably
@@ -173,7 +173,7 @@ function incrementVirtual(virtualAddress) {
 
 function fppFlags() { // 8 - N,  4 - Z,  2 - V,  1 - C Copy FPP flags to CPU flags
     "use strict";
-	setFlags(0xf, FPP.FPS); // Set CPU flags based on FPS flags
+    setFlags(0xf, FPP.FPS); // Set CPU flags based on FPS flags
 }
 
 function fppZero(number) { // Zero a FPP number

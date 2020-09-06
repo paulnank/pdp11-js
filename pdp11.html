@@ -16,8 +16,8 @@
      width: 760px;
      position: relative;
      background: linear-gradient( #c3bcaa, #a39c8a );
-	 -webkit-text-size-adjust: none;
-	 text-size-adjust: none;
+     -webkit-text-size-adjust: none;
+     text-size-adjust: none;
 }
  .logo_base {
      position: absolute;
@@ -257,7 +257,7 @@
     <div class=frame>
       <div class=logo_base>
         <div class=logo><div class=letter>d</div><div class=letter>i</div><div class=letter>g</div><div class=letter>i</div><div class=letter>t</div><div class=letter>a</div><div class=letter>l</div></div>
-        <div class=dec>digital equipment corportation &bull; maynard, massachusetts</div>
+        <div class=dec>digital equipment corporation &bull; maynard, massachusetts</div>
       </div>
       <div class=edges></div>
       <div class=bevel></div>
@@ -591,29 +591,29 @@
     </p>
     <p>
       However boot code like this was not part of early PDP 11s. These systems had no BIOS or other software to help get the bare metal started. If you were lucky perhaps the previous boot code would still be intact in non-volatile magnetic core memory, but in general booting the system required toggling in a small bootstrap loader from the front panel. There are listings of bootstrap loaders for various devices
-	  <a href='https://www.sydney.edu.au/science/psychology/pdp-11/bootstraps.html'>here</a>.
-	  If you are a purist don't use the boot code! Instead find the bootstrap code for the device you want to boot from and toggle it in through the switches. However be warned - the boot program will not work unless toggled in perfectly which often takes a few goes.
+      <a href='https://www.sydney.edu.au/science/psychology/pdp-11/bootstraps.html'>here</a>.
+      If you are a purist don't use the boot code! Instead find the bootstrap code for the device you want to boot from and toggle it in through the switches. However be warned - the boot program will not work unless toggled in perfectly which often takes a few goes.
     </p>
     <p>
-	  Here is an example of the switch commands for booting from an RK05 where the value at address 1002 selects the unit number (rk0, rk1, rk2, etc). Goodluck!
+      Here is an example of the switch commands for booting from an RK05 where the value at address 1002 selects the unit number (rk0, rk1, rk2, etc). Goodluck!
     </p>
     <pre>
 <b>
 Address Data    Code           Switch commands
 </b>
                                HALT, 001000, LOAD ADDRESS
-001000  012737	mov #unit,rkda 012737, DEPOSIT
+001000  012737  mov #unit,rkda 012737, DEPOSIT
 001002  000000                 000000, DEPOSIT or 020000 for rk1, 040000 for rk2, etc
-001004	177412                 177412, DEPOSIT
-001006	012700	mov #rkwc, r0  012700, DEPOSIT
-001010	177406                 177406, DEPOSIT
-001012	012710	mov #-256,(r0) 012710, DEPOSIT
-001014	177400                 177400, DEPOSIT
-001016	012740	mov #5,-(r0)   012740, DEPOSIT
-001020	000005                 000005, DEPOSIT
-001022	105710	tstb (r0)      105710, DEPOSIT
-001024	100376  bpl .-2        100376, DEPOSIT
-001026	005007	clr pc         005007, DEPOSIT
+001004  177412                 177412, DEPOSIT
+001006  012700  mov #rkwc, r0  012700, DEPOSIT
+001010  177406                 177406, DEPOSIT
+001012  012710  mov #-256,(r0) 012710, DEPOSIT
+001014  177400                 177400, DEPOSIT
+001016  012740  mov #5,-(r0)   012740, DEPOSIT
+001020  000005                 000005, DEPOSIT
+001022  105710  tstb (r0)      105710, DEPOSIT
+001024  100376  bpl .-2        100376, DEPOSIT
+001026  005007  clr pc         005007, DEPOSIT
                                001000, LOAD ADDRESS, ENABLE, START
 </pre>
     <p>
@@ -637,11 +637,16 @@ HALT, 140000, LOAD ADDRESS, ENABLE, START
 </pre>
     <p>
       If you plan to run the emulator repeatedly or for a project, consider downloading the emulator to your own machine or server.
-	  This will <b>significantly</b> speed any of the emulator disk accesses and response times. All files and emulator OS
+      This will <b>significantly</b> speed any of the emulator disk accesses and response times. All files and emulator OS
       disks can be found in the top level folder of
       <b><a href='https://skn.noip.me/pdp11/'>http://skn.noip.me/pdp11/</a></b> or in the single zip file
       <b><a href='https://skn.noip.me/pdp11/pdp11.zip'>http://skn.noip.me/pdp11/pdp11.zip</a></b> Please note that browser security
-	  policy may prevent local emulator pages from booting disk images so please read the information in <b>StartChrome.cmd</b>
+      policy may prevent local emulator pages from booting disk images so please read the information in <b>StartChrome.cmd</b>
+    </p>
+    <p>
+      If you are interested in how the emulator works then you can browse the source files on
+      <b><a href='https://github.com/paulnank/nankervis-pdp11-js'>Github</a></b>.
+      The main Javascript files are pdp11.js, fpp.js and iopage.js
     </p>
     <p>
       There are many PDP emulators out there and I have never seen what I consider to be a complete list. Some of the really interesting ones can be found by googling terms such as "vhdl pdp 11". However the gold standard is SIMH at
@@ -2867,13 +2872,13 @@ function examineDeposit(data) {
                 result = readWordByPhysical(CPU.displayAddress); // examine -> read
             } else {
                 result = writeWordByPhysical(CPU.displayAddress, data & 0xffff); // deposit -> write
-				if (result >= 0) {
-					result = data & 0xffff; // Write return may just be a status
-				} else {
-					if (CPU.displayAddress == 017777776) {
-						result = readPSW(); // PSW write signals false error (to stop CPU flag updates)
-					}
-				}
+                if (result >= 0) {
+                    result = data & 0xffff; // Write return may just be a status
+                } else {
+                    if (CPU.displayAddress == 017777776) {
+                        result = readPSW(); // PSW write signals false error (to stop CPU flag updates)
+                    }
+                }
             }
         }
     }

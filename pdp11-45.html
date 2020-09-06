@@ -15,8 +15,8 @@
      width: 760px;
      position: relative;
      background: linear-gradient( #c3bcaa, #a39c8a );
-	 -webkit-text-size-adjust: none;
-	 text-size-adjust: none;
+     -webkit-text-size-adjust: none;
+     text-size-adjust: none;
 }
  .logo_base {
      position: absolute;
@@ -256,7 +256,7 @@
     <div class=frame>
       <div class=logo_base>
         <div class=logo><div class=letter>d</div><div class=letter>i</div><div class=letter>g</div><div class=letter>i</div><div class=letter>t</div><div class=letter>a</div><div class=letter>l</div></div>
-        <div class=dec>digital equipment corportation &bull; maynard, massachusetts</div>
+        <div class=dec>digital equipment corporation &bull; maynard, massachusetts</div>
       </div>
       <div class=edges></div>
       <div class=bevel></div>
@@ -568,6 +568,11 @@ Address Data    Code        Switch commands
     <pre>
 HALT, 140000, LOAD ADDRESS, START
 </pre>
+    <p>
+      If you are interested in how the emulator works then you can browse the source files on
+      <b><a href='https://github.com/paulnank/nankervis-pdp11-js'>Github</a></b>.
+      The main Javascript files are pdp11.js, fpp.js and iopage.js
+    </p>
     <p>
       There are many PDP emulators out there and I have never seen what I consider to be a complete list. Some of the really interesting ones can be found by googling terms such as "vhdl pdp 11". However the gold standard seems to be SIMH at
       <a href='http://simh.trailing-edge.com'>Trailing Edge
@@ -1805,13 +1810,13 @@ function examineDeposit(data) {
                 result = readWordByPhysical(CPU.displayAddress); // examine -> read
             } else {
                 result = writeWordByPhysical(CPU.displayAddress, data & 0xffff); // deposit -> write
-				if (result >= 0) {
-					result = data & 0xffff; // Write return may just be a status
-				} else {
-					if (CPU.displayAddress == 017777776) {
-						result = readPSW(); // PSW write signals false error (to stop CPU flag updates)
-					}
-				}
+                if (result >= 0) {
+                    result = data & 0xffff; // Write return may just be a status
+                } else {
+                    if (CPU.displayAddress == 017777776) {
+                        result = readPSW(); // PSW write signals false error (to stop CPU flag updates)
+                    }
+                }
             }
         }
     }
