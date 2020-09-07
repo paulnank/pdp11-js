@@ -5,8 +5,9 @@
 // This code may be used freely provided the original author name is acknowledged in any modified source code
 //
 //
+// This code emulates the function of a PDP 11/70 CPU.
 //
-//
+// Webworkers? WASM? Memory in ArrayBuffer / Uint16Array / Uint8ClampedArray?
 //
 const
     IOBASE_VIRT = 0o160000,
@@ -40,10 +41,10 @@ const
 // Thus a program virtual address space can be up to 32K words of instruction space and 32K words of data space.
 // The distinction between these spaces is that references based on register 7 (the program counter) refer to
 // instruction space, while all other references are to data space.
-// I/O and control of devices is done by writing to device registers in the 4K words in the I/O page at the top
-// of physical memory. This is implemented here by calling the access_iopage() function in module iopage.js.
-// For example to send a character to the console terminal a program would write to the console transmit buffer
-// at virtual address 177566 - assuming that this is mapped to bus address 17777566. Also located in the I/O page
+// I/O and control of devices is done by writing to device registers in the I/O page at the top 4K of
+// physical memory. This is implemented here by calling the access_iopage() function in module iopage.js.
+// For example to send a character to the console terminal a program would write to the console transmit buffer at
+// virtual address 177566 - assuming that this is mapped to physical address 17777566. Also located in the I/O page
 // are things like the Program Status Word (PSW which contains CPU priority, memory management mode, condition
 // codes etc), Memory Management registers, the Stack limit register, Program Interrupt register, each memory
 // management mode stack pointer (R6), as well as two sets of general registers (selection by program status).
@@ -127,7 +128,9 @@ function LOG_INSTRUCTION(instruction, format, name) {
 // interrupt to become active. Nice idea to handle any problematic code which was
 // written to know that a device could not interrupt immediately. However I don't
 // think I have yet encountered this situation and perhaps the concept is a waste.
-// Update: Instruction delays in the RK11 driver require this to make DOS 9 work!
+// Update: Instruction delays in the RK11 driver are required to make DOS 9 work.
+// It contains code which initiates I/O to overwrite itself, and then relies on
+// the I/O delay to continue executing for a short time.
 
 function interrupt(delay, priority, vector, unit, callback, callarg) {
     "use strict";
@@ -183,7 +186,7 @@ function interruptWaitRelease() {
         CPU.interruptQueue[i].delay = 0;
         if (CPU.interruptQueue[i].priority > (CPU.PSW & 0xe0)) {
             CPU.priorityReview = 1;
-            return 1; // Found something that can run
+            return 1; // Found something to run
         }
     }
     return 0; // No candidates found for WAIT release
@@ -755,7 +758,8 @@ function popWord() {
 // address of a FPP operand).
 //
 // Just to keep us on our toes the mode (PC)+ (immediate mode, octal 27) ALWAYS increments
-// by 2 no matter what type of operand is used!!
+// by 2 no matter what type of operand is used, and SP is never incremented or decremented
+// by odd (byte) amounts.
 //
 // Also CPU.MMR1 must be updated to track which registers have been incremented and
 // decremented. This allows software to backout any changes and restart an instruction
@@ -1054,17 +1058,15 @@ function branch(instruction) {
 // (required for auto incremenet/decrement) but not an access type (MMU_READ or
 // MMU_WRITE) as the mapping does not attempt to access the operand.
 //
-// CPU flags are stored outside of the PSW for performance reasons. A call to
-// readPSW() will assemble them back into the PSW. Writes to the PSW should generally
-// be through writePSW() as it needs to track which register set is in use, the memory
-// management mode, whether priority has changed etc.
-// Individual flags are CPU.flagC, CPU.flagN, CPU.flagV, and CPU.flagZ. These hold
-// the value of the last result affecting them. So for example bit 16 of CPU.flagC
-// is the only useful bit it contains. Likewise bit 15 of CPU.flagN and CPU.flagV are
-// the only bit they use. For CPU.flagZ the lower 16 bits must be tested to see if
-// the result was zero or not.
-// Similarly CPU.mmuMode mirrors the current processor mode held in bits
-// 14 & 15 of the PSW - as it is frequently used by memory management operations.
+// CPU condition code flags are stored outside of the PSW for performance reasons. A
+// call to readPSW() will assemble them back into the PSW. Writes to the PSW should
+// generally be through writePSW() as it needs to track which register set is in use,
+// the memory management mode, whether priority has changed etc.
+// Setting and testing of condition code flags is done through function calls such
+// as setNZVC() and testC() so that the implementation detail is abstracted away
+// from the following instruction code (allowing alternate implementation approaches).
+// Normally CPU.mmuMode mirrors the current processor mode held in bits
+// 14 & 15 of the PSW as it is frequently used by memory management operations.
 //
 // All traps and aborts go through the trap() function. It returns a -1 value which
 // is then passed up through other function layers and interpreted as an indicator
@@ -1072,8 +1074,9 @@ function branch(instruction) {
 // current instruction.
 //
 // Instruction execution is performed by the emulate() function which processes a
-// batch of instructions. The current strategy is to execute 1000 instructions
-// repeating until 8 milliseconds have passed.
+// batch of instructions. The current strategy is to execute CPU.loopBase instructions
+// and time how long that takes. If it is above or below 8ms then adjust CPU.loopBase
+// for the next interval.
 //
 // Batching instructions in this way is required in Javascript as it is necessary
 // to relinquish control periodically to let timer and I/O functions execute, and to
@@ -2063,9 +2066,9 @@ var panel = {
     addressLights: 0x3fffff, // current state of addressLights (a0-a21)
     displayLights: 0xffff, // current state of displayLights (d0-d15)
     statusLights: 0x3ffffff, // current state of statusLights (s0-s25)
-    addressId: [], // DOM id's for addressLighrs
-    displayId: [], // DOM id's for displayLighrs
-    statusId: [], // DOM id's for statusLighrs
+    addressId: [], // DOM id's for addressLights
+    displayId: [], // DOM id's for displayLights
+    statusId: [], // DOM id's for statusLights
     LIGHTS_STATE: [0x280, 0x300, 0x100, 0x80], // RUN, RESET, WAIT, HALT -> RUN, MASTER, PAUSE lights
     LIGHTS_MODE: [0x10, 0x20, 0, 0x40], // Kernel, Super, Undefined, User -> Kernel, Super, User lights
     rotary1: 0,
