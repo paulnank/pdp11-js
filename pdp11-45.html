@@ -500,18 +500,18 @@
       <br>
       <textarea id=0 cols=132 rows=24 style="font-family:'Courier New',Courier,'Lucida Console',Monaco,monospace;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
       <br>
-      <button onclick="dl11_input(DL11_lastUnit,String.fromCharCode(3))">Ctrl/C</button>
-      <button onclick="dl11_input(DL11_lastUnit,String.fromCharCode(4))">Ctrl/D</button>
-      <button onclick="dl11_input(DL11_lastUnit,String.fromCharCode(8))">Ctrl/H</button>
-      <button onclick="dl11_input(DL11_lastUnit,String.fromCharCode(10))">LF</button>
-      <button onclick="dl11_input(DL11_lastUnit,String.fromCharCode(17))">Ctrl/Q</button>
-      <button onclick="dl11_input(DL11_lastUnit,String.fromCharCode(19))">Ctrl/S</button>
-      <button onclick="dl11_input(DL11_lastUnit,String.fromCharCode(20))">Ctrl/T</button>
-      <button onclick="dl11_input(DL11_lastUnit,String.fromCharCode(26))">Ctrl/Z</button>
-      <button onclick="dl11_input(DL11_lastUnit,String.fromCharCode(27))">ESC</button>
-      <button onclick="dl11_input(DL11_lastUnit,String.fromCharCode(9))">TAB</button>
-      <button onclick="dl11_input(DL11_lastUnit,String.fromCharCode(0))">Break</button>
-      <button onclick="dl11_putchar(0,10);boot();">REBOOT</button>
+      <button onclick="vt52Input(vt52LastUnit,String.fromCharCode(3))">Ctrl/C</button>
+      <button onclick="vt52Input(vt52LastUnit,String.fromCharCode(4))">Ctrl/D</button>
+      <button onclick="vt52Input(vt52LastUnit,String.fromCharCode(8))">Ctrl/H</button>
+      <button onclick="vt52Input(vt52LastUnit,String.fromCharCode(10))">LF</button>
+      <button onclick="vt52Input(vt52LastUnit,String.fromCharCode(17))">Ctrl/Q</button>
+      <button onclick="vt52Input(vt52LastUnit,String.fromCharCode(19))">Ctrl/S</button>
+      <button onclick="vt52Input(vt52LastUnit,String.fromCharCode(20))">Ctrl/T</button>
+      <button onclick="vt52Input(vt52LastUnit,String.fromCharCode(26))">Ctrl/Z</button>
+      <button onclick="vt52Input(vt52LastUnit,String.fromCharCode(27))">ESC</button>
+      <button onclick="vt52Input(vt52LastUnit,String.fromCharCode(9))">TAB</button>
+      <button onclick="vt52Input(vt52LastUnit,String.fromCharCode(0))">Break</button>
+      <button onclick="vt52Put(0,10);boot();">REBOOT</button>
     </p>
      <p><label>Paper tape reader file</label>
      <select id = "ptr" onchange="ptr11_init();">
@@ -1741,11 +1741,11 @@ Have a nice day
 
 <script src='bootcode.js?v=v3.1' type="text/javascript"></script>
 <script src='pdp11.js?v=v3.1' type="text/javascript"></script>
-<script src='iopage.js?v=v3.1b' type="text/javascript"></script>
+<script src='iopage.js?v=v3.2' type="text/javascript"></script>
 <script src='fpp.js?v=v3.1' type="text/javascript"></script>
 <script src='vt11.js?v=v3.1' type="text/javascript"></script>
 <script src='vg11.js?v=v3.1' type="text/javascript"></script>
-<script src='vt52.js?v=v3.1' type="text/javascript"></script>
+<script src='vt52.js?v=v3.2' type="text/javascript"></script>
 <script type="text/javascript">
 
 function moveSwitch(id, top) {
