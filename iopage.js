@@ -1,4 +1,4 @@
-// Javascript PDP 11/70 Emulator v3.1
+// Javascript PDP 11/70 Emulator v3.2
 // written by Paul Nankervis
 // Please send suggestions, fixes and feedback to paulnank@hotmail.com
 //
@@ -314,7 +314,7 @@ function accessRK11(physicalAddress, data, byteFlag) {
                     rk11.rkcs &= ~0x81; // Turn off done & go bits (done is RO and go is WO)
                     rk11.rker &= ~0x03; // Turn off soft errors
                     //interrupt(20, 0, 220, 0, rk11_go, 0); // Wait DOS 10 can't handle instant I/O
-					setTimeout(rk11_go, 0); // Alternate approach
+                    setTimeout(rk11_go, 0); // Alternate approach
                 }
             }
             break;
@@ -550,23 +550,13 @@ function rp11_init() {
 }
 
 
-function rp11_attention(drive, flags) {
-    rp11.rpas |= 1 << drive;
-    rp11.rpds[drive] |= 0x8000;
-    if (flags) {
-        rp11.rper1[drive] |= flags;
-        rp11.rpds[drive] |= 0x4000;
-    }
-}
-
-
 //When a Data Transfer command is successfully initiated both RDY
 //and DRY become negated. When a non-data transfer command is
 //successfully initiated only DRY bit become negated.
 //DVA should be set
 
 function rp11_go() {
-    var sector, count, drive = rp11.rpcs2 & 7;
+    var sector, drive = rp11.rpcs2 & 7;
     rp11.rpds[drive] &= 0x7fff; // turn off ATA on go bit
     if (typeof rp11.meta[drive] === "undefined") {
         rp11.meta[drive] = {
@@ -940,7 +930,6 @@ function tm11_init() {
 }
 
 function tm11_go() {
-    var sector, address, count;
     var drive = (tm11.mtc >>> 8) & 3;
     tm11.mtc &= ~0x81; // ready bit (7!) and go (0)
     tm11.mts &= 0x04fe; // turn off tape unit ready
@@ -989,7 +978,7 @@ function tm11_go() {
 }
 
 function accessTM11(physicalAddress, data, byteFlag) {
-    var result, drive = (tm11.mtc >>> 8) & 3;
+    var result;
     switch (physicalAddress & ~1) {
         case 0o17772520: // tm11.mts
             tm11.mts &= ~0x20; // turn off BOT
@@ -1129,7 +1118,6 @@ function lp11_initialize() {
 
 // =========== DL11 data (includes console as unit 0) ===========
 
-var DL11_lastUnit = 0;
 var DL11 = []; // Space for the array of DL11 objects
 
 
@@ -1139,7 +1127,7 @@ function dl11_reset() { // Reset all units to initial state
     for (i = 0; i < DL11.length; i++) {
         DL11[i].rcsr = 0; // No received characters
         DL11[i].xcsr = 0x80; // Ready to transmit
-        DL11[i].typeAhead = ''; // Nothing in type ahead buffer
+        vt52Reset(i);
     }
 }
 
@@ -1157,89 +1145,22 @@ function dl11_initialize(unit, vector) { // Called when a new terminal identifie
         rbuf: 0,
         xcsr: 0x80,
         xbuf: 0,
-        vector: vector,
-        typeAhead: '',
-        elementId: document.getElementById(unit)
+        vector: vector
     };
-    DL11[unit].elementId.onkeydown = dl11_keydown;
-    DL11[unit].elementId.onkeypress = dl11_keypress;
-    DL11[unit].elementId.onpaste = dl11_paste;
+    vt52Initialize(unit, document.getElementById(unit), dl11Input);
 }
 
-function dl11_keydown(event) {
+function dl11Input(unit, ch) {
     "use strict";
-    var code = event.charCode || event.keyCode;
-    DL11_lastUnit = event.target.id;
-    if (event.ctrlKey && code > 64 && code < 96) {
-        dl11_input(DL11_lastUnit, String.fromCharCode(event.keyCode - 64));
-    } else {
-        if (event.code === "Escape") {
-            dl11_input(DL11_lastUnit, String.fromCharCode(27));
-        } else {
-            if (event.code === "Tab") {
-                dl11_input(DL11_lastUnit, String.fromCharCode(9));
-            } else {
-                if (code === 8 || code === 127) {
-                    dl11_input(DL11_lastUnit, String.fromCharCode(127));
-                } else {
-                    return vt52KeyDown(DL11_lastUnit, code, event);
-                }
-            }
-        }
+    if (DL11[unit].rcsr & 0x80) { // Done set - last character not yet used
+        return 0; // reject additional character
     }
-    return false;
-}
-
-function dl11_keypress(event) {
-    "use strict";
-    var code = event.charCode || event.keyCode;
-    DL11_lastUnit = event.target.id;
-    dl11_input(DL11_lastUnit, String.fromCharCode(code));
-    return false;
-}
-
-function dl11_paste(event) {
-    "use strict";
-    var i, cb = event.clipboardData.getData('text/plain') || window.clipboardData.getData('Text');
-    DL11_lastUnit = event.target.id;
-    if (cb && cb.length > 0) {
-        dl11_input(DL11_lastUnit, cb);
+    DL11[unit].rbuf = ch;
+    DL11[unit].rcsr |= 0x80; // Set done
+    if (DL11[unit].rcsr & 0x40) {
+        interrupt(4, 4 << 5, DL11[unit].vector, 0);
     }
-    return false;
-}
-
-function dl11_input(unit, string) {
-    "use strict";
-    if (string.length > 0) {
-        if (string.charCodeAt(0) === 3) {
-            DL11[unit].typeAhead = string; // Kill type ahead if user types ^C
-        } else {
-            DL11[unit].typeAhead += string;
-        }
-        if (!(DL11[unit].rcsr & 0x80)) {
-            dl11_rbuf(unit);
-        }
-    }
-    DL11[unit].elementId.focus();
-}
-
-function dl11_rbuf(unit) { // Load character into rbuf from typeahead
-    "use strict";
-    if (!(DL11[unit].rcsr & 0x80)) {
-        if (DL11[unit].typeAhead.length > 0) {
-            DL11[unit].rbuf = DL11[unit].typeAhead.charCodeAt(0);
-            DL11[unit].typeAhead = DL11[unit].typeAhead.substr(1);
-            DL11[unit].rcsr |= 0x80;
-            if (DL11[unit].rcsr & 0x40) {
-                interrupt(0, 4 << 5, DL11[unit].vector, 0);
-            }
-        }
-    }
-}
-
-function dl11_putchar(unit, data) {
-    "use strict";
-    vt52Put(unit, data);
+    return 1; // consume character
 }
 
 
@@ -1256,7 +1177,7 @@ function accessDL11(physicalAddress, data, byteFlag, unit, vector) {
                 DL11[unit].xbuf = result;
                 result &= 0x7f;
                 if (result >= 8 && result < 127) {
-                    dl11_putchar(unit, result);
+                    vt52Put(unit, result);
                 }
                 if (DL11[unit].xcsr & 0x40) { // Cheat: leave Done permanently set
                     interrupt(4, 4 << 5, DL11[unit].vector + 4, 0);
@@ -1280,9 +1201,6 @@ function accessDL11(physicalAddress, data, byteFlag, unit, vector) {
         case 2: // DL rbuf
             result = insertData(DL11[unit].rbuf, physicalAddress, data, byteFlag);
             if (result >= 0 && data < 0) {
-                if ((DL11[unit].rcsr & 0x80) && DL11[unit].typeAhead.length > 0) {
-                    setTimeout(dl11_rbuf, 7, unit); // If something in typeahead then set timer to use it
-                }
                 DL11[unit].rcsr &= ~0x80;
             }
             break;
