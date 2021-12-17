@@ -267,7 +267,7 @@ function rk11_go() {
                 }
                 rk11.rkcs &= ~0x2000; // Clear search complete - reset by rk11_end
                 sector = (((rk11.rkda >>> 4) & 0x1ff) * rk11.SECTORS[drive] + (rk11.rkda & 0xf));
-                address = (((rk11.rkcs & 0x30)) << 12) | rk11.rkba;
+                address = ((rk11.rkcs & 0x30) << 12) | rk11.rkba;
                 count = (0x10000 - rk11.rkwc) & 0xffff;
                 diskIO((rk11.rkcs >>> 1) & 7, rk11.meta[drive], sector * 512, address, count << 1);
                 return;
@@ -354,7 +354,7 @@ var rl11 = {
     meta: [], // sector cache
     SECTORS: [40, 40, 40, 40], // sectors per track
     TRACKS: [1024, 1024, 512, 512], // First two drives RL02 - last two RL01 - cylinders * 2
-    STATUS: [0235, 0o235, 035, 035] // First two drives RL02 - last two RL01
+    STATUS: [0o235, 0o235, 0o35, 0o35] // First two drives RL02 - last two RL01
 };
 
 function rl11_commandEnd() {
@@ -364,7 +364,7 @@ function rl11_commandEnd() {
 
 function rl11_finish(drive) {
     if (rl11.csr & 0x40) {
-        interrupt(10, 5 << 5, 0160, rl11_commandEnd, 0);
+        interrupt(10, 5 << 5, 0o160, rl11_commandEnd, 0);
     } else { // if interrupt not enabled just mark completed
         rl11_commandEnd();
     }
@@ -391,7 +391,7 @@ function rl11_go() {
             break;
         case 2: // get status
             if (rl11.mpr & 8) rl11.csr &= 0x3f;
-            rl11.mpr = rl11.STATUS[drive] | (rl11.DAR & 0100); // bit 6 Head Select bit 7 Drive Type 1=rl02
+            rl11.mpr = rl11.STATUS[drive] | (rl11.DAR & 0o100); // bit 6 Head Select bit 7 Drive Type 1=rl02
             break;
         case 3: // seek
             if ((rl11.dar & 3) === 1) {
@@ -508,7 +508,7 @@ function accessRL11(physicalAddress, data, byteFlag) {
 // =========== RP11 routines ===========
 
 var rp11 = {
-    DTYPE: [020022, 0o20022, 0o20020, 0o20020, 0o20020, 0o20020, 0o20022, 0o20042], // Drive type rp06, rp06, rp04, rp04...
+    DTYPE: [0o20022, 0o20022, 0o20020, 0o20020, 0o20020, 0o20020, 0o20022, 0o20042], // Drive type rp06, rp06, rp04, rp04...
     SECTORS: [22, 22, 22, 22, 22, 22, 22, 50], // sectors per track
     SURFACES: [19, 19, 19, 19, 19, 19, 19, 32], //
     CYLINDERS: [815, 815, 815, 815, 815, 411, 815, 630],
@@ -924,7 +924,7 @@ function tm11_init() {
     tm11.mtc = 0x6080; //  14-13 bpi 7 cu rdy
     for (i = 0; i < 8; i++) {
         if (typeof tm11.meta[i] !== "undefined") {
-            tm11.meta[i].position === 0;
+            tm11.meta[i].position = 0;
         }
     }
 }
@@ -1087,7 +1087,7 @@ function accessPTR11(physicalAddress, data, byteFlag) {
                     }
                     ptr11.prs = (ptr11.prs & ~0xc0) | (result & 0x40) | 0x800; // Clear DONE, write IE, and set BUSY
                     result = ptr11.prs;
-                    diskIO(5, ptr11.meta, ptr11.meta.position, 017777552, 1); // Read a byte!
+                    diskIO(5, ptr11.meta, ptr11.meta.position, 0o17777552, 1); // Read a byte!
                 }
             }
             break;
@@ -1261,7 +1261,7 @@ function reset_iopage() {
     CPU.CPU_Error = 0;
     CPU.interruptQueue = [];
     CPU.MMR0 = CPU.MMR3 = CPU.mmuEnable = 0;
-    CPU.MMR3Mask[0] = CPU.MMR3Mask[1] = CPU.MMR3Mask[3] = 7;
+    setMMUmode(0);
     CPU.mmuLastPage = 0;
     dl11_reset();
     ptr11_init();
@@ -1403,16 +1403,16 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
                         idx = (physicalAddress - 0o17777740) >>> 1;
                         result = insertData(CPU.controlReg[idx], physicalAddress, data, byteFlag);
                         if (result >= 0) {
-                            if ((physicalAddress & 1) === 0o17777746) result = 0o17;
-                            if ((physicalAddress & 1) === 0o17777742) result = 0o3;
-                            if ((physicalAddress & 1) === 0o17777740) result = 0o177740;
+                            if ((physicalAddress & ~1) === 0o17777746) result = 0o17;
+                            if ((physicalAddress & ~1) === 0o17777742) result = 0o3;
+                            if ((physicalAddress & ~1) === 0o17777740) result = 0o177740;
                             CPU.controlReg[idx] = result;
                         }
                     }
                     break;
                 case 0o17777716: // User and Super SP - note the use of odd word addresses requiring return
                     if (physicalAddress & 1) {
-                        if ((CPU.PSW >>> 14) & 3 === 3) { // User Mode SP
+                        if (CPU.mmuMode === 3) { // User Mode SP
                             if (data >= 0) CPU.registerVal[6] = data;
                             result = CPU.registerVal[6];
                         } else {
@@ -1420,7 +1420,7 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
                             result = CPU.stackPointer[3];
                         }
                     } else {
-                        if ((CPU.PSW >>> 14) & 3 === 1) { // Super Mode SP
+                        if (CPU.mmuMode === 1) { // Super Mode SP
                             if (data >= 0) CPU.registerVal[6] = data;
                             result = CPU.registerVal[6];
                         } else {
@@ -1446,7 +1446,7 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
                         if (data >= 0) CPU.registerVal[7] = data;
                         result = CPU.registerVal[7];
                     } else {
-                        if ((CPU.PSW >>> 14) & 3 === 0) { // Kernel Mode
+                        if (CPU.mmuMode === 0) { // Kernel Mode
                             if (data >= 0) CPU.registerVal[6] = data;
                             result = CPU.registerVal[6];
                         } else {
@@ -1481,9 +1481,9 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
                 }
             } else { // Then PAR's
                 idx &= 0xf;
-                result = insertData(CPU.mmuPAR[48 | idx], physicalAddress, data, byteFlag);
+                result = insertData(CPU.mmuPAR[48 | idx] >>> 6, physicalAddress, data, byteFlag);
                 if (result >= 0) {
-                    CPU.mmuPAR[48 | idx] = result;
+                    CPU.mmuPAR[48 | idx] = result << 6;
                     CPU.mmuPDR[48 | idx] &= 0xff0f;
                 }
             }
@@ -1621,12 +1621,10 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
             switch (physicalAddress & ~1) {
                 case 0o17772516: // MMR3 - UB 22 x K S U
                     result = insertData(CPU.MMR3, physicalAddress, data, byteFlag);
-                    if (result >= 0 & data >= 0) {
+                    if (result >= 0 && data >= 0) {
                         if (CPU.cpuType !== 70) result &= ~0x30; // don't allow 11/45 to do 22 bit or use unibus map
                         CPU.MMR3 = result;
-                        CPU.MMR3Mask[0] = 7 | ((result & 4) << 1);
-                        CPU.MMR3Mask[1] = 7 | ((result & 2) << 2);
-                        CPU.MMR3Mask[3] = 7 | ((result & 1) << 3);
+                        setMMUmode(CPU.mmuMode);
                     }
                     break;
                 default:
@@ -1643,9 +1641,9 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
                 }
             } else { // Then PAR's
                 idx &= 0xf;
-                result = insertData(CPU.mmuPAR[0 | idx], physicalAddress, data, byteFlag);
+                result = insertData(CPU.mmuPAR[0 | idx] >>> 6, physicalAddress, data, byteFlag);
                 if (result >= 0) {
-                    CPU.mmuPAR[0 | idx] = result;
+                    CPU.mmuPAR[0 | idx] = result << 6;
                     CPU.mmuPDR[0 | idx] &= 0xff0f;
                 }
             }
@@ -1659,9 +1657,9 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
                 }
             } else { // Then PAR's
                 idx &= 0xf;
-                result = insertData(CPU.mmuPAR[16 | idx], physicalAddress, data, byteFlag);
+                result = insertData(CPU.mmuPAR[16 | idx] >>> 6, physicalAddress, data, byteFlag);
                 if (result >= 0) {
-                    CPU.mmuPAR[16 | idx] = result;
+                    CPU.mmuPAR[16 | idx] = result << 6;
                     CPU.mmuPDR[16 | idx] &= 0xff0f;
                 }
             }

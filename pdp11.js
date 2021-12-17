@@ -18,6 +18,7 @@ const
     MMU_READ = 16, // READ & WRITE bits used to indicate access type in memory operations
     MMU_WRITE = 32, // but beware lower 4 bits used as auto-increment length when getting virtual address
     MMU_LENGTH_MASK = 0xf, // Mask for operand length (which can be up to 8 for FPP)
+    MMU_LENGTH_EVEN = MMU_LENGTH_MASK - 1, // Mask length even only (for SP)
     MMU_BYTE = 1, // Byte length in 4 bits - also used as byte test mask
     MMU_WORD = 2, // Word length
     MMU_BYTE_READ = MMU_READ | MMU_BYTE, // Read flag with byte length
@@ -61,27 +62,26 @@ const
 // trap will trigger.
 
 var CPU = {
-    controlReg: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], // various control registers we don't really care about
     CPU_Error: 0,
-    cpuType: 70,
-    displayAddress: 0, // Address display for console operations
-    displayPhysical: 0, // Physical address display for console operations
-    displayRegister: 0, // Console display lights register (set by software)
-    displayDataPaths: 0, // Console display data path (random except in console operations or non-run state)
-    statusLights: 0x3000, // Need to remember console address error light status
-    flagC: 0x10000, // PSW C bit
-    flagN: 0x8000, // PSW N bit
-    flagV: 0x8000, // PSW V bit
-    flagZ: 0xffff, // ~ PSW Z bit
-    loopBase: 100, // Base for loop count calculation (trying to allow for vastly different browser speeds)
-    memory: [], // Main memory (in words - addresses must be halved for indexing)
-    modifyRegister: -1, // Remember the address of a register in a read/write (modify) cycle
-    modifyAddress: -1, // If the register is < 0 then remember the memory physical address
     MMR0: 0, // MMU control registers
     MMR1: 0,
     MMR2: 0,
     MMR3: 0,
-    MMR3Mask: [7, 7, 7, 7], // I&D page mask with mode from KSU bits in MMR3
+    PIR: 0, // Programmable interrupt register
+    PSW: 0xf, // PSW less flags C, N, V & Z
+    controlReg: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], // various control registers we don't really care about
+    cpuType: 70,
+    displayAddress: 0, // Address display for console operations
+    displayDataPaths: 0, // Console display data path (random except in console operations or non-run state)
+    displayPhysical: 0, // Physical address display for console operations
+    displayRegister: 0, // Console display lights register (set by software)
+    flagC: 0x10000, // PSW C bit
+    flagN: 0x8000, // PSW N bit
+    flagV: 0x8000, // PSW V bit
+    flagZ: 0xffff, // ~ PSW Z bit
+    interruptQueue: [], // List of interrupts pending
+    loopBase: 100, // Base for loop count calculation (trying to allow for vastly different browser speeds)
+    memory: [], // Main memory (in words - addresses must be halved for indexing)
     mmuEnable: 0, // MMU enable mask for MMU_READ and/or MMU_WRITE
     mmuLastPage: 0, // last used MMU page for MMR0 - 2 bits of mode and 4 bits of I/D page - used as an index into PAR/PDR
     mmuMode: 0, // current memory management mode (0=kernel,1=super,2=undefined,3=user)
@@ -97,26 +97,134 @@ var CPU = {
         0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, // 2 illegal
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 //3 user
     ], // memory management PDR registers by mode
-    PIR: 0, // Programmable interrupt register
+    modifyAddress: -1, // If the register is < 0 then remember the memory physical address
+    modifyRegister: -1, // Remember the address of a register in a read/write (modify) cycle
     priorityReview: 1, // flag to mark if we need to check priority change
-    PSW: 0xf, // PSW less flags C, N, V & Z
     registerAlt: [0, 0, 0, 0, 0, 0], // Alternate registers R0 - R5
     registerVal: [0, 0, 0, 0, 0, 0, 0, 0], // Current registers  R0 - R7
+    runState: STATE_HALT, // current machine state STATE_RUN, STATE_RESET, STATE_WAIT or STATE_HALT
     stackLimit: 0xff, // stack overflow limit
     stackPointer: [0, 0, 0, 0], // Alternate R6 (kernel, super, illegal, user)
+    statusLights: 0x3000, // Need to remember console address error light status
     switchRegister: 0, // console switch register
     trapMask: 0, // Mask of traps to be taken at the end of the current instruction
     trapPSW: -1, // PSW when first trap invoked - for tackling double traps
     unibusMap: [
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    ], // 32 unibus mapping registers
-    runState: STATE_HALT, // current machine state STATE_RUN, STATE_RESET, STATE_WAIT or STATE_HALT
-    interruptQueue: [], // List of interrupts pending
+    ] // 32 unibus mapping registers
 };
 
-function LOG_INSTRUCTION(instruction, format, name) {
-    console.log((CPU.registerVal[7] - 2).toString(8) + " " + instruction.toString(8) + " " + name);
+// Instruction logging stuff - useful ONLY in browser debugging mode!!
+var log = {
+    limit: 0, // Size of instruction log (0 is off)
+    debugPC: 0, // PC for debugging - used for setting browser breakpoint when the PC reaches this value
+    ring: [] // Data for instruction logging (for debugging)
+};
+
+// Debug routine to print the contents of the instruction log
+function log_print() {
+    "use strict";
+    var R = ["r0", "r1", "r2", "r3", "r4", "r5", "sp", "pc"];
+
+    function toOct(n, l) {
+        var o = n.toString(8);
+        return "0".repeat((typeof l !== "undefined" ? l : 6) - o.length) + o;
+    }
+
+    function opr(pc, i, a) { // Print an operand
+        var r = i & 7;
+        switch ((i >>> 3) & 7) {
+            case 0: //      R		Register
+                return R[r];
+            case 1: //      (R)		Register Deferred
+                return "(" + R[r] + ")";
+            case 2: //      (R)+	Autoincrement
+                if (r == 7 && typeof a !== "undefined") {
+                    return "#" + a.toString(8);
+                } else {
+                    return "(" + R[r] + ")+";
+                }
+                case 3: //      @(R)+	Autoincremenet Deferred
+                    if (r == 7 && typeof a !== "undefined") {
+                        return "@#" + a.toString(8);
+                    } else {
+                        return "@(" + R[r] + ")+";
+                    }
+                    case 4: //      -(R)	Autodecrement
+                        return "-(" + R[r] + ")";
+                    case 5: //      @-(R)	Autodecrement Deferred
+                        return "@-" + R[r];
+                    case 6: //      x(R)	Index
+                        if (r == 7 && typeof a !== "undefined") {
+                            return ((pc + a) & 0xffff).toString(8);
+                        } else {
+                            return (typeof a !== "undefined" ? a.toString(8) : "x") + "(" + R[r] + ")";
+                        }
+                        case 7: //      @x(R)	Index Deferred
+                            if (r == 7 && typeof a !== "undefined") {
+                                return "@" + ((pc + a) & 0xffff).toString(8);
+                            } else {
+                                return "@" + (typeof a !== "undefined" ? a.toString(8) : "x") + "(" + R[r] + ")";
+                            }
+        }
+    }
+    console.log("Flags    PC    Instruction");
+    for (let i = 0; i < log.ring.length; i++) {
+        let e = log.ring[i];
+        let l = toOct(e[0]) + " " + toOct((e[1] - 2) & 0xffff) + "  " + toOct(e[2]) + "  " + e[3];
+        switch (e[4]) { // Instruction format...
+            case 1: // xxxxSS	Single operand
+                l += " " + opr(e[1], e[2], e[5]);
+                break;
+            case 2: // xxSSDD	Double operand
+                l += " " + opr(e[1], e[2] >>> 6, e[5]) + "," + opr(e[1], e[2], e[Math.max(5, e.length - 1)]);
+                break;
+            case 3: // xxxxNN	Branch
+                l += " " + ((e[1] + ((e[2] & 0x80 ? e[2] | 0xff00 : e[2] & 0xff) << 1)) & 0xffff).toString(8);
+                break;
+            case 4: // xxxRNN	SOB with branch back
+                l += " " + R[(e[2] >> 6) & 7] + "," + ((e[1] - ((e[2] & 0o77) << 1)) & 0xffff).toString(8);
+                break;
+            case 5: // xxxxxR	Register
+                l += " " + R[(e[2] >> 6) & 7];
+                break;
+            case 6: // xxxRSS	Register plus operand
+                l += " " + R[(e[2] >> 6) & 7] + "," + opr(e[1], e[2], e[5]);
+                break;
+            case 7: // xxxASS	Floating accumulator plus operand
+                l += " ac" + ((e[2] >> 6) & 3) + "," + opr(e[1], e[2], e[5]);
+                break;
+            default:
+                if (e[4] & 0x100) { // xxxNNN	Literal value in instruction - eg SPL, CC codes, Mark, etc
+                    l += " " + (e[2] & (e[4] & 0xff)).toString(8);
+                }
+        }
+        console.log(l);
+    }
+    return "";
+}
+
+// Adds PC word to current debug log entry - eg the x in 'MOV #x,R5'
+function LOG_OPERAND(pcWord) {
+    "use strict";
+    if (log.limit) {
+        log.ring[log.ring.length - 1].push(pcWord);
+    }
+}
+
+// Add an intruction log debug entry
+function LOG_INSTRUCTION(instruction, name, format) {
+    "use strict";
+    if (log.limit) { // Only do debug stuff if there is a log limit
+        log.ring.push([readPSW(), CPU.registerVal[7], instruction, name, format]);
+        while (log.ring.length > log.limit) {
+            log.ring.shift();
+        }
+        if (CPU.registerVal[7] - 2 == log.debugPC) { // Set browser breakpoint here to stop at debug PC
+            console.log(readPSW().toString(8) + " " + CPU.registerVal[7].toString(8) + " " + instruction.toString(8) + " " + name);
+        }
+    }
 }
 
 // Interrupts are stored in a queue in delay order with the delay expressed as
@@ -138,7 +246,7 @@ function interrupt(delay, priority, vector, unit, callback, callarg) {
     if (typeof callback === "undefined") {
         callback = null;
     }
-    for (i = CPU.interruptQueue.length; i-- > 0;) { // Remove any matching entries
+    for (i = CPU.interruptQueue.length; --i >= 0;) { // Remove any matching entries
         if (CPU.interruptQueue[i].vector === vector && (unit < 0 || CPU.interruptQueue[i].unit === unit)) {
             if (i > 0) {
                 CPU.interruptQueue[i - 1].delay += CPU.interruptQueue[i].delay;
@@ -148,7 +256,7 @@ function interrupt(delay, priority, vector, unit, callback, callarg) {
         }
     }
     if (delay >= 0) { // Delay below 0 doesn't create queue entry
-        for (i = CPU.interruptQueue.length; i-- > 0;) {
+        for (i = CPU.interruptQueue.length; --i >= 0;) {
             if (CPU.interruptQueue[i].delay > delay) {
                 CPU.interruptQueue[i].delay -= delay;
                 break;
@@ -168,7 +276,7 @@ function interrupt(delay, priority, vector, unit, callback, callarg) {
         }
         if (CPU.runState === STATE_WAIT) { // if currently in wait then resume
             CPU.runState = STATE_RUN;
-            emulate(1); // Kick start processor
+            emulate(); // Kick start processor
         }
     }
 }
@@ -180,9 +288,7 @@ function interrupt(delay, priority, vector, unit, callback, callarg) {
 
 function interruptWaitRelease() {
     "use strict";
-    var savePSW, i;
-    savePSW = CPU.PSW & 0xe0;
-    for (i = CPU.interruptQueue.length; i-- > 0;) {
+    for (let i = CPU.interruptQueue.length; --i >= 0;) {
         CPU.interruptQueue[i].delay = 0;
         if (CPU.interruptQueue[i].priority > (CPU.PSW & 0xe0)) {
             CPU.priorityReview = 1;
@@ -218,7 +324,7 @@ function interruptReview() {
     CPU.priorityReview = 0;
     high = -1;
     highPriority = CPU.PIR & 0xe0;
-    for (i = CPU.interruptQueue.length; i-- > 0;) {
+    for (i = CPU.interruptQueue.length; --i >= 0;) {
         if (CPU.interruptQueue[i].delay > 0) { // If delay then all following entries are also delayed
             CPU.interruptQueue[i].delay--; // Decrement one delay 'difference' per cycle
             CPU.priorityReview = 1;
@@ -257,6 +363,11 @@ function interruptReview() {
     }
 }
 
+function setMMUmode(mmuMode) {
+    "use strict";
+    CPU.mmuMode = mmuMode;
+}
+
 
 // writePSW() is used to update the CPU Processor Status Word. The PSW should generally
 // be written through this routine so that changes can be tracked properly, for example
@@ -273,16 +384,15 @@ function interruptReview() {
 
 function writePSW(newPSW) {
     "use strict";
-    var i, temp;
     newPSW &= 0xf8ff;
     if ((newPSW ^ CPU.PSW) & 0x0800) { // register set change?
-        for (i = 0; i <= 5; i++) {
-            temp = CPU.registerVal[i];
+        for (let i = 0; i <= 5; i++) {
+            let temp = CPU.registerVal[i];
             CPU.registerVal[i] = CPU.registerAlt[i];
             CPU.registerAlt[i] = temp; // swap the active register sets
         }
     }
-    CPU.mmuMode = newPSW >>> 14; // must always reset mmuMode
+    setMMUmode(newPSW >>> 14); // must always reset mmuMode
     if ((newPSW ^ CPU.PSW) & 0xc000) { // mode change?
         CPU.stackPointer[(CPU.PSW >>> 14) & 3] = CPU.registerVal[6];
         CPU.registerVal[6] = CPU.stackPointer[CPU.mmuMode]; // swap to new mode SP
@@ -409,14 +519,15 @@ function testC() { // Test C
     return CPU.flagC & 0x10000;
 }
 
-function logicalXOR(a, b) { // XOR of logical conditions
-    "use strict";
-    if (!a) {
-        return b;
+function testNxV() { // Test N xor V
+    " use strict";
+    if (CPU.flagN & 0x8000) { // N
+        return !(CPU.flagV & 0x8000);
     } else {
-        return !b;
+        return CPU.flagV & 0x8000;
     }
 }
+
 
 
 // trap() handles all the trap/abort functions. It reads the trap vector from kernel
@@ -439,12 +550,12 @@ function trap(vector, reason) {
                 doubleTrap = 1;
             }
         }
-        //LOG_INSTRUCTION(vector, 11, "-trap-");
+        //LOG_INSTRUCTION(vector, "-trap-", 0x1ff);
         if (!(CPU.MMR0 & 0xe000)) {
             CPU.MMR1 = 0xf6f6;
             CPU.MMR2 = vector;
         }
-        CPU.mmuMode = 0; // read from kernel D space (mode 0)
+        setMMUmode(0); // read from kernel D space (mode 0)
         if ((newPC = readWordByVirtual(vector | 0x10000)) >= 0) {
             if ((newPSW = readWordByVirtual(((vector + 2) & 0xffff) | 0x10000)) >= 0) {
                 writePSW((newPSW & 0xcfff) | ((CPU.trapPSW >>> 2) & 0x3000)); // set new CPU.PSW with previous mode
@@ -500,9 +611,8 @@ function readByteByPhysical(physicalAddress) {
 
 function writeByteByPhysical(physicalAddress, data) {
     "use strict";
-    var memoryIndex;
     if (physicalAddress < IOBASE_UNIBUS) {
-        memoryIndex = physicalAddress >>> 1;
+        let memoryIndex = physicalAddress >>> 1;
         if (physicalAddress & 1) {
             CPU.memory[memoryIndex] = (data << 8) | (CPU.memory[memoryIndex] & 0xff);
         } else {
@@ -553,6 +663,7 @@ function writeByteByPhysical(physicalAddress, data) {
 function mapVirtualToPhysical(virtualAddress, accessMask) {
     "use strict";
     var page, pdr, physicalAddress, errorMask;
+    //var CPU = window.CPU;
     CPU.displayAddress = virtualAddress & 0xffff; // Remember the 16b virtual address for display purposes
     if (!(accessMask & CPU.mmuEnable)) { // This access does not require the MMU
         physicalAddress = virtualAddress & 0xffff; // virtual address without MMU is 16 bit (no I&D)
@@ -567,8 +678,11 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
             }
         }
     } else { // This access is mapped by the MMU
-        page = (CPU.mmuMode << 4) | ((virtualAddress >>> 13) & CPU.MMR3Mask[CPU.mmuMode]);
-        physicalAddress = ((CPU.mmuPAR[page] << 6) + (virtualAddress & 0x1fff)) & 0x3fffff;
+        if (!(CPU.MMR3 & (4 / (CPU.mmuMode + 1)))) { // Use I space unless D space is enabled
+            virtualAddress &= 0xffff;
+        }
+        page = (CPU.mmuMode << 4) | (virtualAddress >>> 13);
+        physicalAddress = (CPU.mmuPAR[page] + (virtualAddress & 0x1fff)) & 0x3fffff;
         if (!(CPU.MMR3 & 0x10)) { // 18 bit mapping needs extra trimming
             physicalAddress &= 0x3ffff;
             if (physicalAddress >= IOBASE_18BIT) {
@@ -618,12 +732,12 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
                 if (accessMask & MMU_WRITE) {
                     errorMask = 0x1000; // MMU trap - then fall thru
                 }
-            case 6: // read-write
-                CPU.mmuPDR[page] |= ((accessMask & MMU_WRITE) ? 0xc0 : 0x80); // Set A & W bits
-                break;
-            default:
-                errorMask = 0x8000; // non-resident abort
-                break;
+                case 6: // read-write
+                    CPU.mmuPDR[page] |= ((accessMask & MMU_WRITE) ? 0xc0 : 0x80); // Set A & W bits
+                    break;
+                default:
+                    errorMask = 0x8000; // non-resident abort
+                    break;
         }
         if (pdr & 0x8) { // Page expands downwards
             if ((pdr &= 0x7f00)) { // If a length to check
@@ -775,27 +889,27 @@ function getVirtualByMode(addressMode, accessMode) {
             return trap(4, 34);
         case 1: // Mode 1: (R)
             virtualAddress = CPU.registerVal[reg];
-            if (reg !== 7) {
+            if (reg < 6) {
+                virtualAddress |= 0x10000; // Use D space
+            } else {
                 if (reg === 6) {
                     if (accessMode & MMU_WRITE) {
                         if ((virtualAddress = stackCheck(virtualAddress)) < 0) {
                             return virtualAddress;
                         }
                     }
+                    virtualAddress |= 0x10000; // Use D space for stack
                 }
-                virtualAddress |= 0x10000; // Use D space if not R7
             }
             return virtualAddress;
         case 2: // Mode 2: (R)+ including immediate operand #x
-            autoIncrement = accessMode & MMU_LENGTH_MASK;
             virtualAddress = CPU.registerVal[reg];
             if (reg < 6) {
+                autoIncrement = accessMode & MMU_LENGTH_MASK;
                 virtualAddress |= 0x10000; // Use D space
             } else {
                 if (reg === 6) {
-                    if (accessMode & MMU_BYTE) {
-                        autoIncrement = 2; // R6 doesn't autoIncrement by 1
-                    }
+                    autoIncrement = (accessMode + 1) & MMU_LENGTH_EVEN;
                     if (accessMode & MMU_WRITE) {
                         if ((virtualAddress = stackCheck(virtualAddress)) < 0) {
                             return virtualAddress;
@@ -808,7 +922,6 @@ function getVirtualByMode(addressMode, accessMode) {
             }
             break;
         case 3: // Mode 3: @(R)+
-            autoIncrement = 2;
             virtualAddress = CPU.registerVal[reg];
             if (reg !== 7) {
                 virtualAddress |= 0x10000; // Use D space if not R7
@@ -816,29 +929,33 @@ function getVirtualByMode(addressMode, accessMode) {
             if ((virtualAddress = readWordByVirtual(virtualAddress)) < 0) {
                 return virtualAddress;
             }
+            //if (reg === 7) {
+            //    LOG_OPERAND(virtualAddress);
+            //}
+            autoIncrement = 2;
             virtualAddress |= 0x10000; // Use D space
             break;
         case 4: // Mode 4: -(R)
-            autoIncrement = -(accessMode & MMU_LENGTH_MASK);
             if (reg < 6) {
+                autoIncrement = -(accessMode & MMU_LENGTH_MASK);
                 virtualAddress = ((CPU.registerVal[reg] + autoIncrement) & 0xffff) | 0x10000;
             } else {
-                if ((accessMode & MMU_BYTE) || reg === 7) {
-                    autoIncrement = -2;
-                }
-                virtualAddress = (CPU.registerVal[reg] + autoIncrement) & 0xffff;
                 if (reg === 6) {
+                    autoIncrement = -((accessMode + 1) & MMU_LENGTH_EVEN);
+                    virtualAddress = (CPU.registerVal[reg] + autoIncrement) & 0xffff;
                     if (accessMode & MMU_WRITE) {
                         if ((virtualAddress = stackCheck(virtualAddress)) < 0) {
                             return virtualAddress;
                         }
                     }
                     virtualAddress |= 0x10000; // Use D space for -(SP)
+                } else {
+                    virtualAddress = (CPU.registerVal[reg] - 2) & 0xffff;
+                    autoIncrement = -2; // R7 always increments by 2
                 }
             }
             break;
         case 5: // Mode 5: @-(R)
-            autoIncrement = -2;
             virtualAddress = (CPU.registerVal[reg] - 2) & 0xffff;
             if (reg !== 7) {
                 virtualAddress |= 0x10000; // Use D space if not R7
@@ -846,12 +963,14 @@ function getVirtualByMode(addressMode, accessMode) {
             if ((virtualAddress = readWordByVirtual(virtualAddress)) < 0) {
                 return virtualAddress;
             }
+            autoIncrement = -2;
             virtualAddress |= 0x10000; // Use D space
             break;
         case 6: // Mode 6: d(R)
-            if ((virtualAddress = readWordByVirtual(CPU.registerVal[7])) < 0) {
+            if ((virtualAddress = readWordByVirtual(CPU.registerVal[7])) < 0) { // I space
                 return virtualAddress;
             }
+            //LOG_OPERAND(virtualAddress);
             CPU.registerVal[7] = (CPU.registerVal[7] + 2) & 0xffff;
             virtualAddress = (virtualAddress + CPU.registerVal[reg]) & 0xffff;
             if (reg === 6 && (accessMode & MMU_WRITE)) {
@@ -861,9 +980,10 @@ function getVirtualByMode(addressMode, accessMode) {
             }
             return virtualAddress | 0x10000;
         default: // 7 Mode 7: @d(R)
-            if ((virtualAddress = readWordByVirtual(CPU.registerVal[7])) < 0) {
+            if ((virtualAddress = readWordByVirtual(CPU.registerVal[7])) < 0) { // I space
                 return virtualAddress;
             }
+            //LOG_OPERAND(virtualAddress);
             CPU.registerVal[7] = (CPU.registerVal[7] + 2) & 0xffff;
             virtualAddress = (virtualAddress + CPU.registerVal[reg]) & 0xffff;
             if ((virtualAddress = readWordByVirtual(virtualAddress | 0x10000)) < 0) {
@@ -877,6 +997,7 @@ function getVirtualByMode(addressMode, accessMode) {
     }
     return virtualAddress;
 }
+
 
 
 // Convert an instruction operand into a 17 bit I/D virtual address and then into a
@@ -895,13 +1016,16 @@ function mapPhysicalByMode(addressMode, accessMode) {
 function readWordByMode(addressMode) {
     "use strict";
     var data, physicalAddress;
-    if (!(addressMode & 0x38)) { // If register mode just get register value
+    if (!(addressMode & 0o70)) { // If register mode just get register value
         data = CPU.registerVal[addressMode & 7];
     } else {
         if ((physicalAddress = mapPhysicalByMode(addressMode, MMU_WORD_READ)) < 0) {
             return physicalAddress;
         }
         data = readWordByPhysical(physicalAddress);
+        //if ((addressMode & 0o77) == 0o27) {
+        //    LOG_OPERAND(data);
+        //}
     }
     return data;
 }
@@ -910,7 +1034,7 @@ function writeWordByMode(addressMode, data) {
     "use strict";
     data &= 0xffff;
     var physicalAddress;
-    if (!(addressMode & 0x38)) { // If register mode write to the register
+    if (!(addressMode & 0o70)) { // If register mode write to the register
         CPU.registerVal[addressMode & 7] = data;
     } else {
         if ((physicalAddress = mapPhysicalByMode(addressMode, MMU_WORD_WRITE)) < 0) {
@@ -924,7 +1048,7 @@ function writeWordByMode(addressMode, data) {
 function modifyWordByMode(addressMode) {
     "use strict";
     var data, physicalAddress;
-    if (!(addressMode & 0x38)) { // If register mode get register value and remember which register
+    if (!(addressMode & 0o70)) { // If register mode get register value and remember which register
         CPU.modifyRegister = addressMode & 7;
         data = CPU.registerVal[CPU.modifyRegister];
     } else {
@@ -952,13 +1076,16 @@ function modifyWord(data) {
 function readByteByMode(addressMode) {
     "use strict";
     var data, physicalAddress;
-    if (!(addressMode & 0x38)) { // If register mode just get register value
+    if (!(addressMode & 0o70)) { // If register mode just get register value
         data = CPU.registerVal[addressMode & 7] & 0xff;
     } else {
         if ((physicalAddress = mapPhysicalByMode(addressMode, MMU_BYTE_READ)) < 0) {
             return physicalAddress;
         }
         data = readByteByPhysical(physicalAddress);
+        //if ((addressMode & 0o77) == 0o27) {
+        //    LOG_OPERAND(data);
+        //}
     }
     return data;
 }
@@ -967,7 +1094,7 @@ function writeByteByMode(addressMode, data) {
     "use strict";
     var physicalAddress;
     data &= 0xff;
-    if (!(addressMode & 0x38)) { // If register mode write to the register
+    if (!(addressMode & 0o70)) { // If register mode write to the register
         CPU.registerVal[addressMode & 7] = (CPU.registerVal[addressMode & 7] & 0xff00) | data;
     } else {
         if ((physicalAddress = mapPhysicalByMode(addressMode, MMU_BYTE_WRITE)) < 0) {
@@ -981,7 +1108,7 @@ function writeByteByMode(addressMode, data) {
 function modifyByteByMode(addressMode) {
     "use strict";
     var data, physicalAddress;
-    if (!(addressMode & 0x38)) { // If register mode get register value and remember which register
+    if (!(addressMode & 0o70)) { // If register mode get register value and remember which register
         CPU.modifyRegister = addressMode & 7;
         data = CPU.registerVal[CPU.modifyRegister] & 0xff;
     } else {
@@ -1090,7 +1217,7 @@ function emulate() {
         src,
         dst,
         result = 0, // used for light data
-        virtualAddress, savePSW, reg;
+        virtualAddress, reg;
     var loopCount, loopTime;
     var CPU = window.CPU;
     if (CPU.runState === STATE_RUN) {
@@ -1147,7 +1274,7 @@ function emulate() {
                                 case 0: // 0000xx group
                                     switch (instruction) { // 0000xx no operands
                                         case 0: // HALT 000000
-                                            //LOG_INSTRUCTION(instruction, 0, "HALT");
+                                            //LOG_INSTRUCTION(instruction, "halt", 0);
                                             if (CPU.mmuMode) {
                                                 CPU.CPU_Error |= 0o200;
                                                 trap(4, 46);
@@ -1158,7 +1285,7 @@ function emulate() {
                                             }
                                             break;
                                         case 1: // WAIT 000001
-                                            //LOG_INSTRUCTION(instruction, 0, "WAIT");
+                                            //LOG_INSTRUCTION(instruction, "wait", 0);
                                             if (!interruptWaitRelease()) {
                                                 if (CPU.runState !== STATE_HALT) { // Halt means we are instruction stepping
                                                     CPU.runState = STATE_WAIT; // WAIT; // Go to wait state and exit loop
@@ -1167,15 +1294,15 @@ function emulate() {
                                             }
                                             break;
                                         case 3: // BPT  000003
-                                            //LOG_INSTRUCTION(instruction, 0, "BPT");
+                                            //LOG_INSTRUCTION(instruction, "bpt", 0);
                                             trap(0o14, 6); // Trap 14 - BPT
                                             break;
                                         case 4: // IOT  000004
-                                            //LOG_INSTRUCTION(instruction, 0, "IOT");
+                                            //LOG_INSTRUCTION(instruction, "iot", 0);
                                             trap(0o20, 8); // Trap 20 - IOT
                                             break;
                                         case 5: // RESET 000005
-                                            //LOG_INSTRUCTION(instruction, 0, "RESET");
+                                            //LOG_INSTRUCTION(instruction, "reset", 0);
                                             if (!CPU.mmuMode) {
                                                 reset_iopage();
                                                 if (CPU.runState !== STATE_HALT) { // Halt means we are instruction stepping
@@ -1186,9 +1313,10 @@ function emulate() {
                                             break;
                                         case 2: // RTI 000002
                                         case 6: // RTT 000006
-                                            //LOG_INSTRUCTION(instruction, 0, "RTT");
+                                            //LOG_INSTRUCTION(instruction, "rtt", 0);
                                             if ((result = popWord()) >= 0) { // new PC
-                                                if ((savePSW = popWord()) >= 0) { // new PSW
+                                                let savePSW = popWord();
+                                                if (savePSW >= 0) { // new PSW
                                                     savePSW &= 0xf8ff;
                                                     if (CPU.mmuMode) { // user / super restrictions
                                                         // keep SPL and allow lower only for modes and register set
@@ -1204,17 +1332,17 @@ function emulate() {
                                             }
                                             break;
                                             //case 7: // MFPT 000007
-                                            //    //LOG_INSTRUCTION(instruction, 0, "MFPT");
+                                            //    //LOG_INSTRUCTION(instruction, "mfpt", 0);
                                             //    CPU.registerVal[0] = 1;
                                             //    break; // Exists on pdp 11/44 & KB11-EM
                                         default: // We don't know this 0000xx instruction
-                                            //LOG_INSTRUCTION(instruction, 11, "-unknown-");
+                                            //LOG_INSTRUCTION(instruction, "-unknown-", 0);
                                             trap(0o10, 48); // Trap 10 - Illegal instruction
                                             break;
                                     }
                                     break;
                                 case 1: // JMP 0001DD
-                                    //LOG_INSTRUCTION(instruction, 1, "JMP");
+                                    //LOG_INSTRUCTION(instruction, "jmp", 1);
                                     if ((virtualAddress = getVirtualByMode(instruction, MMU_WORD)) >= 0) {
                                         CPU.registerVal[7] = virtualAddress & 0xffff;
                                     }
@@ -1222,7 +1350,7 @@ function emulate() {
                                 case 2: // 00002xR single register group
                                     switch ((instruction >>> 3) & 7) { // 00002xR register or CC
                                         case 0: // RTS 00020R
-                                            //LOG_INSTRUCTION(instruction, 6, "RTS");
+                                            //LOG_INSTRUCTION(instruction, "rts", 5);
                                             if ((result = popWord()) >= 0) {
                                                 reg = instruction & 7;
                                                 CPU.registerVal[7] = CPU.registerVal[reg];
@@ -1230,30 +1358,30 @@ function emulate() {
                                             }
                                             break;
                                         case 3: // SPL 00023N
-                                            //LOG_INSTRUCTION(instruction, 9, "SPL");
+                                            //LOG_INSTRUCTION(instruction, "spl", 0x107);
                                             if (!CPU.mmuMode) {
                                                 CPU.PSW = (CPU.PSW & 0xf81f) | ((instruction & 7) << 5);
-                                                CPU.priorityReview = 2;
+                                                CPU.priorityReview = 2; // Skip next review
                                             }
                                             break;
                                         case 4: // CLR CC 00024C Part 1 without N
                                         case 5: // CLR CC 00025C Part 2 with N
-                                            //LOG_INSTRUCTION(instruction, 10, "CLR CC");
-                                            setFlags(instruction & 0xf, 0);
+                                            //LOG_INSTRUCTION(instruction, "clr", 0x10f);
+                                            setFlags(instruction, 0);
                                             break;
                                         case 6: // SET CC 00026C Part 1 without N
                                         case 7: // SET CC 00027C Part 2 with N
-                                            //LOG_INSTRUCTION(instruction, 10, "SET CC");
-                                            setFlags(instruction & 0xf, 0xf);
+                                            //LOG_INSTRUCTION(instruction, "set", 0x10f);
+                                            setFlags(instruction, 0xf);
                                             break;
                                         default: // We don't know this 00002xR instruction
-                                            //LOG_INSTRUCTION(instruction, 11, "-unknown-");
+                                            //LOG_INSTRUCTION(instruction, "-unknown-", 0);
                                             trap(0o10, 48); // Trap 10 - Illegal instruction
                                             break;
                                     }
                                     break;
                                 case 3: // SWAB 0003DD
-                                    //LOG_INSTRUCTION(instruction, 1, "SWAB");
+                                    //LOG_INSTRUCTION(instruction, "swab", 1);
                                     if ((dst = modifyWordByMode(instruction)) >= 0) {
                                         result = (dst << 8) | (dst >>> 8);
                                         if (modifyWord(result) >= 0) {
@@ -1264,48 +1392,48 @@ function emulate() {
                             }
                             break;
                         case 1: // BR 0004 offset
-                            //LOG_INSTRUCTION(instruction, 4, "BR");
+                            //LOG_INSTRUCTION(instruction, "br", 3);
                             branch(instruction);
                             break;
                         case 2: // BNE 0010 offset
-                            //LOG_INSTRUCTION(instruction, 4, "BNE");
+                            //LOG_INSTRUCTION(instruction, "bne", 3);
                             if (!testZ()) {
                                 branch(instruction);
                             }
                             break;
                         case 3: // BEQ 0014 offset
-                            //LOG_INSTRUCTION(instruction, 4, "BEQ");
+                            //LOG_INSTRUCTION(instruction, "beq", 3);
                             if (testZ()) {
                                 branch(instruction);
                             }
                             break;
                         case 4: // BGE 0020 offset
-                            //LOG_INSTRUCTION(instruction, 4, "BGE");
-                            if (!logicalXOR(testN(), testV())) {
+                            //LOG_INSTRUCTION(instruction, "bge", 3);
+                            if (!testNxV()) {
                                 branch(instruction);
                             }
                             break;
                         case 5: // BLT 0024 offset
-                            //LOG_INSTRUCTION(instruction, 4, "BLT");
-                            if (logicalXOR(testN(), testV())) {
+                            //LOG_INSTRUCTION(instruction, "blt", 3);
+                            if (testNxV()) {
                                 branch(instruction);
                             }
                             break;
                         case 6: // BGT 0030 offset
-                            //LOG_INSTRUCTION(instruction, 4, "BGT");
-                            if (!testZ() && !logicalXOR(testN(), testV())) {
+                            //LOG_INSTRUCTION(instruction, "bgt", 3);
+                            if (!testZ() && !testNxV()) {
                                 branch(instruction);
                             }
                             break;
                         case 7: // BLE 0034 offset
-                            //LOG_INSTRUCTION(instruction, 4, "BLE");
-                            if (testZ() || logicalXOR(testN(), testV())) {
+                            //LOG_INSTRUCTION(instruction, "ble", 3);
+                            if (testZ() || testNxV()) {
                                 branch(instruction);
                             }
                             break;
                         case 8: // JSR 004RDD In two parts
                         case 9: // JSR 004RDD continued (9 bit instruction so use 2 x 8 bit slots)
-                            //LOG_INSTRUCTION(instruction, 3, "JSR");
+                            //LOG_INSTRUCTION(instruction, "jsr", 6);
                             if ((virtualAddress = getVirtualByMode(instruction, MMU_WORD)) >= 0) {
                                 reg = (instruction >>> 6) & 7;
                                 if (pushWord(CPU.registerVal[reg], 0) >= 0) {
@@ -1317,13 +1445,13 @@ function emulate() {
                         default: // Remaining 0o00xxxx instructions where xxxx >= 05000
                             switch (instruction >>> 6) { // 00xxDD
                                 case 0o50: // CLR 0050DD
-                                    //LOG_INSTRUCTION(instruction, 1, "CLR");
+                                    //LOG_INSTRUCTION(instruction, "clr", 1);
                                     if (writeWordByMode(instruction, 0) >= 0) {
                                         zeroNZVC();
                                     }
                                     break;
                                 case 0o51: // COM 0051DD
-                                    //LOG_INSTRUCTION(instruction, 1, "COM");
+                                    //LOG_INSTRUCTION(instruction, "com", 1);
                                     if ((dst = modifyWordByMode(instruction)) >= 0) {
                                         result = ~dst;
                                         if (modifyWord(result) >= 0) {
@@ -1332,7 +1460,7 @@ function emulate() {
                                     }
                                     break;
                                 case 0o52: // INC 0052DD
-                                    //LOG_INSTRUCTION(instruction, 1, "INC");
+                                    //LOG_INSTRUCTION(instruction, "inc", 1);
                                     if ((dst = modifyWordByMode(instruction)) >= 0) {
                                         result = dst + 1;
                                         if (modifyWord(result) >= 0) {
@@ -1341,7 +1469,7 @@ function emulate() {
                                     }
                                     break;
                                 case 0o53: // DEC 0053DD
-                                    //LOG_INSTRUCTION(instruction, 1, "DEC");
+                                    //LOG_INSTRUCTION(instruction, "dec", 1);
                                     if ((dst = modifyWordByMode(instruction)) >= 0) {
                                         result = dst + 0xffff;
                                         if (modifyWord(result) >= 0) {
@@ -1350,7 +1478,7 @@ function emulate() {
                                     }
                                     break;
                                 case 0o54: // NEG 0054DD
-                                    //LOG_INSTRUCTION(instruction, 1, "NEG");
+                                    //LOG_INSTRUCTION(instruction, "neg", 1);
                                     if ((dst = modifyWordByMode(instruction)) >= 0) {
                                         result = -dst;
                                         if (modifyWord(result) >= 0) {
@@ -1359,7 +1487,7 @@ function emulate() {
                                     }
                                     break;
                                 case 0o55: // ADC 0055DD
-                                    //LOG_INSTRUCTION(instruction, 1, "ADC");
+                                    //LOG_INSTRUCTION(instruction, "adc", 1);
                                     if ((dst = modifyWordByMode(instruction)) >= 0) {
                                         result = dst;
                                         if (testC()) {
@@ -1371,7 +1499,7 @@ function emulate() {
                                     }
                                     break;
                                 case 0o56: // SBC 0056DD
-                                    //LOG_INSTRUCTION(instruction, 1, "SBC");
+                                    //LOG_INSTRUCTION(instruction, "sbc", 1);
                                     if ((dst = modifyWordByMode(instruction)) >= 0) {
                                         result = dst;
                                         if (testC()) {
@@ -1383,13 +1511,13 @@ function emulate() {
                                     }
                                     break;
                                 case 0o57: // TST 0057DD
-                                    //LOG_INSTRUCTION(instruction, 1, "TST");
+                                    //LOG_INSTRUCTION(instruction, "tst", 1);
                                     if ((result = readWordByMode(instruction)) >= 0) {
                                         setNZC(result);
                                     }
                                     break;
                                 case 0o60: // ROR 0060DD
-                                    //LOG_INSTRUCTION(instruction, 1, "ROR");
+                                    //LOG_INSTRUCTION(instruction, "ror", 1);
                                     if ((dst = modifyWordByMode(instruction)) >= 0) {
                                         result = (dst << 16) | (dst >>> 1);
                                         if (testC()) {
@@ -1401,7 +1529,7 @@ function emulate() {
                                     }
                                     break;
                                 case 0o61: // ROL 0061DD
-                                    //LOG_INSTRUCTION(instruction, 1, "ROL");
+                                    //LOG_INSTRUCTION(instruction, "rol", 1);
                                     if ((dst = modifyWordByMode(instruction)) >= 0) {
                                         result = dst << 1;
                                         if (testC()) {
@@ -1413,7 +1541,7 @@ function emulate() {
                                     }
                                     break;
                                 case 0o62: // ASR 0062DD
-                                    //LOG_INSTRUCTION(instruction, 1, "ASR");
+                                    //LOG_INSTRUCTION(instruction, "asr", 1);
                                     if ((dst = modifyWordByMode(instruction)) >= 0) {
                                         result = (dst << 16) | (dst & 0x8000) | (dst >>> 1);
                                         if (modifyWord(result) >= 0) {
@@ -1422,7 +1550,7 @@ function emulate() {
                                     }
                                     break;
                                 case 0o63: // ASL 0063DD
-                                    //LOG_INSTRUCTION(instruction, 1, "ASL");
+                                    //LOG_INSTRUCTION(instruction, "asl", 1);
                                     if ((dst = modifyWordByMode(instruction)) >= 0) {
                                         result = dst << 1;
                                         if (modifyWord(result) >= 0) {
@@ -1431,7 +1559,7 @@ function emulate() {
                                     }
                                     break;
                                 case 0o64: // MARK 0064nn
-                                    //LOG_INSTRUCTION(instruction, 8, "MARK");
+                                    //LOG_INSTRUCTION(instruction, "mark", 0x13f);
                                     virtualAddress = (CPU.registerVal[7] + ((instruction & 0o77) << 1)) & 0xffff;
                                     if ((result = readWordByVirtual(virtualAddress | 0x10000)) >= 0) {
                                         CPU.registerVal[7] = CPU.registerVal[5];
@@ -1440,8 +1568,8 @@ function emulate() {
                                     }
                                     break;
                                 case 0o65: // MFPI 0065SS
-                                    //LOG_INSTRUCTION(instruction, 1, "MFPI");
-                                    if (!(instruction & 0x38)) {
+                                    //LOG_INSTRUCTION(instruction, "mfpi", 1);
+                                    if (!(instruction & 0o70)) {
                                         reg = instruction & 7;
                                         if (reg !== 6 || ((CPU.PSW >>> 12) & 3) === CPU.mmuMode) {
                                             result = CPU.registerVal[reg];
@@ -1456,9 +1584,9 @@ function emulate() {
                                             if ((CPU.PSW & 0xf000) !== 0xf000) {
                                                 virtualAddress &= 0xffff;
                                             }
-                                            CPU.mmuMode = (CPU.PSW >>> 12) & 3; // Use PM
+                                            setMMUmode((CPU.PSW >>> 12) & 3); // Use PM
                                             if ((result = readWordByVirtual(virtualAddress)) >= 0) {
-                                                CPU.mmuMode = (CPU.PSW >>> 14) & 3; // Restore CM
+                                                setMMUmode((CPU.PSW >>> 14) & 3); // Restore CM
                                                 if (pushWord(result, 0) >= 0) {
                                                     setNZ(result);
                                                 }
@@ -1467,12 +1595,12 @@ function emulate() {
                                     }
                                     break;
                                 case 0o66: // MTPI 0066DD
-                                    //LOG_INSTRUCTION(instruction, 1, "MTPI");
+                                    //LOG_INSTRUCTION(instruction, "mtpi", 1);
                                     if ((result = popWord()) >= 0) {
                                         if (!(CPU.MMR0 & 0xe000)) {
                                             CPU.MMR1 = 0o26;
                                         }
-                                        if (!(instruction & 0x38)) {
+                                        if (!(instruction & 0o70)) {
                                             reg = instruction & 7;
                                             if (reg !== 6 || ((CPU.PSW >>> 12) & 3) === CPU.mmuMode) {
                                                 CPU.registerVal[reg] = result;
@@ -1482,9 +1610,9 @@ function emulate() {
                                             setNZ(result);
                                         } else { // Must extract virtual address before mode change...
                                             if ((virtualAddress = getVirtualByMode(instruction, MMU_WORD)) >= 0) {
-                                                CPU.mmuMode = (CPU.PSW >>> 12) & 3; // Use previous mode
+                                                setMMUmode((CPU.PSW >>> 12) & 3); // Use previous mode
                                                 if (writeWordByVirtual(virtualAddress & 0xffff, result) >= 0) {
-                                                    CPU.mmuMode = (CPU.PSW >>> 14) & 3; // Restore CM
+                                                    setMMUmode((CPU.PSW >>> 14) & 3); // Restore CM
                                                     setNZ(result);
                                                 }
                                             }
@@ -1492,7 +1620,7 @@ function emulate() {
                                     }
                                     break;
                                 case 0o67: // SXT 0067DD
-                                    //LOG_INSTRUCTION(instruction, 1, "SXT");
+                                    //LOG_INSTRUCTION(instruction, "sxt", 1);
                                     result = 0;
                                     if (testN()) {
                                         result = 0xffff;
@@ -1502,14 +1630,14 @@ function emulate() {
                                     }
                                     break;
                                 default: // We don't know this 0o00xxDD instruction
-                                    //LOG_INSTRUCTION(instruction, 11, "-unknown-");
+                                    //LOG_INSTRUCTION(instruction, "-unknown-", 0);
                                     trap(0o10, 48); // Trap 10 - Illegal instruction
                                     break;
                             }
                     }
                     break;
                 case 1: // MOV  01SSDD
-                    //LOG_INSTRUCTION(instruction, 2, "MOV");
+                    //LOG_INSTRUCTION(instruction, "mov", 2);
                     if ((result = readWordByMode(instruction >>> 6)) >= 0) {
                         if (writeWordByMode(instruction, result) >= 0) {
                             setNZ(result);
@@ -1517,7 +1645,7 @@ function emulate() {
                     }
                     break;
                 case 2: // CMP 02SSDD
-                    //LOG_INSTRUCTION(instruction, 2, "CMP");
+                    //LOG_INSTRUCTION(instruction, "cmp", 2);
                     if ((src = readWordByMode(instruction >>> 6)) >= 0) {
                         if ((dst = readWordByMode(instruction)) >= 0) {
                             result = src - dst;
@@ -1526,7 +1654,7 @@ function emulate() {
                     }
                     break;
                 case 3: // BIT 03SSDD
-                    //LOG_INSTRUCTION(instruction, 2, "BIT");
+                    //LOG_INSTRUCTION(instruction, "bit", 2);
                     if ((src = readWordByMode(instruction >>> 6)) >= 0) {
                         if ((result = readWordByMode(instruction)) >= 0) {
                             setNZ(src & result);
@@ -1534,7 +1662,7 @@ function emulate() {
                     }
                     break;
                 case 4: // BIC 04SSDD
-                    //LOG_INSTRUCTION(instruction, 2, "BIC");
+                    //LOG_INSTRUCTION(instruction, "bic", 2);
                     if ((src = readWordByMode(instruction >>> 6)) >= 0) {
                         if ((dst = modifyWordByMode(instruction)) >= 0) {
                             result = dst & ~src;
@@ -1545,7 +1673,7 @@ function emulate() {
                     }
                     break;
                 case 5: // BIS 05SSDD
-                    //LOG_INSTRUCTION(instruction, 2, "BIS");
+                    //LOG_INSTRUCTION(instruction, "bis", 2);
                     if ((src = readWordByMode(instruction >>> 6)) >= 0) {
                         if ((dst = modifyWordByMode(instruction)) >= 0) {
                             result = dst | src;
@@ -1556,7 +1684,7 @@ function emulate() {
                     }
                     break;
                 case 6: // ADD 06SSDD
-                    //LOG_INSTRUCTION(instruction, 2, "ADD");
+                    //LOG_INSTRUCTION(instruction, "add", 2);
                     if ((src = readWordByMode(instruction >>> 6)) >= 0) {
                         if ((dst = modifyWordByMode(instruction)) >= 0) {
                             result = src + dst;
@@ -1569,7 +1697,7 @@ function emulate() {
                 case 7: // 07xRSS instructions
                     switch ((instruction >>> 9) & 7) { // 07xRSS
                         case 0: // MUL 070RSS
-                            //LOG_INSTRUCTION(instruction, 3, "MUL");
+                            //LOG_INSTRUCTION(instruction, "mul", 6);
                             if ((src = readWordByMode(instruction)) >= 0) {
                                 reg = (instruction >>> 6) & 7;
                                 dst = CPU.registerVal[reg];
@@ -1587,7 +1715,7 @@ function emulate() {
                             }
                             break;
                         case 1: // DIV 071RSS
-                            //LOG_INSTRUCTION(instruction, 3, "DIV");
+                            //LOG_INSTRUCTION(instruction, "div", 6);
                             if ((src = readWordByMode(instruction)) >= 0) {
                                 if (!src) { // divide by zero
                                     setNZVC(0x10000, 0x8000);
@@ -1616,7 +1744,7 @@ function emulate() {
                             }
                             break;
                         case 2: // ASH 072RSS
-                            //LOG_INSTRUCTION(instruction, 3, "ASH");
+                            //LOG_INSTRUCTION(instruction, "ash", 6);
                             if ((src = readWordByMode(instruction)) >= 0) {
                                 reg = (instruction >>> 6) & 7;
                                 result = CPU.registerVal[reg];
@@ -1653,7 +1781,7 @@ function emulate() {
                             }
                             break;
                         case 3: // ASHC 073RSS
-                            //LOG_INSTRUCTION(instruction, 3, "ASHC");
+                            //LOG_INSTRUCTION(instruction, "ashc", 6);
                             if ((src = readWordByMode(instruction)) >= 0) {
                                 reg = (instruction >>> 6) & 7;
                                 result = (CPU.registerVal[reg] << 16) | CPU.registerVal[reg | 1];
@@ -1685,7 +1813,7 @@ function emulate() {
                             }
                             break;
                         case 4: // XOR 074RSS
-                            //LOG_INSTRUCTION(instruction, 3, "XOR");
+                            //LOG_INSTRUCTION(instruction, "xor", 6);
                             src = CPU.registerVal[(instruction >>> 6) & 7];
                             if ((result = modifyWordByMode(instruction)) >= 0) {
                                 result ^= src;
@@ -1695,14 +1823,14 @@ function emulate() {
                             }
                             break;
                         case 7: // SOB 077Rnn
-                            //LOG_INSTRUCTION(instruction, 5, "SOB");
+                            //LOG_INSTRUCTION(instruction, "sob", 4);
                             reg = (instruction >>> 6) & 7;
                             if ((CPU.registerVal[reg] = ((CPU.registerVal[reg] - 1) & 0xffff))) {
                                 CPU.registerVal[7] = (CPU.registerVal[7] - ((instruction & 0o77) << 1)) & 0xffff;
                             }
                             break;
                         default: // We don't know this 07xRSS instruction
-                            //LOG_INSTRUCTION(instruction, 11, "-unknown-");
+                            //LOG_INSTRUCTION(instruction, "-unknown-", 0);
                             trap(0o10, 48); // Trap 10 - Illegal instruction
                             break;
                     }
@@ -1710,71 +1838,71 @@ function emulate() {
                 case 8: // 10xxxx instructions
                     switch ((instruction >> 8) & 0xf) { // 10xxxx 8 bit instructions first
                         case 0: // BPL 1000 offset
-                            //LOG_INSTRUCTION(instruction, 4, "BPL");
+                            //LOG_INSTRUCTION(instruction, "bpl", 3);
                             if (!testN()) {
                                 branch(instruction);
                             }
                             break;
                         case 1: // BMI 1004 offset
-                            //LOG_INSTRUCTION(instruction, 4, "BMI");
+                            //LOG_INSTRUCTION(instruction, "bmi", 3);
                             if (testN()) {
                                 branch(instruction);
                             }
                             break;
                         case 2: // BHI 1010 offset
-                            //LOG_INSTRUCTION(instruction, 4, "BHI");
+                            //LOG_INSTRUCTION(instruction, "bhi", 3);
                             if (!testC() && !testZ()) {
                                 branch(instruction);
                             }
                             break;
                         case 3: // BLOS 1014 offset
-                            //LOG_INSTRUCTION(instruction, 4, "BLOS");
+                            //LOG_INSTRUCTION(instruction, "blos", 3);
                             if (testC() || testZ()) {
                                 branch(instruction);
                             }
                             break;
                         case 4: // BVC 1020 offset
-                            //LOG_INSTRUCTION(instruction, 4, "BVC");
+                            //LOG_INSTRUCTION(instruction, "bvc", 3);
                             if (!testV()) {
                                 branch(instruction);
                             }
                             break;
                         case 5: // BVS 1024 offset
-                            //LOG_INSTRUCTION(instruction, 4, "BVS");
+                            //LOG_INSTRUCTION(instruction, "bvs", 3);
                             if (testV()) {
                                 branch(instruction);
                             }
                             break;
                         case 6: // BCC 1030 offset
-                            //LOG_INSTRUCTION(instruction, 4, "BCC");
+                            //LOG_INSTRUCTION(instruction, "bcc", 3);
                             if (!testC()) {
                                 branch(instruction);
                             }
                             break;
                         case 7: // BCS 1034 offset
-                            //LOG_INSTRUCTION(instruction, 4, "BCS");
+                            //LOG_INSTRUCTION(instruction, "bcs", 3);
                             if (testC()) {
                                 branch(instruction);
                             }
                             break;
                         case 8: // EMT 1040 operand
-                            //LOG_INSTRUCTION(instruction, 7, "EMT");
+                            //LOG_INSTRUCTION(instruction, "emt", 0);
                             trap(0o30, 2); // Trap 30 - EMT instruction
                             break;
                         case 9: // TRAP 1044 operand
-                            //LOG_INSTRUCTION(instruction, 7, "TRAP");
+                            //LOG_INSTRUCTION(instruction, "trap", 0);
                             trap(0o34, 4); // Trap 34 - TRAP instruction
                             break;
                         default: // Remaining 10xxxx instructions where xxxx >= 05000
                             switch ((instruction >>> 6) & 0o77) { // 10xxDD group
                                 case 0o50: // CLRB 1050DD
-                                    //LOG_INSTRUCTION(instruction, 1, "CLRB");
+                                    //LOG_INSTRUCTION(instruction, "clrb", 1);
                                     if (writeByteByMode(instruction, 0) >= 0) {
                                         zeroNZVC();
                                     }
                                     break;
                                 case 0o51: // COMB 1051DD
-                                    //LOG_INSTRUCTION(instruction, 1, "COMB");
+                                    //LOG_INSTRUCTION(instruction, "comb", 1);
                                     if ((dst = modifyByteByMode(instruction)) >= 0) {
                                         result = ~dst;
                                         if (modifyByte(result) >= 0) {
@@ -1783,7 +1911,7 @@ function emulate() {
                                     }
                                     break;
                                 case 0o52: // INCB 1052DD
-                                    //LOG_INSTRUCTION(instruction, 1, "INCB");
+                                    //LOG_INSTRUCTION(instruction, "incb", 1);
                                     if ((dst = modifyByteByMode(instruction)) >= 0) {
                                         result = dst + 1;
                                         if (modifyByte(result) >= 0) {
@@ -1792,7 +1920,7 @@ function emulate() {
                                     }
                                     break;
                                 case 0o53: // DECB 1053DD
-                                    //LOG_INSTRUCTION(instruction, 1, "DECB");
+                                    //LOG_INSTRUCTION(instruction, "decb", 1);
                                     if ((dst = modifyByteByMode(instruction)) >= 0) {
                                         result = dst + 0xffff;
                                         if (modifyByte(result) >= 0) {
@@ -1801,7 +1929,7 @@ function emulate() {
                                     }
                                     break;
                                 case 0o54: // NEGB 1054DD
-                                    //LOG_INSTRUCTION(instruction, 1, "NEGB");
+                                    //LOG_INSTRUCTION(instruction, "negb", 1);
                                     if ((dst = modifyByteByMode(instruction)) >= 0) {
                                         result = -dst;
                                         if (modifyByte(result) >= 0) {
@@ -1810,7 +1938,7 @@ function emulate() {
                                     }
                                     break;
                                 case 0o55: // ADCB 01055DD
-                                    //LOG_INSTRUCTION(instruction, 1, "ADCB");
+                                    //LOG_INSTRUCTION(instruction, "adcb", 1);
                                     if ((dst = modifyByteByMode(instruction)) >= 0) {
                                         result = dst;
                                         if (testC()) {
@@ -1822,7 +1950,7 @@ function emulate() {
                                     }
                                     break;
                                 case 0o56: // SBCB 01056DD
-                                    //LOG_INSTRUCTION(instruction, 1, "SBCB");
+                                    //LOG_INSTRUCTION(instruction, "sbcb", 1);
                                     if ((dst = modifyByteByMode(instruction)) >= 0) {
                                         result = dst;
                                         if (testC()) {
@@ -1834,13 +1962,13 @@ function emulate() {
                                     }
                                     break;
                                 case 0o57: // TSTB 1057DD
-                                    //LOG_INSTRUCTION(instruction, 1, "TSTB");
+                                    //LOG_INSTRUCTION(instruction, "tstb", 1);
                                     if ((result = readByteByMode(instruction)) >= 0) {
                                         setByteNZC(result);
                                     }
                                     break;
                                 case 0o60: // RORB 1060DD
-                                    //LOG_INSTRUCTION(instruction, 1, "RORB");
+                                    //LOG_INSTRUCTION(instruction, "rorb", 1);
                                     if ((dst = modifyByteByMode(instruction)) >= 0) {
                                         result = (dst << 8) | (dst >>> 1);
                                         if (testC()) {
@@ -1852,7 +1980,7 @@ function emulate() {
                                     }
                                     break;
                                 case 0o61: // ROLB 1061DD
-                                    //LOG_INSTRUCTION(instruction, 1, "ROLB");
+                                    //LOG_INSTRUCTION(instruction, "rolb", 1);
                                     if ((dst = modifyByteByMode(instruction)) >= 0) {
                                         result = dst << 1;
                                         if (testC()) {
@@ -1864,7 +1992,7 @@ function emulate() {
                                     }
                                     break;
                                 case 0o62: // ASRB 1062DD
-                                    //LOG_INSTRUCTION(instruction, 1, "ASRB");
+                                    //LOG_INSTRUCTION(instruction, "asrb", 1);
                                     if ((dst = modifyByteByMode(instruction)) >= 0) {
                                         result = (dst << 8) | (dst & 0x80) | (dst >>> 1);
                                         if (modifyByte(result) >= 0) {
@@ -1873,7 +2001,7 @@ function emulate() {
                                     }
                                     break;
                                 case 0o63: // ASLB 1063DD
-                                    //LOG_INSTRUCTION(instruction, 1, "ASLB");
+                                    //LOG_INSTRUCTION(instruction, "aslb", 1);
                                     if ((dst = modifyByteByMode(instruction)) >= 0) {
                                         result = dst << 1;
                                         if (modifyByte(result) >= 0) {
@@ -1882,14 +2010,14 @@ function emulate() {
                                     }
                                     break;
                                     //case 0o64: // MTPS 1064SS
-                                    //    //LOG_INSTRUCTION(instruction, 1, "MTPS");
+                                    //    //LOG_INSTRUCTION(instruction, "mtps", 1);
                                     //    if ((src = readByteByMode(instruction)) >= 0) {
                                     //        writePSW((CPU.PSW & 0xff00) | (src & 0xef));
                                     //    } // Temporary PDP 11/34A
                                     //    break;
                                 case 0o65: // MFPD 1065DD
-                                    //LOG_INSTRUCTION(instruction, 1, "MFPD");
-                                    if (!(instruction & 0x38)) {
+                                    //LOG_INSTRUCTION(instruction, "mfpd", 1);
+                                    if (!(instruction & 0o70)) {
                                         reg = instruction & 7;
                                         if (reg !== 6 || ((CPU.PSW >>> 12) & 3) === CPU.mmuMode) {
                                             result = CPU.registerVal[reg];
@@ -1901,9 +2029,9 @@ function emulate() {
                                         }
                                     } else {
                                         if ((virtualAddress = getVirtualByMode(instruction, MMU_WORD)) >= 0) {
-                                            CPU.mmuMode = (CPU.PSW >>> 12) & 3; // Use PM
+                                            setMMUmode((CPU.PSW >>> 12) & 3); // Use PM
                                             if ((result = readWordByVirtual(virtualAddress | 0x10000)) >= 0) {
-                                                CPU.mmuMode = (CPU.PSW >>> 14) & 3; // Restore CM
+                                                setMMUmode((CPU.PSW >>> 14) & 3); // Restore CM
                                                 if (pushWord(result, 0) >= 0) {
                                                     setNZ(result);
                                                 }
@@ -1912,12 +2040,12 @@ function emulate() {
                                     }
                                     break;
                                 case 0o66: // MTPD 1066DD
-                                    //LOG_INSTRUCTION(instruction, 1, "MTPD");
+                                    //LOG_INSTRUCTION(instruction, "mtpd", 1);
                                     if ((result = popWord()) >= 0) {
                                         if (!(CPU.MMR0 & 0xe000)) {
                                             CPU.MMR1 = 0o26;
                                         }
-                                        if (!(instruction & 0x38)) {
+                                        if (!(instruction & 0o70)) {
                                             reg = instruction & 7;
                                             if (reg !== 6 || ((CPU.PSW >>> 12) & 3) === CPU.mmuMode) {
                                                 CPU.registerVal[reg] = result;
@@ -1927,9 +2055,9 @@ function emulate() {
                                             setNZ(result);
                                         } else { // Must extract virtual address before mode change...
                                             if ((virtualAddress = getVirtualByMode(instruction, MMU_WORD)) >= 0) {
-                                                CPU.mmuMode = (CPU.PSW >>> 12) & 3; // Use PM
+                                                setMMUmode((CPU.PSW >>> 12) & 3); // Use PM
                                                 if (writeWordByVirtual(virtualAddress | 0x10000, result) >= 0) {
-                                                    CPU.mmuMode = (CPU.PSW >>> 14) & 3; // Restore CM
+                                                    setMMUmode((CPU.PSW >>> 14) & 3); // Restore CM
                                                     setNZ(result);
                                                 }
                                             }
@@ -1937,9 +2065,9 @@ function emulate() {
                                     }
                                     break;
                                     //case 0o67: // MTFS 1064SS
-                                    //    //LOG_INSTRUCTION(instruction, 1, "MFPS");
+                                    //    //LOG_INSTRUCTION(instruction, "mfps", 1);
                                     //    result = readPSW() & 0xff;
-                                    //    if (!(instruction & 0x38)) {
+                                    //    if (!(instruction & 0o70)) {
                                     //        if (result & 0o200) {
                                     //            result |= 0xff00;
                                     //        }
@@ -1952,7 +2080,7 @@ function emulate() {
                                     //    } // Temporary PDP 11/34A
                                     //    break;
                                 default: // We don't know this 0o10xxDD instruction
-                                    //LOG_INSTRUCTION(instruction, 11, "-unknown-");
+                                    //LOG_INSTRUCTION(instruction, "-unknown-", 0);
                                     trap(0o10, 48); // Trap 10 - Illegal instruction
                                     break;
                             }
@@ -1960,9 +2088,9 @@ function emulate() {
                     }
                     break;
                 case 9: // MOVB 11SSDD
-                    //LOG_INSTRUCTION(instruction, 2, "MOVB");
+                    //LOG_INSTRUCTION(instruction, "movb", 2);
                     if ((result = readByteByMode(instruction >>> 6)) >= 0) {
-                        if (!(instruction & 0x38)) { // Need sign extension when writing to a register
+                        if (!(instruction & 0o70)) { // Need sign extension when writing to a register
                             if (result & 0o200) {
                                 result |= 0xff00; // Special case: movb sign extends register to word size
                             }
@@ -1976,7 +2104,7 @@ function emulate() {
                     }
                     break;
                 case 10: // CMPB 12SSDD
-                    //LOG_INSTRUCTION(instruction, 2, "CMPB");
+                    //LOG_INSTRUCTION(instruction, "cmpb", 2);
                     if ((src = readByteByMode(instruction >>> 6)) >= 0) {
                         if ((dst = readByteByMode(instruction)) >= 0) {
                             result = src - dst;
@@ -1985,7 +2113,7 @@ function emulate() {
                     }
                     break;
                 case 11: // BITB 13SSDD
-                    //LOG_INSTRUCTION(instruction, 2, "BITB");
+                    //LOG_INSTRUCTION(instruction, "bitb", 2);
                     if ((src = readByteByMode(instruction >>> 6)) >= 0) {
                         if ((result = readByteByMode(instruction)) >= 0) {
                             setByteNZ(src & result);
@@ -1993,7 +2121,7 @@ function emulate() {
                     }
                     break;
                 case 12: // BICB 14SSDD
-                    //LOG_INSTRUCTION(instruction, 2, "BICB");
+                    //LOG_INSTRUCTION(instruction, "bicb", 2);
                     if ((src = readByteByMode(instruction >>> 6)) >= 0) {
                         if ((dst = modifyByteByMode(instruction)) >= 0) {
                             result = dst & ~src;
@@ -2004,7 +2132,7 @@ function emulate() {
                     }
                     break;
                 case 13: // BISB 15SSDD
-                    //LOG_INSTRUCTION(instruction, 2, "BISB");
+                    //LOG_INSTRUCTION(instruction, "bisb", 2);
                     if ((src = readByteByMode(instruction >>> 6)) >= 0) {
                         if ((dst = modifyByteByMode(instruction)) >= 0) {
                             result = dst | src;
@@ -2015,7 +2143,7 @@ function emulate() {
                     }
                     break;
                 case 14: // SUB 16SSDD
-                    //LOG_INSTRUCTION(instruction, 2, "SUB");
+                    //LOG_INSTRUCTION(instruction, "sub", 2);
                     if ((src = readWordByMode(instruction >>> 6)) >= 0) {
                         if ((dst = modifyWordByMode(instruction)) >= 0) {
                             result = dst - src;
@@ -2029,7 +2157,7 @@ function emulate() {
                     if (typeof executeFPP !== 'undefined') {
                         executeFPP(instruction);
                     } else { // Say we don't know this instruction
-                        //LOG_INSTRUCTION(instruction, 11, "-unknown-");
+                        //LOG_INSTRUCTION(instruction, "-unknown-", 0);
                         trap(0o10, 48); // Trap 10 - Illegal instruction
                     }
                     break;
@@ -2038,12 +2166,12 @@ function emulate() {
     } while (--loopCount > 0);
 
     if (loopCount === 0) { // Count expired so check timing
-        src = Date.now() - loopTime - 8;
-        if (src > 0) { // over time
-            CPU.loopBase = Math.max(20, CPU.loopBase - src * 32); // Reduce loop counts
+        let interval = Date.now() - loopTime - 8;
+        if (interval > 0) { // over time
+            CPU.loopBase = Math.max(20, CPU.loopBase - interval * 32); // Reduce loop counts
         } else {
-            if (src < 0) { // under time - increase count
-                CPU.loopBase -= src * 33;
+            if (interval < 0) { // under time - increase count
+                CPU.loopBase -= interval * 33;
             }
         }
     }
@@ -2080,13 +2208,18 @@ var panel = {
     autoIncr: 0
 };
 
-function initPanel(idName, idCount) {
+function initPanel(idArray, idName, idCount) {
     "use strict";
-    var id, idArray = [];
+    var id, elementId, initVal = 0;
     for (id = 0; id < idCount; id++) {
-        idArray[id] = document.getElementById(idName + id);
+        if ((elementId = document.getElementById(idName + id))) {
+            idArray[id] = elementId.style;
+        } else {
+            idArray[id] = {}; // If element not present make a dummy
+        }
+        initVal = initVal * 2 + 1;
     }
-    return idArray;
+    return initVal;
 }
 
 // There are three groups of lights (LEDs/Globes):-
@@ -2098,25 +2231,28 @@ function initPanel(idName, idCount) {
 //
 // statusLights:         25 24 23 22 21 20 19 18 17 16 15 14 13 12 11 10  9  8  7  6  5  4  3  2  1  0
 //                      |  rotary1  |       rotary0         | PAR |PE AE Rn Pa Ma Us Su Ke Da 16 18 22
+// The PDP 11/45 does not have all of the same lights as a PDP 11/70 - thus some must be dummied out in initPanel()
 
 function updateLights() {
     "use strict";
     var addressLights, displayLights, statusLights;
 
-    function updatePanel(oldMask, newMask, idArray) {
-        var id = 0,
-            mask = oldMask ^ newMask;
-        while (mask) {
-            while (!(mask & 1)) {
-                mask >>= 1;
-                id++;
+    function updatePanel(oldMask, newMask, idArray) { // Update lights to match newMask
+        "use strict";
+        var id, changeMask, bitMask;
+        if ((changeMask = oldMask ^ newMask)) { // If any differences..
+            for (id = 0, bitMask = 1; changeMask; id++, bitMask <<= 1) {
+                if (bitMask & changeMask) { // If this light has changed...
+                    if (newMask & bitMask) {
+                        idArray[id].visibility = 'visible';
+                    } else {
+                        idArray[id].visibility = 'hidden';
+                    }
+                    changeMask &= ~bitMask;
+                }
             }
-            if (idArray[id]) {
-                idArray[id].style.visibility = ((newMask & (1 << id)) ? 'visible' : 'hidden'); // or display = "none"
-            }
-            mask >>= 1;
-            id++;
         }
+        return newMask;
     }
     if (panel.powerSwitch < 0) {
         addressLights = 0;
@@ -2154,27 +2290,18 @@ function updateLights() {
                 ((CPU.mmuEnable) ? (CPU.MMR3 & 0x10) ? 1 : 2 : 4); // MMU status (16, 18, 22)
         }
     }
-    if (addressLights !== panel.addressLights) {
-        updatePanel(panel.addressLights, addressLights, panel.addressId);
-        panel.addressLights = addressLights;
-    }
-    if (displayLights !== panel.displayLights) {
-        updatePanel(panel.displayLights, displayLights, panel.displayId);
-        panel.displayLights = displayLights;
-    }
-    if (statusLights !== panel.statusLights) {
-        updatePanel(panel.statusLights, statusLights, panel.statusId);
-        panel.statusLights = statusLights;
-    }
+    panel.addressLights = updatePanel(panel.addressLights, addressLights, panel.addressId);
+    panel.displayLights = updatePanel(panel.displayLights, displayLights, panel.displayId);
+    panel.statusLights = updatePanel(panel.statusLights, statusLights, panel.statusId);
     requestAnimationFrame(updateLights);
 }
 
 // One off functions to find light objects and to start animations
 
-panel.addressId = initPanel("a", 22);
-panel.displayId = initPanel("d", 16);
-panel.statusId = initPanel("s", 26);
-requestAnimationFrame(updateLights);
+panel.addressLights = initPanel(panel.addressId, "a", 22);
+panel.displayLights = initPanel(panel.displayId, "d", 16);
+panel.statusLights = initPanel(panel.statusId, "s", 26);
+setTimeout(updateLights, 100);
 
 function boot() { // Reset processor, copy bootcode into memory, jump to start of bootcode
     "use strict";
@@ -2191,6 +2318,6 @@ function boot() { // Reset processor, copy bootcode into memory, jump to start o
     reset_iopage();
     if (CPU.runState !== STATE_RUN) {
         CPU.runState = STATE_RUN;
-        emulate(1);
+        emulate();
     }
 }

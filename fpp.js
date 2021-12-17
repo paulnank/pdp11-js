@@ -162,8 +162,26 @@ var FPP = {
     ] // The six FPP accumulators AC[0]... AC[5]
 };
 
-function FPP_INSTRUCTION(a, b, c) { // Console logging function for debugging
-    console.log("FPP " + (CPU.registerVal[7] - 2).toString(8) + "   " + a.toString(8) + "  " + c + " " + FPP.precisionLength);
+// Adds PC word to current debug log entry - eg the x in 'LDF ac2,#x'
+function FPP_OPERAND(pcWord) {
+    "use strict";
+    if (log.limit) {
+        log.ring[log.ring.length - 1].push(pcWord);
+    }
+}
+
+// Add an intruction log debug entry
+function FPP_INSTRUCTION(instruction, name, format) {
+    "use strict";
+    if (log.limit) { // Only do debug stuff if there is a log limit
+        log.ring.push([FPP.FPS, CPU.registerVal[7], instruction, name, format]);
+        while (log.ring.length > log.limit) {
+            log.ring.shift();
+        }
+        if (CPU.registerVal[7] - 2 == log.debugPC) { // Set browser breakpoint here to stop at debug PC
+            console.log(FPP.FPS.toString(8) + " " + CPU.registerVal[7].toString(8) + " " + instruction.toString(8) + " " + name);
+        }
+    }
 }
 
 function incrementVirtual(virtualAddress) {
@@ -888,7 +906,7 @@ function fppSTCFI(number, addressMode) { // Store converting from floating to in
         fppFlags();
     } else {
         if ((virtualAddress = getVirtualByMode(addressMode, MMU_WRITE | (words << 1))) >= 0) {
-            if (((status = writeWordByVirtual(virtualAddress, (result >>> FPPwordBits) & FPPwordMask))) >= 0) {
+            if ((status = writeWordByVirtual(virtualAddress, (result >>> FPPwordBits) & FPPwordMask)) >= 0) {
                 if (words > 1) {
                     virtualAddress = incrementVirtual(virtualAddress);
                     status = writeWordByVirtual(virtualAddress, result & FPPwordMask);
@@ -923,6 +941,9 @@ function readFloatByVirtual(number, virtualAddress) { // Read FPP number by virt
         }
         number[i] = result; // Return each word of the FPP number
         virtualAddress = incrementVirtual(virtualAddress);
+        //if (FPP.modeLength == 1) { // If immediate mode operand Log it
+        //    FPP_OPERAND(result);
+        //}
     }
     if (result >= 0) { // If all ok zero fill any remaining words
         while (i < FPP.precisionLength) {
@@ -932,9 +953,8 @@ function readFloatByVirtual(number, virtualAddress) { // Read FPP number by virt
     // For the undefined variable (-0) trap and return a -2 so instructions can do any special handling
     if (result >= 0 && (number[0] & FPPsignMask) && !(number[0] & FPPexpMask)) { // Is it -0?
         if (FPP.FPS & 0x0800) { // Are undefined variable traps enabled?
-            if (fppTrap(12) < 0) { // 12 Floating undefined variable
-                result = -2; // -2 is the special case for read undefined variable trap
-            }
+            fppTrap(12); // 12 Floating undefined variable
+            result = -2; // return -2 as special case for read undefined variable trap
         }
     }
     return result;
@@ -1017,44 +1037,44 @@ function executeFPP(instruction) { // Main entry point call by mainline emulatio
     //}
     FPP.backupPC = CPU.registerVal[7];
     AC = (instruction >>> 6) & 3;
-    switch (instruction & 0xf00) { // 007400 FPP OP code
-        case 0: // 0000000 Miscellaneous FPP
-            switch (AC) {
+    switch ((instruction >>> 8) & 0xf) { // 007400 FPP OP code
+        case 0: // 170000 Miscellaneous group 0 FPP instructions
+            switch (AC) { // For this group the AC field decides the operation
                 case 0: // 00 Group 0 further subdivided
                     switch (instruction & 0x3f) {
-                        case 0: // 000 CFCC Copy Floating Condition Codes
-                            //FPP_INSTRUCTION(instruction, 2, "CFCC");
+                        case 0: // 170000 CFCC Copy Floating Condition Codes
+                            //FPP_INSTRUCTION(instruction, "cfcc", 0);
                             fppFlags();
                             break;
-                        case 1: // 001 SETF Set Floating Mode
-                            //FPP_INSTRUCTION(instruction, 2, "SETF");
+                        case 1: // 170001 SETF Set Floating Mode
+                            //FPP_INSTRUCTION(instruction, "setf", 0);
                             FPP.FPS &= 0xff7f;
                             FPP.precisionLength = 2; // Floating is two word precision
                             break;
-                        case 2: // 002 SETI Set Integer Mode
-                            //FPP_INSTRUCTION(instruction, 2, "SETI");
+                        case 2: // 170002 SETI Set Integer Mode
+                            //FPP_INSTRUCTION(instruction, "seti", 0);
                             FPP.FPS &= 0xffbf;
                             break;
-                            //case 3: // 003 LDUP - not valid on all systems
-                            //    //FPP_INSTRUCTION(instruction, 2, "LDUP");
+                            //case 3: // 170003 LDUP - not valid on all systems
+                            //    //FPP_INSTRUCTION(instruction, "ldup", 0);
                             //    break;
-                        case 9: // 011 SETD Set Floating Double Mode
-                            //FPP_INSTRUCTION(instruction, 2, "SETD");
+                        case 9: // 170011 SETD Set Floating Double Mode
+                            //FPP_INSTRUCTION(instruction, "setd", 0);
                             FPP.FPS |= 0x80;
                             FPP.precisionLength = 4; // Double is four word precision
                             break;
-                        case 10: // 012 SETL Set Long Integer Mode
-                            //FPP_INSTRUCTION(instruction, 2, "SETL");
+                        case 10: // 170012 SETL Set Long Integer Mode
+                            //FPP_INSTRUCTION(instruction, "setl", 0);
                             FPP.FPS |= 0x40;
                             break;
                         default: // We don't know this instruction
-                            //FPP_INSTRUCTION(instruction, 11, "-unknown-");
+                            //FPP_INSTRUCTION(instruction, "-unknown-", 0);
                             fppTrap(2); // Unknown FPP opcode
                             break;
                     }
                     break;
-                case 1: // Load FPP Program Status
-                    //FPP_INSTRUCTION(instruction, 2, "LDFPS");
+                case 1: // 1701SS Load FPP Program Status
+                    //FPP_INSTRUCTION(instruction, "ldfps", 1);
                     if ((result = readWordByMode(instruction)) >= 0) {
                         FPP.FPS = result & 0xcfff;
                         if (!(FPP.FPS & 0x80)) { // FD - Double precision mode
@@ -1064,17 +1084,17 @@ function executeFPP(instruction) { // Main entry point call by mainline emulatio
                         }
                     }
                     break;
-                case 2: // Store FPP Program Status
-                    //FPP_INSTRUCTION(instruction, 2, "STFPS");
+                case 2: // 1702DD Store FPP Program Status
+                    //FPP_INSTRUCTION(instruction, "stfps", 1);
                     writeWordByMode(instruction, FPP.FPS);
                     break;
-                case 3: // STST Store FEC and FEA
-                    //FPP_INSTRUCTION(instruction, 2, "STST");
+                case 3: // 1703DD  STST Store FEC and FEA
+                    //FPP_INSTRUCTION(instruction, "stst", 1);
                     if (!(instruction & 0x38)) { // FEC only for general register
                         CPU.registerVal[instruction & 7] = FPP.FEC;
                     } else {
                         if ((virtualAddress = getVirtualByMode(instruction, MMU_WRITE | 4)) >= 0) {
-                            if ((result = writeWordByVirtual(virtualAddress, FPP.FEC)) >= 0) {
+                            if (writeWordByVirtual(virtualAddress, FPP.FEC) >= 0) {
                                 virtualAddress = incrementVirtual(virtualAddress);
                                 writeWordByVirtual(virtualAddress, FPP.FEA);
                             }
@@ -1083,23 +1103,23 @@ function executeFPP(instruction) { // Main entry point call by mainline emulatio
                     break;
             }
             break;
-        case 0x100: // 0000400 Single operand FPP instructions
-            switch (AC) {
-                case 0: // 00 CLRF Clear Floating/Double
-                    //FPP_INSTRUCTION(instruction, 2, "CLRF");
+        case 0x1: // 1704xx Single operand FPP instructions
+            switch (AC) { // For this group the AC field decides the operation
+                case 0: // 1704FF CLRF Clear Floating/Double
+                    //FPP_INSTRUCTION(instruction, "clrf", 1);
                     fppZero(FPP.scratch);
                     if (writeFloatByMode(instruction, FPP.scratch) >= 0) {
                         fppTest(FPP.scratch);
                     }
                     break;
-                case 1: // 01 TSTF Test Floating/Double
-                    //FPP_INSTRUCTION(instruction, 2, "TSTF");
+                case 1: // 1705FF TSTF Test Floating/Double
+                    //FPP_INSTRUCTION(instruction, "tstf", 1);
                     if (readFloatByMode(FPP.scratch, instruction) != -1) {
                         fppTest(FPP.scratch);
                     }
                     break;
-                case 2: // 02 ABSF Make Absolute Floating/Double
-                    //FPP_INSTRUCTION(instruction, 2, "ABSF");
+                case 2: // 1706FF ABSF Make Absolute Floating/Double
+                    //FPP_INSTRUCTION(instruction, "absf", 1);
                     if (readFloatByMode(FPP.scratch, instruction) != -1) { // Allow for undefined variable trap (-2)
                         if (!(FPP.scratch[0] & FPPexpMask)) {
                             fppZero(FPP.scratch);
@@ -1111,8 +1131,8 @@ function executeFPP(instruction) { // Main entry point call by mainline emulatio
                         }
                     }
                     break;
-                case 3: // 03 NEGF Negate Floating/Double
-                    //FPP_INSTRUCTION(instruction, 2, "NEGF");
+                case 3: // 1707FF NEGF Negate Floating/Double
+                    //FPP_INSTRUCTION(instruction, "negf", 1);
                     if (readFloatByMode(FPP.scratch, instruction) != -1) { // Allow for undefined variable trap (-2)
                         if (!(FPP.scratch[0] & FPPexpMask)) {
                             fppZero(FPP.scratch);
@@ -1126,14 +1146,14 @@ function executeFPP(instruction) { // Main entry point call by mainline emulatio
                     break;
             }
             break;
-        case 0x200: // 0001000 MULF Multiply Floating/Double
-            //FPP_INSTRUCTION(instruction, 2, "MULF");
+        case 0x2: // 1710AFF MULF Multiply Floating/Double
+            //FPP_INSTRUCTION(instruction, "mulf", 7);
             if (readFloatByMode(FPP.scratch, instruction) >= 0) {
                 fppMultiply(FPP.AC[AC], FPP.scratch);
             }
             break;
-        case 0x300: // 0001400 MODF Multiply and integerize Floating/Double
-            //FPP_INSTRUCTION(instruction, 2, "MODF");
+        case 0x3: // 1714AFF MODF Multiply and integerize Floating/Double
+            //FPP_INSTRUCTION(instruction, "modf", 7);
             if (readFloatByMode(FPP.scratch, instruction) >= 0) {
                 if (AC & 1) { // Special case for odd AC where integer result is not returned (we have nowhere to put it)
                     fppMODF(FPP.AC[AC], null, FPP.scratch);
@@ -1142,55 +1162,55 @@ function executeFPP(instruction) { // Main entry point call by mainline emulatio
                 }
             }
             break;
-        case 0x400: // 0002000 ADDF Add Floating/Double
-            //FPP_INSTRUCTION(instruction, 2, "ADDF");
+        case 0x4: // 1720AFF ADDF Add Floating/Double
+            //FPP_INSTRUCTION(instruction, "addf", 7);
             if (readFloatByMode(FPP.scratch, instruction) >= 0) {
                 fppAdd(FPP.AC[AC], FPP.scratch);
             }
             break;
-        case 0x500: // 0002400 LDF Load Floating/Double
-            //FPP_INSTRUCTION(instruction, 2, "LDF");
+        case 0x5: // 1724AFF LDF Load Floating/Double
+            //FPP_INSTRUCTION(instruction, "ldf", 7);
             if (readFloatByMode(FPP.AC[AC], instruction) >= 0) {
                 fppTest(FPP.AC[AC]);
             }
             break;
-        case 0x600: // 0003000 SUBF Subtract Floating/Double
-            //FPP_INSTRUCTION(instruction, 2, "SUBF");
+        case 0x6: // 1730AFF SUBF Subtract Floating/Double
+            //FPP_INSTRUCTION(instruction, "subf", 7);
             if (readFloatByMode(FPP.scratch, instruction) >= 0) {
                 FPP.scratch[0] ^= FPPsignMask; // For subtraction change sign of operand and add
                 fppAdd(FPP.AC[AC], FPP.scratch);
             }
             break;
-        case 0x700: // 0003400 CMPF Compare Floating/Double
-            //FPP_INSTRUCTION(instruction, 2, "CMPF");
+        case 0x7: // 1734AFF CMPF Compare Floating/Double
+            //FPP_INSTRUCTION(instruction, "cmpf", 7);
             if (readFloatByMode(FPP.scratch, instruction) >= 0) {
                 fppCompare(FPP.scratch, FPP.AC[AC]);
             }
             break;
-        case 0x800: // 0004000 STF Store Floating/Double
-            //FPP_INSTRUCTION(instruction, 2, "STF");
+        case 0x8: // 1740AFF STF Store Floating/Double
+            //FPP_INSTRUCTION(instruction, "stf", 7);
             writeFloatByMode(instruction, FPP.AC[AC]);
             break;
-        case 0x900: // 0004400 DIVF Divide Floating/Double
-            //FPP_INSTRUCTION(instruction, 2, "DIVF");
+        case 0x9: // 1744AFF DIVF Divide Floating/Double
+            //FPP_INSTRUCTION(instruction, "divf", 7);
             if (readFloatByMode(FPP.scratch, instruction) >= 0) {
                 fppDivide(FPP.AC[AC], FPP.scratch);
             }
             break;
-        case 0xa00: // 0005000 STEXP Store Exponent
-            //FPP_INSTRUCTION(instruction, 2, "STEXP");
+        case 0xa: // 1750ADD STEXP Store Exponent
+            //FPP_INSTRUCTION(instruction, "stexp", 7);
             result = ((FPP.AC[AC][0] & FPPexpMask) >>> FPPexpShift) - FPPexpBias;
             if (writeWordByMode(instruction, result) >= 0) {
                 fppTestInt(result);
                 fppFlags();
             }
             break;
-        case 0xb00: // 0005400 STCFI Convert Floating/Double to Integer/Long Integer
-            //FPP_INSTRUCTION(instruction, 2, "STCFI");
+        case 0xb: // 1754ADD STCFI Convert Floating/Double to Integer/Long Integer
+            //FPP_INSTRUCTION(instruction, "stcfi", 7);
             fppSTCFI(FPP.AC[AC], instruction);
             break;
-        case 0xc00: // 0006000 STCFD Store converting Floating/Double to Double Floating
-            //FPP_INSTRUCTION(instruction, 2, "STCFF"); // F to D if FD == 0
+        case 0xc: // 176AFF STCFD Store converting Floating/Double to Double Floating
+            //FPP_INSTRUCTION(instruction, "stcff", 7); // F to D if FD == 0
             result = 1; // Flag to test condition codes
             fppCopy(FPP.scratch, FPP.AC[AC]); //Copy operand as we may modify by rounding
             FPP.precisionLength = 6 - FPP.precisionLength; // Reverse current precision before rounding or writing
@@ -1207,18 +1227,18 @@ function executeFPP(instruction) { // Main entry point call by mainline emulatio
             }
             FPP.precisionLength = 6 - FPP.precisionLength; // Restore precision
             break;
-        case 0xd00: // 0006400 LDEXP Load Exponent
-            //FPP_INSTRUCTION(instruction, 2, "LDEXP");
+        case 0xd: // 1764ASS LDEXP Load Exponent
+            //FPP_INSTRUCTION(instruction, "ldexp", 7);
             if ((result = readWordByMode(instruction)) >= 0) {
                 fppLDEXP(FPP.AC[AC], result);
             }
             break;
-        case 0xe00: // 0007000 LDCIF Convert Integer/Long Integer to Floating/Double
-            //FPP_INSTRUCTION(instruction, 2, "LDCIF");
+        case 0xe: // 1770ASS LDCIF Convert Integer/Long Integer to Floating/Double
+            //FPP_INSTRUCTION(instruction, "ldcif", 7);
             fppLDCIF(FPP.AC[AC], instruction);
             break;
-        case 0xf00: // 0007400 LDCDF Load converting Floating/Double to Double Floating
-            //FPP_INSTRUCTION(instruction, 2, "LDCDF");
+        case 0xf: // 1774AFF LDCDF Load converting Floating/Double to Double Floating
+            //FPP_INSTRUCTION(instruction, "ldcdf", 7);
             FPP.precisionLength = 6 - FPP.precisionLength; // Reverse current precision before reading value
             if (readFloatByMode(FPP.AC[AC], instruction) >= 0) {
                 FPP.precisionLength = 6 - FPP.precisionLength; // Restore precision
@@ -1239,7 +1259,7 @@ function executeFPP(instruction) { // Main entry point call by mainline emulatio
             }
             break;
         default: // We don't know this instruction
-            //FPP_INSTRUCTION(instruction, 11, "-unknown-");
+            //FPP_INSTRUCTION(instruction, "-unknown-", 0);
             fppTrap(2); // Unknown FPP opcode
             break;
     }

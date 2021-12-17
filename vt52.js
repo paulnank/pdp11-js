@@ -123,8 +123,8 @@ function vt52Put(unit, ch) {
                             elementId.scrollTop = elementId.scrollHeight;
                             break;
                         case 13: // 015 CR
-                            if (elementId.value.length > 16000) {
-                                elementId.value = elementId.value.substring(elementId.value.length - 4000);
+                            if (elementId.value.length > 19000) {
+                                elementId.value = elementId.value.substring(elementId.value.length - 16000);
                             }
                             break;
                         case 27: // 033 ESC
@@ -362,7 +362,7 @@ function vt52Input(unit, string) {
             vt52.typeAhead = vt52.typeAhead.substring(1); // Remove character if it was accepted
         }
         if (vt52.typeAhead.length > 0) { // If still data in buffer come back again
-            setTimeout(vt52Input, 10, unit, "");
+            setTimeout(vt52Input, 5, unit, "");
         }
     }
 }
