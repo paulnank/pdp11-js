@@ -335,8 +335,7 @@ function accessRK11(physicalAddress, data, byteFlag) {
             result = 0;
             break;
         default:
-            CPU.CPU_Error |= 0x10;
-            return trap(4, 202);
+            return trap(0o4, 0x10); // Trap 4 - 0x10 Unibus time-out
     }
     //console.log("RK11 " + physicalAddress.toString(8) + " " + byteFlag + " " + data.toString(8) + " => " + result.toString(8) + " @" + CPU.registerVal[7].toString(8));
     return result;
@@ -497,8 +496,7 @@ function accessRL11(physicalAddress, data, byteFlag) {
             if (result >= 0) rl11.mpr = result;
             break;
         default:
-            CPU.CPU_Error |= 0x10;
-            return trap(4, 204);
+            return trap(0o4, 0x10); // Trap 4 - 0x10 Unibus time-out
     }
     //console.log("RL11 " + physicalAddress.toString(8) + " " + byteFlag + " " + data.toString(8) + " => " + result.toString(8) + " @" + CPU.registerVal[7].toString(8));
     return result;
@@ -808,8 +806,7 @@ function accessRP11(physicalAddress, data, byteFlag) {
                         result = 0; //rp11.rpec2[idx];
                         break;
                     default:
-                        CPU.CPU_Error |= 0x10;
-                        return trap(4, 206);
+                        return trap(0o4, 0x10); // Trap 4 - 0x10 Unibus time-out
                 }
             } else {
                 rp11.rpcs2 |= 0x1000; // NED
@@ -1025,8 +1022,7 @@ function accessTM11(physicalAddress, data, byteFlag) {
             result = 0;
             break;
         default:
-            CPU.CPU_Error |= 0x10;
-            return trap(4, 208);
+            return trap(0o4, 0x10); // Trap 4 - 0x10 Unibus time-out
     }
     //console.log("TM11 " + physicalAddress.toString(8) + " " + byteFlag + " " + data.toString(8) + " => " + result.toString(8) + " @" + CPU.registerVal[7].toString(8));
     return result;
@@ -1260,7 +1256,7 @@ function reset_iopage() {
     CPU.stackLimit = 0xff;
     CPU.CPU_Error = 0;
     CPU.interruptQueue = [];
-    CPU.MMR0 = CPU.MMR3 = CPU.mmuEnable = 0;
+    CPU.MMR0 = CPU.MMR3 = CPU.MMR3KSxU = CPU.mmuEnable = 0;
     setMMUmode(0);
     CPU.mmuLastPage = 0;
     dl11_reset();
@@ -1271,7 +1267,7 @@ function reset_iopage() {
     rl11.csr = 0x80;
     rp11_init();
     tm11_init();
-
+	setBaseLights();
 }
 
 
@@ -1297,7 +1293,7 @@ function insertData(original, physicalAddress, data, byteFlag) {
     "use strict";
     if (physicalAddress & 1) {
         if (!byteFlag) {
-            return trap(4, 212); // trap word access to odd addresses
+            return trap(0o4, 0x40); // Trap 4 - 0x40 Odd address error
         }
         if (data >= 0) {
             data = ((data << 8) & 0xff00) | (original & 0xff);
@@ -1358,7 +1354,7 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
                     break;
                 case 0o17777766: // CPU error
                     if (CPU.cpuType !== 70) {
-                        result = trap(4, 214);
+                        result = trap(0o4, 0x10); // Trap 4 - 0x10 Unibus time-out
                     } else {
                         result = insertData(CPU.CPU_Error, physicalAddress, data, byteFlag);
                         if (result >= 0 && data >= 0) {
@@ -1368,21 +1364,21 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
                     break;
                 case 0o17777764: // System I/D
                     if (CPU.cpuType !== 70) {
-                        result = trap(4, 218);
+                        result = trap(0o4, 0x10); // Trap 4 - 0x10 Unibus time-out
                     } else {
                         result = insertData(1, physicalAddress, data, byteFlag);
                     }
                     break;
                 case 0o17777762: // Upper size
                     if (CPU.cpuType !== 70) {
-                        result = trap(4, 222);
+                        result = trap(0o4, 0x10); // Trap 4 - 0x10 Unibus time-out
                     } else {
                         result = insertData(0, physicalAddress, data, byteFlag);
                     }
                     break;
                 case 0o17777760: // Lower size
                     if (CPU.cpuType !== 70) {
-                        result = trap(4, 224);
+                        result = trap(0o4, 0x10); // Trap 4 - 0x10 Unibus time-out
                     } else {
                         result = insertData((MAX_MEMORY >>> 6) - 1, physicalAddress, data, byteFlag);
                     }
@@ -1398,7 +1394,7 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
                 case 0o17777742: // High error address
                 case 0o17777740: // Low error address
                     if (CPU.cpuType !== 70) {
-                        result = trap(4, 228);
+                        result = trap(0o4, 0x10); // Trap 4 - 0x10 Unibus time-out
                     } else {
                         idx = (physicalAddress - 0o17777740) >>> 1;
                         result = insertData(CPU.controlReg[idx], physicalAddress, data, byteFlag);
@@ -1468,8 +1464,7 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
                     }
                     return result; // special exit to allow for odd address word access
                 default:
-                    CPU.CPU_Error |= 0x10;
-                    result = trap(4, 232);
+                    result = trap(0o4, 0x10); // Trap 4 - 0x10 Unibus time-out
             }
             break;
         case 0o17777600: // 017777600 - 017777677 MMU user mode 3 Map
@@ -1516,7 +1511,9 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
                             }
                         } else {
                             CPU.mmuEnable = 0;
+							CPU.mmuLastPage = 0; // Data light off
                         }
+						setBaseLights();
                     }
                     break;
                 case 0o17777570: // console panel display/switch;
@@ -1586,8 +1583,7 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
                     }
                     break;
                 default:
-                    CPU.CPU_Error |= 0x10;
-                    result = trap(4, 234);
+                    result = trap(0o4, 0x10); // Trap 4 - 0x10 Unibus time-out
             }
             break;
         case 0o17777400: // 017777400 - 017777477 rk11 controller
@@ -1600,8 +1596,7 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
                 if (typeof accessADCR !== 'undefined') {
                     result = accessADCR(physicalAddress, data, byteFlag);
                 } else {
-                    CPU.CPU_Error |= 0x10;
-                    result = trap(4, 238);
+                    result = trap(0o4, 0x10); // Trap 4 - 0x10 Unibus time-out
                 }
             }
             break;
@@ -1610,8 +1605,7 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
                 idx = (physicalAddress - 0o17776500) >>> 3;
                 result = accessDL11(physicalAddress, data, byteFlag, idx + 1, idx * 8 + 0o300);
             } else {
-                CPU.CPU_Error |= 0x10;
-                result = trap(4, 236);
+                result = trap(0o4, 0x10); // Trap 4 - 0x10 Unibus time-out
             }
             break;
         case 0o17774400: // 017774400 - 017774477 rl11 controller
@@ -1624,6 +1618,8 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
                     if (result >= 0 && data >= 0) {
                         if (CPU.cpuType !== 70) result &= ~0x30; // don't allow 11/45 to do 22 bit or use unibus map
                         CPU.MMR3 = result;
+						CPU.MMR3KSxU = (result & 6) << 1 | (result & 1);  //  Convert KSU to KSxU for faster access
+						setBaseLights();
                         setMMUmode(CPU.mmuMode);
                     }
                     break;
@@ -1668,14 +1664,13 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
             if (typeof accessVT11 !== 'undefined') {
                 result = accessVT11(physicalAddress, data, byteFlag);
             } else {
-                CPU.CPU_Error |= 0x10;
-                result = trap(4, 242);
+                result = trap(0o4, 0x10); // Trap 4 - 0x10 Unibus time-out
             }
             break;
         case 0o17770300: // 017770300 - 017770377 Unibus Map
         case 0o17770200: // 017770200 - 017770277 Unibus Map
             if (CPU.cpuType !== 70) {
-                result = trap(4, 244);
+                result = trap(0o4, 0x10); // Trap 4 - 0x10 Unibus time-out
             } else {
                 idx = (physicalAddress >>> 2) & 0x1f;
                 result = CPU.unibusMap[idx];
@@ -1694,13 +1689,11 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
             if (typeof accessVG11 !== 'undefined') {
                 result = accessVG11(physicalAddress, data, byteFlag);
             } else {
-                CPU.CPU_Error |= 0x10;
-                result = trap(4, 246);
+                result = trap(0o4, 0x10); // Trap 4 - 0x10 Unibus time-out
             }
             break;
         default:
-            CPU.CPU_Error |= 0x10;
-            result = trap(4, 248);
+            result = trap(0o4, 0x10); // Trap 4 - 0x10 Unibus time-out
     }
     if (byteFlag && result >= 0) { // Make any required byte adjustment to the return result
         if ((physicalAddress & 1)) {
@@ -1710,7 +1703,6 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
         }
     }
     if (result < 0) { // on failure set Address Error light
-        CPU.displayPhysical = -1; // Set ADRS ERR light
         console.log("IOPAGE nxm failure " + physicalAddress.toString(8) + " " + data.toString(8) + " @" + CPU.registerVal[7].toString(8));
     }
     return result;
