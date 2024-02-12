@@ -1,22 +1,28 @@
-; Javascript PDP 11/70 Emulator v2.0
+; Javascript PDP 11/70 Emulator v3.2
 ; written by Paul Nankervis
 ; Please send suggestions, fixes and feedback to paulnank@hotmail.com
 ;
 ; boot loader code
-;rebase higher link/bot:140000 boot
+;mac/list:boot boot
+;link/bot:120000 boot,odt11
+;dump/noascii/start:120/out:tt: boot.sav
 
-    .macro lda label
-    mov pc,r0
-    add label-.,r0
+    .macro lda label,reg
+    mov pc,reg
+    add label-.,reg     ;load address relative (PIC)
     .endm
+
+psw=177776
+pir=177772
+consol=177570
 
 start:
     reset
-    clr @#177776
-    lda #start
-    mov r0,sp
+    clr @#psw
+    lda #start,sp
+    add #20000,sp       ;put stack at end of current page
 
-    lda #banner
+    lda #banner,r0
     jsr pc,print        ;print banner
 
     sub #256,sp         ;make room for cmd buffer
@@ -25,22 +31,22 @@ start:
     jsr pc,getcmd       ;print prompt, start clock, read input...
 
     clr r0
-20$: wait
+20$:wait
     inc r0
     br 20$              ;idle loop
 
 getcmd:
-    lda #prompt
+    lda #prompt,r0
     jsr pc,print        ;print cmd prompt
 
     mov buffer,bufptr   ;reset input buffer
 
-    lda #inpast
+    lda #inpast,r0
     mov r0,@#60
     mov #200,@#62
     movb #100,@#177560  ;set console input handler
 
-    lda #clkast
+    lda #clkast,r0
     mov r0,@#100
     mov #340,@#102
     movb #100,@#177546  ;ensure clock is ticking
@@ -49,7 +55,7 @@ getcmd:
 clkcnt: .word 0
 clkast:
     dec clkcnt
-    mov clkcnt,@#177570 ;tickle display register
+    mov clkcnt,@#consol ;tickle display register
     rtt
 
 putchr:
@@ -63,7 +69,7 @@ print:
     bitb #100,@#177564
     bne print           ;wait until terminal ie is not set
     mov r0,prtptr
-    lda #prtast
+    lda #prtast,r0
     mov r0,@#64
     mov #200,@#66
     mov #100,@#177564   ;set print in motion
@@ -95,9 +101,9 @@ inpast:
     bgt 90$             ;no room in buffer?
     jsr pc,putchr       ;echo the char
     cmpb r0,#97.
-    blt 10$             ;less than lower a
+    blt 10$             ;less than lower 'a'
     cmpb r0,#122.
-    bgt 10$             ;greater than lower z
+    bgt 10$             ;greater than lower 'z'
     bicb #40,r0         ;convert to upper case
 10$:mov bufptr,r1
     movb r0,(r1)+       ;put character in buffer
@@ -111,23 +117,23 @@ inpast:
     cmp bufptr,buffer   ;any data to remove?
     blos 90$
     dec bufptr
-    lda #del            ;backspace to delete character
+    lda #del,r0         ;backspace to delete character
     jsr pc,print
     br 90$
 
 80$:mov bufptr,r0
     clrb (r0)
-    lda #cmd
+    lda #cmd,r0
     mov r0,@#240
     mov #40,@#242
-    mov #1000,@#177772  ;call cmd at priority 1 using pir
+    mov #1000,@#pir     ;call cmd at priority 1 using pir
 
 90$:mov (sp)+,r1        ;restore registers & exit
     mov (sp)+,r0
     rtt
 
 cmd:
-    clr @#177772        ; no more pir calls
+    clr @#pir           ; no more pir calls
     mov r0,-(sp)
     mov r1,-(sp)
     mov r2,-(sp)
@@ -135,7 +141,7 @@ cmd:
     mov r4,-(sp)
     mov r5,-(sp)
 
-    lda #eol
+    lda #eol,r0
     jsr pc,print
 
     mov buffer,r5       ;check cmd in buffer (it is uppercase only!)
@@ -145,7 +151,7 @@ cmd:
     beq 20$             ;skip spaces
 
     clr r3              ;command index
-    lda #cmdlst         ;command names
+    lda #cmdlst,r0      ;command names
 
 30$:movb (r0)+,r1       ;get first command table byte
     beq 80$             ;end so unknown cmd
@@ -170,13 +176,13 @@ cmd:
 
 70$:bitb #100,@#177564
     bne 70$             ;wait for printing before executing
-    lda #cmdtbl         ;execute command routine at r3 offset
+    lda #cmdtbl,r0      ;execute command routine at r3 offset
     add r0,r3
     add (r3),r3
     jsr pc,(r3)
     br 90$
 
-80$:lda #unkmsg         ;unknown command
+80$:lda #unkmsg,r0      ;unknown command
     jsr pc,print
 
 90$:jsr pc,getcmd       ;print prompt, and ensure everything is running
@@ -209,7 +215,7 @@ badboo: .asciz 'Valid boot devices are RK RL RP TM and PR eg rk0'<12><15>
         .even
 
 help:
-    lda #hlpmsg         ;help message
+    lda #hlpmsg,r0      ;help message
     jsr pc,print
     rts pc
 
@@ -219,112 +225,183 @@ chaser:
     reset               ;loop forever chasing the light
     br .-4
 
-mmr0=177572
+mmr0=177572             ;memory management control registers
 mmr1=177574
 mmr2=177576
 mmr3=172516
+mmrk=172300
+mmrs=172200
+mmru=177600
+modes=4 ;page address register table size
 
 lights:
-    clr @#mmr0
-    clr r1
-    mov #172300,r2      ;kernel map
-    jsr pc,95$
-    mov #177600,@#172376 ;kernel d has i/o space
-    clr r1
-    mov #172200,r2      ;super map
-    jsr pc,95$
-    mov #177600,@#172276 ;super d has i/o space
-    clr r1
-    mov #177600,r2      ;user map
-    jsr pc,95$
-    mov #177600,@#177676 ;user d has i/o space
-    mov #27,@#mmr3      ;set mapping mode - 22 bit split i/d
-    mov #1,@#mmr0       ;enable map
+    clr @#mmr0          ;turn off mmu
+    lda #mmupar,r5      ;get mmu page address register table
+    mov #modes,r4       ;number of table entries
+10$:mov (r5)+,r3        ;get page address register base for mode
+    bpl 20$             ;skip dummy entry for illegal mode
+    clr r1              ;set base virtual relocation address to 0
+    mov r3,r2           ;pass page register address to subroutine
+    jsr pc,90$          ;initialize all map pdr & par registers for mode
+    mov #177600,76(r3)  ;point last d page (8) to i/o space
+20$:sob r4,10$          ;repeat for all modes
+    mov #7,@#mmr3       ;set mmu for 18 bit addressing with split i/d
+    mov #1,@#mmr0       ;enable memory mapping
 
-    mov #7000,r0        ;physical address for super code (upper mem somewhere)
-    mov r0,@#172244     ;base super i (par 2) #40000
-    mov r0,@#172264     ;base super d (par 2) #40000
-    bic #030000,@#177776
-    bis #010000,@#177776 ;set pm to super (don't change priority!)
-    mov #40200,r3       ;virtual address to load code
-    lda #supers         ;where we get code
-    mov r0,r2
-    lda #supere         ;end of code
-10$:mov (r2)+,-(sp)
-    mtpi (r3)+          ;write to super space
-    cmp r2,r0
-    blo 10$
+    mov #4000,r0        ;relocation address for light virtual code (upper mem somewhere)
+    mov r0,@#mmrs+44    ;super mode page 2 i relocation base (becomes i virtual #40000)
+    mov r0,@#mmrs+64    ;super mode page 2 d relocation base
+    bic #030000,@#psw   ;clear previous mode in psw
+    bis #010000,@#psw   ;set pm to super
+    mov #40200,r3       ;target virtual address for code (allowing 200 for data)
+    lda #vcode,r2       ;where we get virtual code
+    lda #vcoded,r0      ;end of virtual code
+30$:mov (r2)+,-(sp)     ;get a word of code
+    mtpi (r3)+          ;push into super space
+    cmp r2,r0           ;push all code to target space
+    blo 30$             ;until done
 
     mov #40200,-(sp)
-    mtpi sp              ;set super sp
-    mov #40200,@#240
-    mov #054040,@#242
-    mov #1000,@#177772  ;call #40200 in super at priority 1 using pir
-    rts pc
+    mtpi sp             ;set super sp
+    bis #030000,@#psw
+    mov #40140,-(sp)
+    mtpi sp             ;set user sp (no further sp handling needed)
+    mov #40200,@#240    ;start address for super pc
+    mov #054040,@#242   ;super mode will use alternate registers
+    mov #1000,@#pir     ;call #40200 in super mode at priority 1 using pir
+    rts pc              ;our work here is done
 
-95$:mov #8.,r0          ;subroutine to set up mapping pdr/par r2 map, r1 base
-99$:mov r1,60(r2)       ;load d par
+90$:mov #8.,r0          ;subroutine to set up mapping pdr/par registers at r2 with r1 base address
+95$:mov r1,60(r2)       ;load d par
     mov r1,40(r2)       ;load i par
-    mov #77406,20(r2)   ;load d pdr
+    mov #77406,20(r2)   ;load d pdr as full length read/write page
     mov #77406,(r2)+    ;load i pdr
-    add #200,r1
-    sob r0,99$
+    add #200,r1         ;step base address
+    sob r0,95$          ;repeat
     rts pc
 
-;this code is copied to super virtual address #40200 (par 2)
-;virtual address #40000 to #40101 for wait & jmp instructions (written using par 2)
-supers:
-    clr @#177772        ;turn off pir
-    bic #340,@#177776   ;lower priority
-    mov #37,r0          ;load initial data pattern
-    mov #174000,r1      ;load initial address pattern
+;this code is copied to the target mode virtual address #40200 (on page 2)
+;virtual addresses #40000 to #40101 reserved for wait & jmp instructions
+vcode:
+    clr @#pir           ;turn off pir
+    bic #340,@#psw      ;lower priority
+    mov #37,r0          ;load initial display pattern (r0 displays in console data paths)
+    mov #174000,r1      ;load initial address pattern (r1 displays as the virtual address
+                        ;                              of an instruction following a wait)
 
-10$:mov r1,r2
-    sub #2,r2
-    bic #1,r2           ;compute virtual address for wait
+10$:mov @#psw,r3        ;get current psw
+    jsr pc,ps2par       ;convert r3 psw to mmu page register base in r2
+    mov r2,r5           ;store result
 
-    mov r2,r3
-    bic #177701,r3      ;address offset
-    mov #0000001,40000(r3)  ; write wait instruction
-    mov #0000113,40002(r3)  ; write jmp (r3) instruction
+    mov r1,r2           ;get address to display
+    sub #2,r2           ;compute address of wait instruction
+    mov r2,r3           ;copy address to make offset
+    bic #177701,r3      ;make 6 bit page offset (without low bit!)
+    mov #0000001,40000(r3)  ;write wait instruction
+    mov #0000113,40002(r3)  ;write jmp (r3) instruction
 
-    mov r2,r4
-    ash #-6,r4
-    bic #177600,r4
-    mov @#172244,r3
-    sub r4,r3           ;par address base for wait
+    mov r2,r3           ;make relocation base for wait/jmp
+    bic #160077,r3      ;from 7 middle address bits
+    ash #-6,r3          ;move into position
+    mov 44(r5),r4       ;get existing i page 2 base
+    sub r3,r4           ;calculate new relocation base for wait/jmp
 
-    mov r2,r4
-    ash #-12.,r4
-    bic #177761,r4      ;par select offset - wait execution uses computed par
-    mov r3,172240(r4)   ;super i space
+    ash #-12.,r2        ;3 top bits of wait address are wait page
+    bic #177761,r2      ;convert to word index
+    mov r1,r3           ;address for jmp instruction (2 after wait)
+    ash #-12.,r3        ;3 top bits are jmp page number
+    bic #177761,r3      ;convert to word index
+    cmp r3,r2           ;both on same page?
+    beq 20$             ;yes jmp doesn't need own par
+    add r5,r3           ;address of jmp mmu par
+    mov r4,40(r3)       ;set relocation base for jmp i page
+20$:add r5,r2           ;address of wait mmu par
+    mov r4,40(r2)       ;set relocation base for wait i page
 
-    mov r1,r5           ;virtual address for jmp
-    ash #-12.,r5
-    bic #177761,r5      ;par select offset - jmp execution uses appropriate par
-    cmp r5,r4           ;same par as wait?
-    beq 30$
-    mov r3,172240(r5)   ;super i space
-
-30$:mov pc,r3
-    add #45$-.,r3       ;generate jmp return address
+    mov r1,r2           ;get address to display
+    sub #2,r2           ;compute address of wait instruction
+    bic #1,r2           ;no odd instruction addresses please :-(
+    lda #32$,r3         ;put jmp return address into r3
     mov #3,r4           ;repeat count
-40$:jmp (r2)            ;jmp to wait
-45$:sob r4,40$
+30$:jmp (r2)            ;jmp to wait
+32$:sob r4,30$          ;jmp (r3) comes back here
 
-    bit #1,@#177570     ;change rotation on switch bit zero
-    bne 50$
-    mov r0,r2
-    ror r2              ;rotate pattern anticlockwise
-    rol r1
+    bit #1,@#consol     ;change rotation directon on switch bit zero
+    bne 40$
+    rol r1              ;rotate pattern anticlockwise
     ror r0
-    br 10$
-50$:mov r0,r2
-    rol r2              ;rotate pattern clockwise
+    adc r1
+    br 50$
+40$:rol r0              ;rotate pattern clockwise
     ror r1
-    rol r0
-    br 10$
-supere:                 ;end of code for super mode
+    adc r0
+
+50$:cmp r0,#37          ;check if start of pattern
+    bne 10$             ;if not we are done
+
+
+    bit #2,@#consol     ;don't change CPU mode if switch bit one
+    bne 60$
+
+    mov @#psw,r3        ;get current psw
+    jsr pc,ps2par       ;convert r3 psw to mmu page register base in r2
+    mov 44(r2),r5       ;get current mode i page 2 relocation base
+    add #040000,r3      ;increment cpu mode
+    bpl 55$
+    bis #040000,r3      ;skip illegal mode 2
+55$:jsr pc,ps2par       ;convert new r3 psw to mmu page register base in r2
+    mov r5,64(r2)       ;set new mode d page 2 relocation base
+    mov r5,44(r2)       ;set new mode i page 2 relocation base
+    mov r3,@#psw        ;set new mode
+
+
+60$:bit #4,@#consol     ;don't fiddle with physical addressing if switch bit two
+    beq 70$
+65$:br  10$             ;stepping stone for code below which has a branch too far
+
+70$:mov @#psw,r3        ;get current psw
+    jsr pc,ps2par       ;convert r3 psw to mmu page register base in r2
+    mov 44(r2),r5       ;get current mode i page 2 relocation base
+
+    ccc                 ;0 fill
+    ror r5              ;rotate relocation base right
+    bic #077,r5         ;test for as far down as we dare go
+    bne 85$             ;if still ok use it
+
+    bit #10,@#consol    ;don't adjust 18/22 addressing if switch bit four
+    bne 80$
+    mov #20,r3          ;mmr3 22 bit mask
+    xor r3,@#mmr3       ;toggle 18/22 bit addressing
+
+80$:mov #4000,r5        ;assume an 18 bit relocation address
+    bit #20,@#mmr3      ;ok if in 18 bit mode
+    beq 85$
+    mov #100000,r5      ;use a bigger relocation address for 22 bit
+
+85$:mov r5,62(r2)       ;set the relocation base for d page 1 (output target area)
+    lda #vcoded,r3      ;get code end address (somewhere in page 2)
+    sub #40000,r3       ;convert to byte count from page 2 start
+    asr r3              ;then word count
+    mov #20000,r4       ;begin at the start address of page 1
+90$:mov 20000(r4),(r4)+ ;copy a word from page 2 to page 1
+    sob r3,90$          ;repeat
+
+    mov r5,64(r2)       ;set mode d page 2 relocation base
+    mov r5,44(r2)       ;set mode i page 2 relocation base
+    br 65$              ;our work here is done
+
+
+mmupar: .word mmrk,mmrs,1,mmru  ; mmu page address register table by mode (note entry for illegal mode)
+ps2par:                 ;cobroutine to convert psw (r3) to mmu page register base address (r2)
+    mov r3,r2           ;don't clobber r3!
+    ash #-13.,r2        ;shift psw mode to bits 2 and 1
+    bic #177771,r2      ;clear other junk
+    add pc,r2           ;get relative address of
+    add #mmupar-.,r2    ;page address register table entry
+    mov (r2),r2         ;return mmu page register base for psw in r2
+    rts pc              ;done
+
+vcoded:                 ;end of virtual mode code
 
 bootbl: .word bootrk-.,bootrl-.,bootrp-.,boottm-.,bootpt-.
 boolst: .ascii 'RKRLRPTMPR'
@@ -352,7 +429,7 @@ boot:
     br 20$
 
 30$:clr r2              ;name index
-    lda #boolst
+    lda #boolst,r0
 40$:mov (r0)+,r1        ;get bootname
     beq 80$
     cmp r1,r4           ;match?
@@ -360,25 +437,25 @@ boot:
     add #2,r2
     br 40$
 
-50$:lda #boount
+50$:lda #boount,r0
     add r2,r0
     cmp r3,(r0)
     bgt 80$             ;unit out of range
 
-    lda #bootbl         ;execute command routine at r2 offset
+    reset
+    lda #bootbl,r0      ;execute command routine at r2 offset
     add r0,r2
     add (r2),r2
     jsr pc,(r2)
     br 90$
 
-80$:lda #badboo         ;complain we don't know boot device
+80$:lda #badboo,r0      ;complain we don't know boot device
     jsr pc,print
 
 90$:rts pc
 
 rlcs=174400
 bootrl:
-    reset
     swab r3         ; unit number
     mov #rlcs,r0    ; csr
     mov #13,4(r0)   ; seek
@@ -398,7 +475,6 @@ bootrl:
 
 rkda=177412
 bootrk:
-    reset
     mov #rkda,r0    ; csr
     ash #13.,r3     ; unit # into da
     mov r3,(r0)     ; load da
@@ -411,7 +487,6 @@ bootrk:
 
 rpcsr=0176700
 bootrp:
-    reset
     mov #rpcsr, r1
     mov #40, 10(r1)      ; reset
     mov r3, 10(r1)       ; set unit
@@ -431,7 +506,6 @@ bootrp:
 
 mtcma=0172526
 boottm:
-    reset
     mov r3, r0          ; unit
     mov #mtcma, r1      ; mtcma
     clr (r1)
@@ -485,7 +559,6 @@ ptnost:.asciz 'Paper tape has no start address'<15><12>
 .even
 
 bootpt:
-    reset               ;Required as some code overlays our vectors
 10$:clr r1              ;Initialize checksum
     jsr pc,getch
     cmpb r0,#1          ;Read until start of frame
@@ -497,7 +570,7 @@ bootpt:
     jsr pc,getwd
     mov r2,r3           ;Get byte count in R3
     jsr pc,getwd        ;Get load address in R2
-    add @#177570,r2     ;Add switches for relocation
+    add @#consol,r2     ;Add switches for relocation
 
     sub #6,r3
     mov r3,r4           ;Flag whether there is data
@@ -540,11 +613,11 @@ getch:                  ;Get a character from reader in R0
     rts pc
 
 chkerr:
-    lda #pterr
+    lda #pterr,r0
     br ptend
 
 nostrt:
-    lda #ptnost
+    lda #ptnost,r0
 ptend:
     jsr pc,print
     rts pc
