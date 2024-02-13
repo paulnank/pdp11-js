@@ -392,7 +392,7 @@ vcode:
 
 
 mmupar: .word mmrk,mmrs,1,mmru  ; mmu page address register table by mode (note entry for illegal mode)
-ps2par:                 ;cobroutine to convert psw (r3) to mmu page register base address (r2)
+ps2par:                 ;subroutine to convert psw (r3) to mmu page register base address (r2)
     mov r3,r2           ;don't clobber r3!
     ash #-13.,r2        ;shift psw mode to bits 2 and 1
     bic #177771,r2      ;clear other junk
