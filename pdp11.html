@@ -453,9 +453,9 @@
 }
 
 .multiText {
-	display: inline-block;
-	vertical-align: middle;
-	line-height: calc(var(--unitHeight) * 1.5);
+    display: inline-block;
+    vertical-align: middle;
+    line-height: calc(var(--unitHeight) * 1.5);
 }
 
 .switch {
@@ -1022,7 +1022,7 @@ b {
       Note: The boot code in this emulator is a custom PDP 11 program running with it's own set of light patterns. It is initially loaded at address 120000 and has a LIGHTS command which operates by mapping and executing a WAIT instruction from a pattern of virtual addresses. You can also use the BOOT command to start one of the guest operating systems listed below, or the ODT command to start a version of the Octal Debugging Tool.
     </p>
     <p>
-      However boot code like this was not part of early PDP 11s. These systems had no BIOS or other software to help get the bare metal started. If you were lucky perhaps the previous boot code would still be intact in non-volatile magnetic core memory, but in general booting the system required toggling in a small bootstrap loader from the front panel. 
+      However boot code like this was not part of early PDP 11s. These systems had no BIOS or other software to help get the bare metal started. If you were lucky perhaps the previous boot code would still be intact in non-volatile magnetic core memory, but in general booting the system required toggling in a small bootstrap loader from the front panel.
     </p>
     <p>
       Here is an example of the switch commands for booting from an RK05 where the value at address 1002 selects the unit number (rk0, rk1, rk2, etc). Goodluck!
@@ -1077,25 +1077,25 @@ HALT, 120000, LOAD ADDRESS, ENABLE, START
     </p>
 <h3>List of guest OS's:</h3>
 <table style="margin-left:25px" cellpadding=3>
-	<thead><tr><td>DISK</td><td>OS</td><td>Notes</td></tr></thead>
-	<tbody>
-		<tr><td class=disk>RK0</td><td class=system>Unix V5</td><td>Boot using: unix then login as root</td></tr>
-		<tr><td class=disk>RK1</td><td class=system>RT11 v4.0</td><td>The lightest/fastest OS here</td></tr>
-		<tr><td class=disk>RK2</td><td class=system>RSTS V06C-03</td><td>Boot and login as 1,2 with password SYSTEM or as 11,70 using PDP</td></tr>
-		<tr><td class=disk>RK3</td><td class=system>XXDP</td><td>Diagnostic OS and utilities</td></tr>
-		<tr><td class=disk>RK4</td><td class=system>RT-11 3B</td><td>Distribution for RT-11 Version 3B</td></tr>
-		<tr><td class=disk>RK5</td><td class=system>RT-11 V5.4F</td><td>Distribution for RT-11 Version 5.4F</td></tr>
-		<tr><td class=disk>TM0</td><td class=system>RSTS 4B-17</td><td>Boot ROLLIN from TM0 and restore DK0 with "DK:&lt;MT:VIXEN/REW". Reboot from DK0 with "/BO:DK" to auto-login as 1,2 (password is SYSTEM ) Relogin as 11,70 with password PDP Commands are case sensitive.</td></tr>
-		<tr><td class=disk>RL0</td><td class=system>BSD 2.9</td><td>Boot using: rl(0,0)rlunix   CTRL/D to exit single user and start multiuser - login as root (no password)</td></tr>
-		<tr><td class=disk>RL1</td><td class=system>RSX 11M v3.2</td><td>Login as 1,2 with password SYSTEM</td></tr>
-		<tr><td class=disk>RL2</td><td class=system>RSTS/E v7.0</td><td>Option: &lt;LF&gt; Suboption: &lt;LF&gt; ... Login as 1,2 using SYSTEM or 11,70 using PDP</td></tr>
-		<tr><td class=disk>RL3</td><td class=system>XXDP</td><td>Larger version of diagnostics - including PDP 11/70 utilities</td></tr>
-		<tr><td class=disk>RP0</td><td class=system>ULTRIX-11 V3.1</td><td>	CTRL/D to enter multiuser mode. Login as root with no password</td></tr>
-		<tr><td class=disk>RP1</td><td class=system>BSD 2.11</td><td>Will autoboot and enter multiuser mode. Login as root with no password</td></tr>
-		<tr><td class=disk>RP2</td><td class=system>RSTS/E v9.6</td><td>Answer boot questions and login as 1,2 (password SYSTEM ) or 11,70 (no password)</td></tr>
-		<tr><td class=disk>RP3</td><td class=system>RSX 11M v4.6</td><td>Starts logged in as 1,2 (password SYSTEM ) - user accounts 200,1 (no password) or 11,70 (password PDP )</td></tr>
-		<tr><td class=disk>RP4</td><td class=system>RSTS/E v10.1</td><td>Answer boot questions and login as 1,2 (password SYSTEM ) or 11,70 (no password)</td></tr>
-	</tbody>
+    <thead><tr><td>DISK</td><td>OS</td><td>Notes</td></tr></thead>
+    <tbody>
+        <tr><td class=disk>RK0</td><td class=system>Unix V5</td><td>Boot using: unix then login as root</td></tr>
+        <tr><td class=disk>RK1</td><td class=system>RT11 v4.0</td><td>The lightest/fastest OS here</td></tr>
+        <tr><td class=disk>RK2</td><td class=system>RSTS V06C-03</td><td>Boot and login as 1,2 with password SYSTEM or as 11,70 using PDP</td></tr>
+        <tr><td class=disk>RK3</td><td class=system>XXDP</td><td>Diagnostic OS and utilities</td></tr>
+        <tr><td class=disk>RK4</td><td class=system>RT-11 3B</td><td>Distribution for RT-11 Version 3B</td></tr>
+        <tr><td class=disk>RK5</td><td class=system>RT-11 V5.4F</td><td>Distribution for RT-11 Version 5.4F</td></tr>
+        <tr><td class=disk>TM0</td><td class=system>RSTS 4B-17</td><td>Boot ROLLIN from TM0 and restore DK0 with "DK:&lt;MT:VIXEN/REW". Reboot from DK0 with "/BO:DK" to auto-login as 1,2 (password is SYSTEM ) Relogin as 11,70 with password PDP Commands are case sensitive.</td></tr>
+        <tr><td class=disk>RL0</td><td class=system>BSD 2.9</td><td>Boot using: rl(0,0)rlunix   CTRL/D to exit single user and start multiuser - login as root (no password)</td></tr>
+        <tr><td class=disk>RL1</td><td class=system>RSX 11M v3.2</td><td>Login as 1,2 with password SYSTEM</td></tr>
+        <tr><td class=disk>RL2</td><td class=system>RSTS/E v7.0</td><td>Option: &lt;LF&gt; Suboption: &lt;LF&gt; ... Login as 1,2 using SYSTEM or 11,70 using PDP</td></tr>
+        <tr><td class=disk>RL3</td><td class=system>XXDP</td><td>Larger version of diagnostics - including PDP 11/70 utilities</td></tr>
+        <tr><td class=disk>RP0</td><td class=system>ULTRIX-11 V3.1</td><td> CTRL/D to enter multiuser mode. Login as root with no password</td></tr>
+        <tr><td class=disk>RP1</td><td class=system>BSD 2.11</td><td>Will autoboot and enter multiuser mode. Login as root with no password</td></tr>
+        <tr><td class=disk>RP2</td><td class=system>RSTS/E v9.6</td><td>Answer boot questions and login as 1,2 (password SYSTEM ) or 11,70 (no password)</td></tr>
+        <tr><td class=disk>RP3</td><td class=system>RSX 11M v4.6</td><td>Starts logged in as 1,2 (password SYSTEM ) - user accounts 200,1 (no password) or 11,70 (password PDP )</td></tr>
+        <tr><td class=disk>RP4</td><td class=system>RSTS/E v10.1</td><td>Answer boot questions and login as 1,2 (password SYSTEM ) or 11,70 (no password)</td></tr>
+    </tbody>
 </table>
 <h3>Example boot of Unix V5</h3>
 <pre>
@@ -2976,7 +2976,7 @@ function examineDeposit(data) {
         if (panel.autoIncr & autoMask) {
             CPU.displayAddress += 2; // auto increment if applicable
         }
-		CPU.displayAddress &= 0xffff;
+        CPU.displayAddress &= 0xffff;
         CPU.displayAddress |= [0, 0, 0x10000, 0, 0x10000, 0, 0x10000, 0][panel.rotary0];
         CPU.mmuMode = [0, 0, 0, 0, 1, 1, 3, 3][panel.rotary0];
         if (data < 0) { // examine (read)
@@ -2988,12 +2988,12 @@ function examineDeposit(data) {
                 result = data; // Write return may just be a status
             }
         }
-		CPU.displayAddress &= 0xffff;
+        CPU.displayAddress &= 0xffff;
     } else { // Physical address stuff...
         CPU.displayAddress &= 0x3fffff; // 22 bits max
         if (CPU.cpuType !== 70 && CPU.displayAddress >= IOBASE_18BIT) { // For 18 bit CPU map address to 22 bit
-			CPU.displayAddress |= IOBASE_22BIT;
-		}
+            CPU.displayAddress |= IOBASE_22BIT;
+        }
         if (panel.autoIncr & autoMask) {
             if (CPU.displayAddress >= 017777700 && CPU.displayAddress <= 017777717) {
                 CPU.displayAddress++; // register addresses increment only by 1

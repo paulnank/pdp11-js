@@ -1267,7 +1267,7 @@ function reset_iopage() {
     rl11.csr = 0x80;
     rp11_init();
     tm11_init();
-	setBaseLights();
+    setBaseLights();
 }
 
 
@@ -1511,9 +1511,9 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
                             }
                         } else {
                             CPU.mmuEnable = 0;
-							CPU.mmuLastPage = 0; // Data light off
+                            CPU.mmuLastPage = 0; // Data light off
                         }
-						setBaseLights();
+                        setBaseLights();
                     }
                     break;
                 case 0o17777570: // console panel display/switch;
@@ -1618,8 +1618,8 @@ function access_iopage(physicalAddress, data, byteFlag) { // access_iopage() han
                     if (result >= 0 && data >= 0) {
                         if (CPU.cpuType !== 70) result &= ~0x30; // don't allow 11/45 to do 22 bit or use unibus map
                         CPU.MMR3 = result;
-						CPU.MMR3KSxU = (result & 6) << 1 | (result & 1);  //  Convert KSU to KSxU for faster access
-						setBaseLights();
+                        CPU.MMR3KSxU = (result & 6) << 1 | (result & 1);  //  Convert KSU to KSxU for faster access
+                        setBaseLights();
                         setMMUmode(CPU.mmuMode);
                     }
                     break;
