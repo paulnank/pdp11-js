@@ -1291,25 +1291,27 @@ function mapUnibus(unibusAddress) {
 
 function insertData(original, physicalAddress, data, byteFlag) {
     "use strict";
-    if (physicalAddress & 1) {
-        if (!byteFlag) {
-            return trap(0o4, 0x40); // Trap 4 - 0x40 Odd address error
-        }
-        if (data >= 0) {
-            data = ((data << 8) & 0xff00) | (original & 0xff);
+    if (byteFlag) {
+        if (data < 0) {
+            return original;
         } else {
-            data = original;
+            if (physicalAddress & 1) {
+                return ((data << 8) & 0xff00) | (original & 0xff);
+            } else {
+                return (original & 0xff00) | (data & 0xff);
+            }
         }
     } else {
-        if (data >= 0) {
-            if (byteFlag) {
-                data = (original & 0xff00) | (data & 0xff);
-            }
+        if (physicalAddress & 1) {
+            return trap(0o4, 0x40); // Trap 4 - 0x40 Odd address error
         } else {
-            data = original;
+            if (data < 0) {
+                return original;
+            } else {
+                return data;
+            }
         }
     }
-    return data;
 }
 
 // Access to the 4K unibus I/O page - data is positive for a write or negative for a read
