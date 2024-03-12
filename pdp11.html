@@ -962,10 +962,10 @@ b {
       <span class="switch red" onClick="toggleSwitch(this, 0); CPU.displayAddress = CPU.switchRegister; panel.autoIncr = 0;"></span>
       <span class="switch purple" onClick="toggleSwitch(this, 0); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) examineDeposit(-1); }"></span>
       <span class="switch red" onClick="toggleSwitch(this, 0); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) examineDeposit(CPU.switchRegister); }"></span>
-      <span class="switch purple" onClick="toggleSwitch(this, 0); if (!panel.powerSwitch && CPU.runState == STATE_HALT) { if (!panel.halt) CPU.runState = STATE_RUN; emulate(); }"></span>
-      <span class="switch red" onClick="moveSwitch(this, panel.halt = 1 - panel.halt); if (!panel.powerSwitch) { if (panel.halt && CPU.runState != STATE_HALT) { CPU.runState = STATE_HALT; }}"></span>
+      <span class="switch purple" onClick="toggleSwitch(this, 0); if (!panel.powerSwitch && CPU.runState == STATE_HALT) { if (panel.halt) { CPU.runState = STATE_STEP; } else { CPU.runState = STATE_RUN; }}"></span>
+      <span class="switch red" onClick="moveSwitch(this, panel.halt = 1 - panel.halt); if (!panel.powerSwitch) { if (panel.halt) { CPU.runState = STATE_HALT; }}"></span>
       <span class="switch purple" onClick="moveSwitch(this, panel.step = 1 - panel.step);"></span>
-      <span class="switch red" onclick="toggleSwitch(this, 0); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) {reset_iopage(); CPU.registerVal[7] = CPU.displayAddress & 0xffff; if (!panel.halt) {CPU.runState = STATE_RUN; emulate();}}}"></span>
+      <span class="switch red" onclick="toggleSwitch(this, 0); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) {iopage.reset(); CPU.registerVal[7] = CPU.displayAddress & 0xffff; if (!panel.halt) { CPU.runState = STATE_RUN; }}}"></span>
     </div>
   </div>
 </div>
@@ -987,7 +987,7 @@ b {
 </p>
 <p>
   <label>Paper tape reader file</label>
-  <select id="ptr" onchange="ptr11_init();">
+  <select id="ptr">
     <option value="">none</option>
     <option value="DEC-11-AJPB-PB.ptap">BASIC-11 V007A</option>
     <option value="DEC-11-O2PA-PB.ptap">ODT-11X-V004A</option>
@@ -2928,13 +2928,6 @@ There is a small mailbox here.
 
 <p><a href='http://skn.noip.me/pdp11/pdp11.html'>home</a></p>
 
-<script src='bootcode.js' type="text/javascript"></script>
-<script src='pdp11.js' type="text/javascript"></script>
-<script src='iopage.js' type="text/javascript"></script>
-<script src='fpp.js' type="text/javascript"></script>
-<script src='vt11.js' type="text/javascript"></script>
-<script src='vg11.js' type="text/javascript"></script>
-<script src='vt52.js' type="text/javascript"></script>
 
 <script>
 
@@ -2959,9 +2952,6 @@ function toggleSwitch(id) {
         moveSwitch(id, 0);
     }, 350);
 }
-
-
-
 
 function examineDeposit(data) {
     var result, autoMask, trapState;
@@ -2991,7 +2981,7 @@ function examineDeposit(data) {
         CPU.displayAddress &= 0xffff;
     } else { // Physical address stuff...
         CPU.displayAddress &= 0x3fffff; // 22 bits max
-        if (CPU.cpuType !== 70 && CPU.displayAddress >= IOBASE_18BIT) { // For 18 bit CPU map address to 22 bit
+        if (CPU_TYPE !== 70 && CPU.displayAddress >= IOBASE_18BIT) { // For 18 bit CPU map address to 22 bit
             CPU.displayAddress |= IOBASE_22BIT;
         }
         if (panel.autoIncr & autoMask) {
@@ -3033,9 +3023,17 @@ function examineDeposit(data) {
     }
 }
 
-document.getElementById('0').focus();
-boot();
+const CPU_TYPE = 70; // This is a PDP 11/70
 
+</script>
+<script src='bootcode.js' type="text/javascript"></script>
+<script src='vt52.js' type="text/javascript"></script>
+<script src='pdp11.js' type="text/javascript"></script>
+<script src='fpp.js' type="text/javascript"></script>
+<script src='iopage.js' type="text/javascript"></script>
+<script src='vt11.js' type="text/javascript"></script>
+<script>
+boot();
 </script>
 </body>
 </html>

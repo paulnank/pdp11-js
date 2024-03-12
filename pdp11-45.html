@@ -910,10 +910,10 @@ b {
       <span class="switch white" onclick="moveSwitch(this, panel.lampTest = 1 - panel.lampTest); if (!panel.powerSwitch) { if (panel.lamp) panel.lamp = 1; }"></span>
       <span class="switch red" onClick="toggleSwitch(this, 0); CPU.displayAddress = CPU.switchRegister; panel.autoIncr = 0;"></span>
       <span class="switch purple" onClick="toggleSwitch(this, 0); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) examineDeposit(-1); }"></span>
-      <span class="switch red" onClick="toggleSwitch(this, 0); if (!panel.powerSwitch && CPU.runState == STATE_HALT) { if (!panel.halt) CPU.runState = STATE_RUN; emulate(); }"></span>
-      <span class="switch purple" onClick="moveSwitch(this, panel.halt = 1 - panel.halt); if (!panel.powerSwitch) { if (panel.halt && CPU.runState != STATE_HALT) { CPU.runState = STATE_HALT; }}"></span>
+      <span class="switch red" onClick="toggleSwitch(this, 0); if (!panel.powerSwitch && CPU.runState == STATE_HALT) { if (panel.halt) { CPU.runState = STATE_STEP; } else { CPU.runState = STATE_RUN; }}"></span>
+      <span class="switch purple" onClick="moveSwitch(this, panel.halt = 1 - panel.halt); if (!panel.powerSwitch) { if (panel.halt) { CPU.runState = STATE_HALT; }}"></span>
       <span class="switch red" onClick="moveSwitch(this, panel.step = 1 - panel.step);"></span>
-      <span class="switch purple" onclick="toggleSwitch(this, 0); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) {reset_iopage(); CPU.registerVal[7] = CPU.displayAddress & 0xffff; if (!panel.halt) {CPU.runState = STATE_RUN; emulate();}}}"></span>
+      <span class="switch purple" onclick="toggleSwitch(this, 0); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) {iopage.reset(); CPU.registerVal[7] = CPU.displayAddress & 0xffff; if (!panel.halt) { CPU.runState = STATE_RUN; }}}"></span>
       <span class="switch white"></span>
       <span class="switch red" onClick="toggleSwitch(this, 0); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) examineDeposit(CPU.switchRegister); }"></span>
       <span class="switch white"></span>
@@ -940,7 +940,7 @@ b {
 </p>
 <p>
   <label>Paper tape reader file</label>
-  <select id="ptr" onchange="ptr11_init();">
+  <select id="ptr">
     <option value="">none</option>
     <option value="DEC-11-AJPB-PB.ptap">BASIC-11 V007A</option>
     <option value="DEC-11-O2PA-PB.ptap">ODT-11X-V004A</option>
@@ -965,7 +965,7 @@ b {
     </p>
     <p>
       I met my core objective - I can now see the RSTS/E console light pattern that I was looking for, and found that newer versions (eg v9.6) have a different light pattern. Also I have now seen some of the light patterns for other OSes. RSX and BSD 2.11
-      have their own different patterns and Unix V5 and Ultrix operate with absolute minimum light movement (I'm assuming they operate mostly in WAIT mode).
+      have their own different patterns, and Unix V5 and Ultrix operate with absolute minimum light movement (I'm assuming they operate mostly in WAIT mode).
     </p>
     <p>
       Getting all of the operating systems used here presents its own set of challenges - one of which is finding the software in the first place. But one of the most interesting was RSTS/E V06C which has its own
@@ -974,6 +974,7 @@ b {
     <p>
       Note: The boot code in this emulator is a custom PDP 11 program running with it's own set of light patterns. It is initially loaded at address 120000 and has a LIGHTS command which operates by mapping and executing a WAIT instruction from a pattern of virtual addresses. You can also use the BOOT command to start one of the guest operating systems listed below, or the ODT command to start a version of the Octal Debugging Tool.
     </p>
+    <p>
       However boot code like this was not part of early PDP 11s. These systems had no BIOS or other software to help get the bare metal started. If you were lucky perhaps the previous boot code would still be intact in non-volatile magnetic core memory, but in general booting the system required toggling in a small bootstrap loader from the front panel.
     </p>
     <p>
@@ -1035,7 +1036,7 @@ HALT, 120000, LOAD ADDRESS, ENABLE, START
         <tr><td class=disk>RK1</td><td class=system>RT11 v4.0</td><td>The lightest/fastest OS here</td></tr>
         <tr><td class=disk>RK2</td><td class=system>RSTS V06C-03</td><td>Boot and login as 1,2 with password SYSTEM or as 11,70 using PDP</td></tr>
         <tr><td class=disk>RK3</td><td class=system>XXDP</td><td>Diagnostic OS and utilities</td></tr>
-        <tr><td class=disk>RK4</td><td class=system>RT-11 3B</td><td>Distribution for RT-11 Version 3B</td></tr
+        <tr><td class=disk>RK4</td><td class=system>RT-11 3B</td><td>Distribution for RT-11 Version 3B</td></tr>
         <tr><td class=disk>TM0</td><td class=system>RSTS 4B-17</td><td>Boot ROLLIN from TM0 and restore DK0 with "DK:&lt;MT:VIXEN/REW". Reboot from DK0 with "/BO:DK" to auto-login as 1,2 (password is SYSTEM ) Relogin as 11,70 with password PDP Commands are case sensitive.</td></tr>
         <tr><td class=disk>RL1</td><td class=system>RSX 11M v3.2</td><td>Login as 1,2 with password SYSTEM</td></tr>
     </tbody>
@@ -1596,13 +1597,6 @@ HAVE A GOOD AFTERNOON
 
 <p><a href='http://skn.noip.me/pdp11/pdp11.html'>home</a></p>
 
-<script src='bootcode.js' type="text/javascript"></script>
-<script src='pdp11.js' type="text/javascript"></script>
-<script src='iopage.js' type="text/javascript"></script>
-<script src='fpp.js' type="text/javascript"></script>
-<script src='vt11.js' type="text/javascript"></script>
-<script src='vg11.js' type="text/javascript"></script>
-<script src='vt52.js' type="text/javascript"></script>
 
 <script>
 
@@ -1627,9 +1621,6 @@ function toggleSwitch(id) {
         moveSwitch(id, 0);
     }, 350);
 }
-
-
-
 
 function examineDeposit(data) {
     var result, autoMask, trapState;
@@ -1659,7 +1650,7 @@ function examineDeposit(data) {
         CPU.displayAddress &= 0xffff;
     } else { // Physical address stuff...
         CPU.displayAddress &= 0x3fffff; // 22 bits max
-        if (CPU.cpuType !== 70 && CPU.displayAddress >= IOBASE_18BIT) { // For 18 bit CPU map address to 22 bit
+        if (CPU_TYPE !== 70 && CPU.displayAddress >= IOBASE_18BIT) { // For 18 bit CPU map address to 22 bit
             CPU.displayAddress |= IOBASE_22BIT;
         }
         if (panel.autoIncr & autoMask) {
@@ -1729,11 +1720,18 @@ function regExamineDeposit(data) { // PDP 11/45 additional functions
         panel.autoIncr = 0;
     }
 }
-CPU.cpuType = 45; // This is a PDP 11/45
 
-document.getElementById('0').focus();
+const CPU_TYPE = 45; // This is a PDP 11/45
+
+</script>
+<script src='bootcode.js' type="text/javascript"></script>
+<script src='vt52.js' type="text/javascript"></script>
+<script src='pdp11.js' type="text/javascript"></script>
+<script src='fpp.js' type="text/javascript"></script>
+<script src='iopage.js' type="text/javascript"></script>
+<script src='vt11.js' type="text/javascript"></script>
+<script>
 boot();
-
 </script>
 </body>
 </html>
