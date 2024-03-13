@@ -215,8 +215,6 @@ iopage.register(0o17772000, 4, (function() {
                             if (instruction & 0x20) { // set italics
                                 DSR = (DSR & 0xffef) | (instruction & 0x10); // DSR 4 italics
                             }
-                            if (lineRefresh != (instruction & 0x4)) {
-                            }
                             lineRefresh = instruction & 0x4;
                             break;
                         case 0xf: // 1111 SRB Load Status Register B
@@ -241,8 +239,6 @@ iopage.register(0o17772000, 4, (function() {
                         }
                     }
                     switch (mode) {
-                        case 0:
-                            break;
                         case 1: // short vector mode
                         case 6: // relative point mode
                             XValue = ((instruction >>> 7) & 0x3f);
