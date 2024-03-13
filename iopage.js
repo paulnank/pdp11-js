@@ -279,10 +279,10 @@ if (CPU_TYPE === 70) { // 11/45 doesn't have these
 iopage.register(0o17777700, 4, {
     access: function(physicalAddress, data, byteFlag) {
         "use strict";
-        var result;
-        switch (physicalAddress) { // no byte stuff here!
-            default: // register set 0
-                let index = physicalAddress & 7;
+        var result, index;
+        index = physicalAddress & 7;
+        switch (index) { // no byte stuff here!
+            default: // register set 0 (R0 - R5)
                 if (CPU.PSW & 0x800) { // where is register set 0 now?
                     if (data >= 0) CPU.registerAlt[index] = data;
                     result = CPU.registerAlt[index];
@@ -291,7 +291,7 @@ iopage.register(0o17777700, 4, {
                     result = CPU.registerVal[index];
                 }
                 break;
-            case 0o17777706: // kernel SP
+            case 0o6: // 17777706 kernel SP
                 if (CPU.mmuMode === 0) { // if in kernel Mode...
                     if (data >= 0) CPU.registerVal[6] = data;
                     result = CPU.registerVal[6];
@@ -300,7 +300,7 @@ iopage.register(0o17777700, 4, {
                     result = CPU.stackPointer[0];
                 }
                 break;
-            case 0o17777707: // kernel PC
+            case 0o7: // 17777707 kernel PC
                 if (data >= 0) CPU.registerVal[7] = data;
                 result = CPU.registerVal[7];
                 break;
@@ -314,10 +314,10 @@ iopage.register(0o17777700, 4, {
 iopage.register(0o17777710, 4, {
     access: function(physicalAddress, data, byteFlag) {
         "use strict";
-        var result;
-        switch (physicalAddress) { // no byte stuff here!
-            default: // register set 1
-                let index = physicalAddress & 7;
+        var result, index;
+        index = physicalAddress & 7;
+        switch (index) { // no byte stuff here!
+            default: // register set 1 (R0 - R5)
                 if (CPU.PSW & 0x800) { // where is register set 1 now?
                     if (data >= 0) CPU.registerVal[index] = data;
                     result = CPU.registerVal[index];
@@ -326,7 +326,7 @@ iopage.register(0o17777710, 4, {
                     result = CPU.registerAlt[index];
                 }
                 break;
-            case 0o17777716: // super SP
+            case 0o6: // 17777716 super SP
                 if (CPU.mmuMode === 1) { // if in super mode...
                     if (data >= 0) CPU.registerVal[6] = data;
                     result = CPU.registerVal[6];
@@ -335,7 +335,7 @@ iopage.register(0o17777710, 4, {
                     result = CPU.stackPointer[1];
                 }
                 break;
-            case 0o17777717: // user SP
+            case 0o7: // 17777717 user SP
                 if (CPU.mmuMode === 3) { // if in user mode...
                     if (data >= 0) CPU.registerVal[6] = data;
                     result = CPU.registerVal[6];
@@ -1346,6 +1346,7 @@ iopage.register(0o17777400, 8, (function() {
     }
     function go() { // execute command loaded into rkcs register
         "use strict";
+        var sector, address, count;
         var drive = (rkda >>> 13) & 7;
         rkcs &= ~0x2081; // clear search, done & go bits
         rker &= ~0x03; // clear soft errors
@@ -1384,9 +1385,9 @@ iopage.register(0o17777400, 8, (function() {
                         "drive": drive
                     };
                 }
-                let sector = (((rkda >>> 4) & 0x1ff) * 12 + (rkda & 0xf));
-                let address = ((rkcs & 0x30) << 12) | rkba;
-                let count = (0x10000 - rkwc) & 0xffff;
+                sector = (((rkda >>> 4) & 0x1ff) * 12 + (rkda & 0xf));
+                address = ((rkcs & 0x30) << 12) | rkba;
+                count = (0x10000 - rkwc) & 0xffff;
                 diskIO(rkControlBlock[drive], (rkcs >>> 1) & 7, sector * 512, address, count << 1);
                 return;
             case 6: // Drive Reset - falls through to finish as a seek
