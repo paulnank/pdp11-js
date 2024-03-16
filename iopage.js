@@ -146,7 +146,6 @@ iopage.register(0o17777770, 4, (function() {
         CPU.MMR0 = CPU.MMR3 = CPU.MMR3KSxU = CPU.mmuEnable = 0;
         setMMUmode(0);
         CPU.mmuLastPage = 0;
-        setBaseLights();
     }
     init();
     return {
@@ -380,7 +379,6 @@ iopage.register(0o17777570, 4, {
                         CPU.mmuEnable = 0;
                         CPU.mmuLastPage = 0; // Data light off
                     }
-                    setBaseLights();
                 }
                 break;
             case 0o17777574: // 17777574 MMR1
@@ -415,7 +413,6 @@ iopage.register(0o17772510, 1, {
                     }
                     CPU.MMR3 = result;
                     CPU.MMR3KSxU = (result & 6) << 1 | (result & 1); //  Convert KSU to KSxU for faster access
-                    setBaseLights();
                     setMMUmode(CPU.mmuMode);
                 }
                 break;

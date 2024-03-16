@@ -75,10 +75,11 @@ var CPU = {
     displayMicroAdrs: 0, // Micro Address display (we don't really have one)
     displayPhysical: 0, // Physical address display for console operations
     displayRegister: 0, // Console display lights register (set by software)
-    flagC: 0x10000, //  PSW C bit
-    flagN: 0x8000, //   PSW N bit
-    flagV: 0x8000, //   PSW V bit
-    flagZ: 0xffff, // ~ PSW Z bit
+    externalC: 0, // C external to PSW flag
+    externalNZV: 0, // NZV external to PSW flag
+    flagC: 0x10000, //  PSW C bit (when not in PSW)
+    flagNZ: 0x8000, //  PSW NZ status (when not in PSW)
+    flagV: 0x8000, //   PSW V bit (when not in PSW)
     memory: new Array(MAX_MEMORY / 2), // Main memory (in words - addresses must be halved for byte indexing)
     mmuEnable: 0, // MMU enable mask for MMU_READ and/or MMU_WRITE
     mmuLastPage: 0, // last used MMU page for MMR0 - 2 bits of mode and 4 bits of I/D page - used as an index into PAR/PDR
@@ -246,7 +247,6 @@ function setMMUmode(mmuMode) {
 
 function writePSW(newPSW) {
     "use strict";
-    newPSW &= 0xf8ff;
     if ((newPSW ^ CPU.PSW) & 0x0800) { // register set change?
         for (let i = 0; i <= 5; i++) {
             let temp = CPU.registerVal[i];
@@ -254,7 +254,7 @@ function writePSW(newPSW) {
             CPU.registerAlt[i] = temp; // swap the active register sets
         }
     }
-    setMMUmode(newPSW >>> 14); // must always reset mmuMode
+    setMMUmode((newPSW >>> 14) & 0x3); // must always reset mmuMode
     if ((newPSW ^ CPU.PSW) & 0xc000) { // mode change?
         CPU.stackPointer[(CPU.PSW >>> 14) & 3] = CPU.registerVal[6];
         CPU.registerVal[6] = CPU.stackPointer[CPU.mmuMode]; // swap to new mode SP
@@ -262,56 +262,83 @@ function writePSW(newPSW) {
     if ((newPSW & 0xe0) < (CPU.PSW & 0xe0)) { // priority lowered?
         CPU.interruptRequested = 1; // trigger a check of priority levels
     }
-    CPU.PSW = newPSW;
-    CPU.flagN = newPSW << 12; // Extract PSW flags into external fields
-    CPU.flagZ = (~newPSW) & 4;
-    CPU.flagV = newPSW << 14;
-    CPU.flagC = newPSW << 16;
+    CPU.PSW = newPSW & 0xf8ff;
+    CPU.externalNZV = 0; // NZV flags are inside the PSW
+    CPU.externalC = 0; // C is inside the PSW
 }
 
 function testN() { // Test N
     "use strict";
-    return CPU.flagN & 0x8000;
+    if (CPU.externalNZV) {
+        return CPU.flagNZ & 0x8000; // use external N flag
+    } else {
+        return CPU.PSW & 8; // use PSW N flag
+    }
 }
 
 function testZ() { // Test Z
     "use strict";
-    return !(CPU.flagZ & 0xffff);
+    if (CPU.externalNZV) {
+        return !(CPU.flagNZ & 0xffff);
+    } else {
+        return CPU.PSW & 4;
+    }
 }
 
 function testV() { // Test V
     "use strict";
-    return CPU.flagV & 0x8000;
+    if (CPU.externalNZV) {
+        return CPU.flagV & CPU.externalNZV & 0x8000; // externalNZV mask 0x8000 enables V
+    } else {
+        return CPU.PSW & 2;
+    }
 }
 
 function testC() { // Test C
     "use strict";
-    return CPU.flagC & 0x10000;
+    if (CPU.externalC) {
+        return CPU.flagC & 0x10000;
+    } else {
+        return CPU.PSW & 1;
+    }
 }
 
 function testNxV() { // Test N xor V
     " use strict";
-    return (CPU.flagN ^ CPU.flagV) & 0x8000;
+    if (testN()) {
+        return !testV();
+    } else {
+        return testV();
+    }
 }
 
 // readPSW() reassembles the  N, Z, V, and C flags back into the PSW (CPU.PSW)
 
 function readPSW() {
     "use strict";
-    var flags = 0;
-    if (testN()) {
-        flags |= 8;
+    if (CPU.externalNZV) {
+        let flags = 0;
+        if (CPU.flagNZ & 0xffff) {
+            if (CPU.flagNZ & 0x8000) {
+                flags |= 8;
+            }
+        } else {
+            flags |= 4;
+        }
+        if (CPU.flagV & CPU.externalNZV & 0x8000) {
+            flags |= 2;
+        }
+        CPU.PSW = (CPU.PSW & 0xfff1) | flags;
+        CPU.externalNZV = 0;
     }
-    if (testZ()) {
-        flags |= 4;
+    if (CPU.externalC) {
+        CPU.PSW &= 0xfffe;
+        if (CPU.flagC & 0x10000) {
+            CPU.PSW |= 1;
+        }
+        CPU.externalC = 0;
     }
-    if (testV()) {
-        flags |= 2;
-    }
-    if (testC()) {
-        flags |= 1;
-    }
-    return (CPU.PSW = (CPU.PSW & 0xf8f0) | flags);
+    return CPU.PSW;
 }
 
 // All condition setting code abstracted from instruction routines to here
@@ -319,73 +346,74 @@ function readPSW() {
 
 function setFlags(mask, value) { // Set or clear selected flags in mask
     "use strict";
-    if (mask & 8) {
-        CPU.flagN = value << 12;
-    }
-    if (mask & 4) {
-        CPU.flagZ = (~value) & 4;
-    }
-    if (mask & 2) {
-        CPU.flagV = value << 14;
-    }
-    if (mask & 1) {
-        CPU.flagC = value << 16;
+    mask &= 0xf;
+    if (mask) {
+        CPU.PSW = (readPSW() & ~mask) | (value & mask);
     }
 }
 
 function zeroNZVC() { // Set flags for 0 value (Z becomes 1)
     "use strict";
-    CPU.flagN = CPU.flagZ = CPU.flagV = CPU.flagC = 0;
+    CPU.PSW = (CPU.PSW & 0xfff0) | 4;
+    CPU.externalNZV = 0; // All flags inside the PSW
+    CPU.externalC = 0;
 }
 
 function setNZ(result) { // Set N & Z clearing V (C unchanged)
     "use strict";
-    CPU.flagN = CPU.flagZ = result;
-    CPU.flagV = 0;
+    CPU.flagNZ = result;
+    CPU.externalNZV = 1; // V clear
 }
 
 function setNZV(result, flagV) { // Set N, Z & V (C unchanged)
     "use strict";
-    CPU.flagN = CPU.flagZ = result;
+    CPU.flagNZ = result;
     CPU.flagV = flagV;
+    CPU.externalNZV = 0x8000; // V active
 }
 
 function setNZC(result) { // Set N, Z & C clearing V
     "use strict";
-    CPU.flagN = CPU.flagZ = CPU.flagC = result;
-    CPU.flagV = 0;
+    CPU.flagNZ = CPU.flagC = result;
+    CPU.externalNZV = 1;
+    CPU.externalC = 1;
 }
 
 function setNZVC(result, flagV) { // Set all flag conditions
     "use strict";
-    CPU.flagN = CPU.flagZ = CPU.flagC = result;
+    CPU.flagNZ = CPU.flagC = result;
     CPU.flagV = flagV;
+    CPU.externalNZV = 0x8000;
+    CPU.externalC = 1;
 }
 
 function setByteNZ(result) { // Set N & Z clearing V (C unchanged) (byte)
     "use strict";
-    CPU.flagN = CPU.flagZ = result << 8;
-    CPU.flagV = 0;
+    CPU.flagNZ = result << 8;
+    CPU.externalNZV = 1;
 }
 
 function setByteNZV(result, flagV) { // Set N, Z & V (C unchanged) (byte)
     "use strict";
-    CPU.flagN = CPU.flagZ = result << 8;
+    CPU.flagNZ = result << 8;
     CPU.flagV = flagV << 8;
+    CPU.externalNZV = 0x8000;
 }
 
 function setByteNZC(result) { // Set N, Z & C clearing V (byte)
     "use strict";
-    CPU.flagN = CPU.flagZ = CPU.flagC = result << 8;
-    CPU.flagV = 0;
+    CPU.flagNZ = CPU.flagC = result << 8;
+    CPU.externalNZV = 1; // V clear
+    CPU.externalC = 1;
 }
 
 function setByteNZVC(result, flagV) { // Set all flag conditions (byte)
     "use strict";
-    CPU.flagN = CPU.flagZ = CPU.flagC = result << 8;
-    CPU.flagV = flagV << 8;
+    CPU.flagNZ = CPU.flagC = result << 8;
+    CPU.flagV = flagV;
+    CPU.externalNZV = 0x8000; // V active
+    CPU.externalC = 1;
 }
-
 
 
 // trap() handles all the trap/abort functions. It reads the trap vector from kernel
@@ -2042,7 +2070,6 @@ var panel = {
     addressId: [], // DOM id's for addressLights
     displayId: [], // DOM id's for displayLights
     statusId: [], //  DOM id's for statusLights
-    baseLights: 0, // Relatively static status light bits
     powerSwitch: 0, // -1 off, 0 run, 1 locked
     rotary1: 0,
     rotary0: 0,
@@ -2064,24 +2091,6 @@ function initPanel(idArray, idName, idCount) {
         initVal = initVal * 2 + 1;
     }
     return initVal;
-}
-
-// Some of the status lights are fairly static so they are precomputed. They need to be
-// updated if the rotary panel dials are changed or the MMU mode changes (enabled, 11/22 bit).
-
-function setBaseLights() { // Set semi-static background status lights bitmask
-    "use strict";
-    var baseLights = (0x400000 << panel.rotary1) | (0x4000 << panel.rotary0) | 0x3000;
-    if (!CPU.mmuEnable) {
-        baseLights |= 4; // MMU is in 16 bit mode..
-    } else {
-        if (!(CPU.MMR3 & 0x10)) {
-            baseLights |= 2; // 18 bit
-        } else {
-            baseLights |= 1; // 22 bit
-        }
-    }
-    panel.baseLights = baseLights;
 }
 
 // There are three groups of lights (LEDs/Globes):-
@@ -2144,12 +2153,11 @@ function updateLights() {
                     break;
             }
             // rotary1 rotary0 PAR PE AE Rn Pa Ma Us Su Ke Da 16 18 22
-            statusLights = panel.baseLights | (CPU.mmuLastPage & 8) | // Base lights & Data light
+            statusLights = (0x400000 << panel.rotary1) | (0x4000 << panel.rotary0) | 0x3000 |
+                (CPU.mmuEnable ? ((CPU.MMR3 & 0x10) ? 1 : 2) : 4) | (CPU.mmuLastPage & 8) | // MMU lights & Data light
                 panel.LIGHTS_STATE[CPU.runState] | // Run Pause and Master lights
-                panel.LIGHTS_MODE[CPU.mmuMode]; // User Super and Kernel lights
-            if (CPU.displayPhysical & 0x400000) {
-                statusLights |= 0x400; // Set ADRS ERR light if appropriate
-            }
+                panel.LIGHTS_MODE[CPU.mmuMode] | // User Super and Kernel lights
+                ((CPU.displayPhysical & 0x400000 ) >>> 12);
         }
     }
     panel.addressLights = updatePanel(panel.addressLights, addressLights, panel.addressId);
