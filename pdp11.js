@@ -75,8 +75,6 @@ var CPU = {
     displayMicroAdrs: 0, // Micro Address display (we don't really have one)
     displayPhysical: 0, // Physical address display for console operations
     displayRegister: 0, // Console display lights register (set by software)
-    externalC: 0, // C external to PSW flag
-    externalNZV: 0, // NZV external to PSW flag
     flagC: 0x10000, //  PSW C bit (when not in PSW)
     flagNZ: 0x8000, //  PSW NZ status (when not in PSW)
     flagV: 0x8000, //   PSW V bit (when not in PSW)
@@ -231,14 +229,13 @@ function setMMUmode(mmuMode) {
     CPU.mmuMode = mmuMode;
 }
 
-
 // writePSW() is used to update the CPU Processor Status Word. The PSW should generally
 // be written through this routine so that changes can be tracked properly, for example
 // the correct register set, the current memory management mode, etc. An exception is
-// SPL which writes the priority directly. Note that that N, Z, V, and C flags are
-// actually stored separately to the PSW (CPU.PSW) for performance reasons, in CPU.flagN,
-// CPU.flagZ, CPU.flagV, and CPU.flagC. Also CPU.mmuMode mirrors the current processor
-// mode in bits 14 & 15 of the PSW, except when being manipulated by instructions which
+// SPL which writes the priority directly. Note that for performance the N, Z, V, and C
+// flags are stored outside the PSW (CPU.PSW) when CPU.flagNZ, CPU.flagV, and CPU.flagC
+// contain a value other than NaN. Also CPU.mmuMode mirrors the current processor mode
+// in bits 14 & 15 of the PSW, except when being manipulated by instructions which
 // work across modes (MFPD, MFPI, MTPD, MTPI, and function trap()).
 //
 // CPU.PSW    15 14 13 12 11 10  9  8  7  6  5  4  3  2  1  0
@@ -247,6 +244,7 @@ function setMMUmode(mmuMode) {
 
 function writePSW(newPSW) {
     "use strict";
+    newPSW &= 0xf8ff; // trim unused stuff
     if ((newPSW ^ CPU.PSW) & 0x0800) { // register set change?
         for (let i = 0; i <= 5; i++) {
             let temp = CPU.registerVal[i];
@@ -254,52 +252,52 @@ function writePSW(newPSW) {
             CPU.registerAlt[i] = temp; // swap the active register sets
         }
     }
-    setMMUmode((newPSW >>> 14) & 0x3); // must always reset mmuMode
+    setMMUmode(newPSW >>> 14); // must always reset mmuMode
     if ((newPSW ^ CPU.PSW) & 0xc000) { // mode change?
-        CPU.stackPointer[(CPU.PSW >>> 14) & 3] = CPU.registerVal[6];
+        CPU.stackPointer[CPU.PSW >>> 14] = CPU.registerVal[6];
         CPU.registerVal[6] = CPU.stackPointer[CPU.mmuMode]; // swap to new mode SP
     }
     if ((newPSW & 0xe0) < (CPU.PSW & 0xe0)) { // priority lowered?
         CPU.interruptRequested = 1; // trigger a check of priority levels
     }
-    CPU.PSW = newPSW & 0xf8ff;
-    CPU.externalNZV = 0; // NZV flags are inside the PSW
-    CPU.externalC = 0; // C is inside the PSW
+    CPU.PSW = newPSW;
+    CPU.flagNZ = NaN; // NZV flags are inside the PSW
+    CPU.flagC = NaN; // C is also in the PSW
 }
 
 function testN() { // Test N
     "use strict";
-    if (CPU.externalNZV) {
-        return CPU.flagNZ & 0x8000; // use external N flag
+    if (isNaN(CPU.flagNZ)) {
+        return CPU.PSW & 8;
     } else {
-        return CPU.PSW & 8; // use PSW N flag
+        return CPU.flagNZ & 0x8000;
     }
 }
 
 function testZ() { // Test Z
     "use strict";
-    if (CPU.externalNZV) {
-        return !(CPU.flagNZ & 0xffff);
-    } else {
+    if (isNaN(CPU.flagNZ)) {
         return CPU.PSW & 4;
+    } else {
+        return !(CPU.flagNZ & 0xffff);
     }
 }
 
 function testV() { // Test V
     "use strict";
-    if (CPU.externalNZV) {
-        return CPU.flagV & CPU.externalNZV & 0x8000; // externalNZV mask 0x8000 enables V
-    } else {
+    if (isNaN(CPU.flagNZ)) {
         return CPU.PSW & 2;
+    } else {
+        return CPU.flagV & 0x8000;
     }
 }
 
 function testC() { // Test C
     "use strict";
-    if (CPU.externalC) {
-        return CPU.flagC & 0x10000;
-    } else {
+    if (isNaN(CPU.flagC)) {
         return CPU.PSW & 1;
+    } else {
+        return CPU.flagC & 0x10000;
     }
 }
 
@@ -316,7 +314,7 @@ function testNxV() { // Test N xor V
 
 function readPSW() {
     "use strict";
-    if (CPU.externalNZV) {
+    if (!isNaN(CPU.flagNZ)) {
         let flags = 0;
         if (CPU.flagNZ & 0xffff) {
             if (CPU.flagNZ & 0x8000) {
@@ -325,18 +323,19 @@ function readPSW() {
         } else {
             flags |= 4;
         }
-        if (CPU.flagV & CPU.externalNZV & 0x8000) {
+        if (CPU.flagV & 0x8000) {
             flags |= 2;
         }
         CPU.PSW = (CPU.PSW & 0xfff1) | flags;
-        CPU.externalNZV = 0;
-    }
-    if (CPU.externalC) {
-        CPU.PSW &= 0xfffe;
-        if (CPU.flagC & 0x10000) {
-            CPU.PSW |= 1;
+        CPU.flagNZ = NaN;
+        if (!isNaN(CPU.flagC)) {
+            if (CPU.flagC & 0x10000) {
+                CPU.PSW |= 1;
+            } else {
+                CPU.PSW &= 0xfffe;
+            }
+            CPU.flagC = NaN;
         }
-        CPU.externalC = 0;
     }
     return CPU.PSW;
 }
@@ -355,64 +354,56 @@ function setFlags(mask, value) { // Set or clear selected flags in mask
 function zeroNZVC() { // Set flags for 0 value (Z becomes 1)
     "use strict";
     CPU.PSW = (CPU.PSW & 0xfff0) | 4;
-    CPU.externalNZV = 0; // All flags inside the PSW
-    CPU.externalC = 0;
+    CPU.flagNZ = NaN; // All flags inside the PSW
+    CPU.flagC = NaN;
 }
 
 function setNZ(result) { // Set N & Z clearing V (C unchanged)
     "use strict";
     CPU.flagNZ = result;
-    CPU.externalNZV = 1; // V clear
+    CPU.flagV = 0;
 }
 
 function setNZV(result, flagV) { // Set N, Z & V (C unchanged)
     "use strict";
     CPU.flagNZ = result;
     CPU.flagV = flagV;
-    CPU.externalNZV = 0x8000; // V active
 }
 
 function setNZC(result) { // Set N, Z & C clearing V
     "use strict";
     CPU.flagNZ = CPU.flagC = result;
-    CPU.externalNZV = 1;
-    CPU.externalC = 1;
+    CPU.flagV = 0;
 }
 
 function setNZVC(result, flagV) { // Set all flag conditions
     "use strict";
     CPU.flagNZ = CPU.flagC = result;
     CPU.flagV = flagV;
-    CPU.externalNZV = 0x8000;
-    CPU.externalC = 1;
 }
 
 function setByteNZ(result) { // Set N & Z clearing V (C unchanged) (byte)
     "use strict";
     CPU.flagNZ = result << 8;
-    CPU.externalNZV = 1;
+    CPU.flagV = 0;
 }
 
 function setByteNZV(result, flagV) { // Set N, Z & V (C unchanged) (byte)
     "use strict";
     CPU.flagNZ = result << 8;
     CPU.flagV = flagV << 8;
-    CPU.externalNZV = 0x8000;
 }
 
 function setByteNZC(result) { // Set N, Z & C clearing V (byte)
     "use strict";
     CPU.flagNZ = CPU.flagC = result << 8;
-    CPU.externalNZV = 1; // V clear
-    CPU.externalC = 1;
+    CPU.flagV = 0;
 }
 
 function setByteNZVC(result, flagV) { // Set all flag conditions (byte)
     "use strict";
     CPU.flagNZ = CPU.flagC = result << 8;
-    CPU.flagV = flagV;
-    CPU.externalNZV = 0x8000; // V active
-    CPU.externalC = 1;
+    CPU.flagV = flagV << 8;
 }
 
 
@@ -1147,7 +1138,6 @@ function pdp11Processor() {
                                                         trap(0o4, 0x80); // Trap 4 - 0x80 Illegal halt
                                                     } else {
                                                         CPU.runState = STATE_HALT; // halt
-                                                        loopCount = 0; // force exit
                                                         console.log("HALT at " + registerVal[7].toString(8) + " PSW: " + readPSW().toString(8));
                                                     }
                                                     break;
@@ -1157,7 +1147,6 @@ function pdp11Processor() {
                                                         if (CPU.runState !== STATE_HALT) { // Halt means we are instruction stepping
                                                             CPU.runState = STATE_WAIT; // WAIT; // Go to wait state and exit loop
                                                         }
-                                                        loopCount = 0; // force exit
                                                     }
                                                     break;
                                                 case 3: // BPT  000003
@@ -1180,7 +1169,6 @@ function pdp11Processor() {
                                                                 }
                                                             }, 60);
                                                         }
-                                                        loopCount = 0; // force exit
                                                     }
                                                     break;
                                                 case 2: // RTI 000002
