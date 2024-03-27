@@ -412,7 +412,6 @@ iopage.register(0o17772510, 1, {
                         result &= ~0x30; // don't allow 11/45 to do 22 bit or use unibus map
                     }
                     CPU.MMR3 = result;
-                    CPU.MMR3KSxU = (result & 6) << 1 | (result & 1); //  Convert KSU to KSxU for faster access
                     setMMUmode(CPU.mmuMode);
                 }
                 break;
@@ -969,7 +968,7 @@ iopage.register(0o17777550, 2, (function() {
         "use strict";
         controlBlock.position = position;
         ptrdb = address & 0xff; // diskIO function 5 stores a byte in address
-        if (code != 0) {
+        if (code !== 0) {
             ptrcs |= 0x8000; // set ERROR
         }
         if (ptrcs & 0x40) { // if ie...
@@ -1181,7 +1180,7 @@ iopage.register(0o17772520, 6, (function() {
                     }
                     break;
                 case 7: // rewind - easy just position at start
-                    if (mtControlBlock[drive].position != 0) {
+                    if (mtControlBlock[drive].position !== 0) {
                         mtControlBlock[drive].position = 0;
                         if (mtc & 0x40) { // if ie...
                             iMask |= 2; // request rewind interrupt

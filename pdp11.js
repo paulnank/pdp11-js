@@ -66,7 +66,6 @@ var CPU = {
     MMR1: 0,
     MMR2: 0,
     MMR3: 0,
-    MMR3KSxU: 0x0, // MMR3 D space mode bits unpacked for faster access
     PIR: 0, // Programmable interrupt register
     PSW: 0xf, // PSW less flags C, N, V & Z
     displayAddress: 0, // Address display for console operations
@@ -82,6 +81,7 @@ var CPU = {
     mmuEnable: 0, // MMU enable mask for MMU_READ and/or MMU_WRITE
     mmuLastPage: 0, // last used MMU page for MMR0 - 2 bits of mode and 4 bits of I/D page - used as an index into PAR/PDR
     mmuMode: 0, // current memory management mode (0=kernel,1=super,2=undefined,3=user)
+    mmuPageMask: 0, // preloaded with CPU mode and I/D mask to speed page number creation
     mmuPAR: [
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //0 kernel (8 i and 8 d pages)
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //1 super
@@ -226,17 +226,19 @@ function LOG_INSTRUCTION(instruction, name, format) {
 
 function setMMUmode(mmuMode) {
     "use strict";
+    let KSxU = (CPU.MMR3 & 6) << 1 | (CPU.MMR3 & 1); // convert MMR3 KSU to KSxU
+    CPU.mmuPageMask = (mmuMode << 4) | ((KSxU << mmuMode) & 0x8) | 0x7; // make memory management page mask for mode
     CPU.mmuMode = mmuMode;
 }
 
 // writePSW() is used to update the CPU Processor Status Word. The PSW should generally
 // be written through this routine so that changes can be tracked properly, for example
-// the correct register set, the current memory management mode, etc. An exception is
-// SPL which writes the priority directly. Note that for performance the N, Z, V, and C
-// flags are stored outside the PSW (CPU.PSW) when CPU.flagNZ, CPU.flagV, and CPU.flagC
-// contain a value other than NaN. Also CPU.mmuMode mirrors the current processor mode
-// in bits 14 & 15 of the PSW, except when being manipulated by instructions which
-// work across modes (MFPD, MFPI, MTPD, MTPI, and function trap()).
+// the correct register set, the current memory management mode, etc. Note that for
+// performance reasons the N, Z, V, and C flags are stored outside the PSW (CPU.PSW)
+// when CPU.flagNZ, CPU.flagV, and CPU.flagC contain a value other than NaN. Also
+// CPU.mmuMode mirrors the current processor mode in bits 14 & 15 of the PSW, except
+// when being manipulated by instructions which work across modes (MFPD, MFPI, MTPD,
+// MTPI, and function trap()).
 //
 // CPU.PSW    15 14 13 12 11 10  9  8  7  6  5  4  3  2  1  0
 //              CM |  PM |RS|        |PRIORITY| T| N| Z| V| C
@@ -318,10 +320,10 @@ function readPSW() {
         let flags = 0;
         if (CPU.flagNZ & 0xffff) {
             if (CPU.flagNZ & 0x8000) {
-                flags |= 8;
+                flags = 8;
             }
         } else {
-            flags |= 4;
+            flags = 4;
         }
         if (CPU.flagV & 0x8000) {
             flags |= 2;
@@ -544,7 +546,7 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
     var physicalAddress;
     CPU.displayAddress = virtualAddress; // Remember virtual address for display purposes
     if (!(accessMask & CPU.mmuEnable)) { // This access does not require the MMU
-        physicalAddress = virtualAddress & 0xffff; // virtual address without MMU is 16 bit (no I&D)
+        physicalAddress = virtualAddress & 0xffff; // virtual address without MMU is 16 bit (no I/D)
         if (physicalAddress >= IOBASE_VIRT) {
             physicalAddress |= IOBASE_22BIT;
         } else { // no max_memory check in 16 bit mode
@@ -553,11 +555,8 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
             }
         }
     } else { // This access is mapped by the MMU
-        let page = (CPU.mmuMode << 4) | (virtualAddress >>> 13);
-        if (page & 0x8 && !((CPU.MMR3KSxU << CPU.mmuMode) & 0x8)) { // If in D space and not enabled
-            page &= 0x37; // Use I space unless D space enabled
-        }
-        physicalAddress = (CPU.mmuPAR[page] + (virtualAddress & 0x1fff)) & 0x3fffff;
+        let page = ((virtualAddress >>> 13) | 0x30) & CPU.mmuPageMask; // insert mode, page no, and set I/D
+        physicalAddress = ((virtualAddress & 0x1fff) + CPU.mmuPAR[page]) & 0x3fffff;
         if (!(CPU.MMR3 & 0x10)) { // 18 bit mapping needs extra trimming
             physicalAddress &= 0x3ffff;
             if (physicalAddress >= IOBASE_18BIT) {
@@ -580,7 +579,7 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
                     return trap(0o4, 0x20); // Trap 4 - 0x20 Non-existent main memory
                 }
             }
-            if (CPU.mmuMode || (physicalAddress !== 0x3fff7a)) { // MMR0 is 017777572 and doesn't affect MMR0 bits
+            if (physicalAddress !== 0o17777572 || CPU.mmuMode) { // MMR0 is 017777572 and doesn't affect MMR0 bits
                 CPU.mmuLastPage = page;
             }
         }
@@ -590,7 +589,9 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
             case 1: // read-only with trap
                 errorMask = 0x1000; // MMU trap - then fall thru
             case 2: // read-only
-                CPU.mmuPDR[page] |= 0x80; // Set A bit
+                if (!(pdr & 0x80)) {
+                    CPU.mmuPDR[page] |= 0x80; // Set A bit
+                }
                 if (accessMask & MMU_WRITE) {
                     errorMask = 0x2000; // read-only abort
                 }
@@ -602,24 +603,29 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
                     errorMask = 0x1000; // MMU trap - then fall thru
                 }
             case 6: // read-write
-                CPU.mmuPDR[page] |= ((accessMask & MMU_WRITE) ? 0xc0 : 0x80); // Set A & W bits
+                let AW = (accessMask & MMU_WRITE ? 0xc0 : 0x80); // Set A & W bits
+                if ((pdr & AW) !== AW) {
+                    CPU.mmuPDR[page] |= AW;
+                }
                 break;
             default:
                 errorMask = 0x8000; // non-resident abort
                 break;
         }
-        if (pdr & 0x8) { // Page expands downwards
-            if ((pdr &= 0x7f00)) { // If a length to check
-                if (((virtualAddress << 2) & 0x7f00) < pdr) {
-                    errorMask |= 0x4000; // page length error abort
+        switch (pdr & 0x7f08) { // check page length
+            case 0x0008: // ignore full length downward page
+            case 0x7f00: // ignore full length upward page
+                break;
+            default:
+                if (pdr & 0x8) { // page expands downwards
+                    if (((virtualAddress << 2) & 0x7f00) < (pdr & 0x7f00)) {
+                        errorMask |= 0x4000; // page length error abort
+                    }
+                } else { // page expand upwards
+                    if (((virtualAddress << 2) & 0x7f00) > (pdr & 0x7f00)) {
+                        errorMask |= 0x4000; // page length error abort
+                    }
                 }
-            }
-        } else { // Page expand upwards
-            if ((pdr &= 0x7f00) !== 0x7f00) { // If length not maximum check it
-                if (((virtualAddress << 2) & 0x7f00) > pdr) {
-                    errorMask |= 0x4000; // page length error abort
-                }
-            }
         }
         // aborts and traps: log FIRST trap and MOST RECENT abort
         if (errorMask) {
@@ -633,7 +639,7 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
                 return trap(0o250, 0x01); // Trap 250 - 0x00 MMU trap and Set ADRS ERR light 0x01
             }
             if (!(CPU.MMR0 & 0xf000)) {
-                if (physicalAddress < 0x3ff480 || physicalAddress > 0x3fffbf) { // 017772200 - 017777677
+                if (physicalAddress < 0o17772200 || physicalAddress > 0o17777677) { // 017772200 - 017777677
                     CPU.MMR0 |= 0x1000; // MMU trap flag
                     if (CPU.MMR0 & 0x0200) {
                         CPU.trapMask |= 2; // MMU trap
@@ -645,7 +651,7 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
     return (CPU.displayPhysical = physicalAddress);
 }
 
-function readWordByVirtual(virtualAddress) { // input address is 17 bit (I&D)
+function readWordByVirtual(virtualAddress) { // input address is 17 bit (I/D)
     "use strict";
     var physicalAddress;
     if ((physicalAddress = mapVirtualToPhysical(virtualAddress, MMU_WORD_READ)) < 0) {
@@ -654,7 +660,7 @@ function readWordByVirtual(virtualAddress) { // input address is 17 bit (I&D)
     return readWordByPhysical(physicalAddress);
 }
 
-function writeWordByVirtual(virtualAddress, data) { // input address is 17 bit (I&D)
+function writeWordByVirtual(virtualAddress, data) { // input address is 17 bit (I/D)
     "use strict";
     var physicalAddress;
     if ((physicalAddress = mapVirtualToPhysical(virtualAddress, MMU_WORD_WRITE)) < 0) {
@@ -1220,7 +1226,7 @@ function pdp11Processor() {
                                                 case 3: // SPL 00023N
                                                     //LOG_INSTRUCTION(instruction, "spl", 0x107);
                                                     if (!CPU.mmuMode) {
-                                                        CPU.PSW = (CPU.PSW & 0xf81f) | ((instruction & 7) << 5);
+                                                        writePSW((readPSW() & 0xf81f) | ((instruction & 7) << 5));
                                                         CPU.interruptRequested = 2; // Skip next interrupt request review
                                                     }
                                                     break;
@@ -1446,7 +1452,7 @@ function pdp11Processor() {
                                                     }
                                                     setMMUmode((CPU.PSW >>> 12) & 3); // Use PM
                                                     if ((result = readWordByVirtual(virtualAddress)) >= 0) {
-                                                        setMMUmode((CPU.PSW >>> 14) & 3); // Restore CM
+                                                        setMMUmode(CPU.PSW >>> 14); // Restore CM
                                                         if (pushWord(result, 0) >= 0) {
                                                             setNZ(result);
                                                         }
@@ -1472,7 +1478,7 @@ function pdp11Processor() {
                                                     if ((virtualAddress = getVirtualByMode(instruction, MMU_WORD)) >= 0) {
                                                         setMMUmode((CPU.PSW >>> 12) & 3); // Use previous mode
                                                         if (writeWordByVirtual(virtualAddress & 0xffff, result) >= 0) {
-                                                            setMMUmode((CPU.PSW >>> 14) & 3); // Restore CM
+                                                            setMMUmode(CPU.PSW >>> 14); // Restore CM
                                                             setNZ(result);
                                                         }
                                                     }
@@ -1890,7 +1896,7 @@ function pdp11Processor() {
                                                 if ((virtualAddress = getVirtualByMode(instruction, MMU_WORD)) >= 0) {
                                                     setMMUmode((CPU.PSW >>> 12) & 3); // Use PM
                                                     if ((result = readWordByVirtual(virtualAddress | 0x10000)) >= 0) {
-                                                        setMMUmode((CPU.PSW >>> 14) & 3); // Restore CM
+                                                        setMMUmode(CPU.PSW >>> 14); // Restore CM
                                                         if (pushWord(result, 0) >= 0) {
                                                             setNZ(result);
                                                         }
@@ -1916,7 +1922,7 @@ function pdp11Processor() {
                                                     if ((virtualAddress = getVirtualByMode(instruction, MMU_WORD)) >= 0) {
                                                         setMMUmode((CPU.PSW >>> 12) & 3); // Use PM
                                                         if (writeWordByVirtual(virtualAddress | 0x10000, result) >= 0) {
-                                                            setMMUmode((CPU.PSW >>> 14) & 3); // Restore CM
+                                                            setMMUmode(CPU.PSW >>> 14); // Restore CM
                                                             setNZ(result);
                                                         }
                                                     }
@@ -2145,7 +2151,7 @@ function updateLights() {
                 (CPU.mmuEnable ? ((CPU.MMR3 & 0x10) ? 1 : 2) : 4) | (CPU.mmuLastPage & 8) | // MMU lights & Data light
                 panel.LIGHTS_STATE[CPU.runState] | // Run Pause and Master lights
                 panel.LIGHTS_MODE[CPU.mmuMode] | // User Super and Kernel lights
-                ((CPU.displayPhysical & 0x400000 ) >>> 12);
+                ((CPU.displayPhysical & 0x400000) >>> 12);
         }
     }
     panel.addressLights = updatePanel(panel.addressLights, addressLights, panel.addressId);
