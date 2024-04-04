@@ -30,7 +30,7 @@ I contacted Brett Bump from RSTS.ORG and asked about the error. He advised that 
 <p>
 I then repeated my earlier web searches for a RSTS V5 or V6 distribution or a disk image. Nothing. In deperation I posted to alt.sys.pdp11 and asked if anyone else knew where to find one. To date I still have had no response. I also noticed a photo of a DECTape V6 distribution at the Wolford Witch Project, so I fired off an email to ask about obtaining a copy of that, but sadly no response. Even if there was still an intact tape somewhere there was probably going to be a real battle to find any hardware to read it.
 <p>
-Reconsidering the one distribution tape I had I wondered if the tape problems could be minor - perhaps just one or two bits flipped. I thought if I looked at the code maybe I could see if there was an obvious problem, and even if not perhaps I could work around the fault and manually cause it to copy the files I needed. After all it only had to successfully install RSTS once.
+Reconsidering the one distribution tape I had I wondered if the tape problem could be minor - perhaps just one or two bits flipped. I thought if I looked at the code maybe I could see if there was an obvious problem, and even if not perhaps I could work around the fault and manually cause it to copy the files I needed. After all it only had to successfully install RSTS once.
 <p>
 Using SIMH I examined the failing installation code and could see that it was indeed checking some sort of device index at the point of the error message, but because the value was negative it was triggering the error I was seeing. I examined the code further and determined that for an RK05 the device index should be 6, which I validated after some experimentation. However even by patching in the correct index value other strange errors resulted.
 <p>
@@ -518,7 +518,7 @@ CONFIG.MAC(system configuration file) or
 SYSGEN.CTL(batch control file)  you  may
 do it now.  When  ready type "R SYSBAT".
 
-.R SYSBAT
+.<b>R SYSBAT</b>
 
 
 
@@ -1885,8 +1885,8 @@ Terminal characteristics program
 Ready
 
 <b>run pip</b>
-* <b>$*.*&lt;40&gt;=MT1:$MACRO.SAV,$CREF.SAV,$LINK.SAV,$LIBR.SAV</b>
-* <b>notice.txt&lt;40&gt;=tt:</b>
+*<b>$*.*&lt;40&gt;=MT1:$MACRO.SAV,$CREF.SAV,$LINK.SAV,$LIBR.SAV</b>
+*<b>notice.txt&lt;40&gt;=tt:</b>
 
 <b>Welcome to RSTS V06C-03 time sharing
 
@@ -1905,7 +1905,7 @@ Paul Nankervis
 paulnank@hotmail.com
 http://skn.noip.me/pdp11/pdp11.html</b>
 <b>^Z</b>
-* <b>^Z</b>
+*<b>^Z</b>
 
 Ready
 
@@ -1931,9 +1931,9 @@ Ready
 Ready
 
 <b>run pip</b>
-* <b>teco.doc/de</b>
-* <b>[11,70]=dk1:[11,70]*.*</b>
-* <b>^Z</b>
+*<b>teco.doc/de</b>
+*<b>[11,70]=dk1:[11,70]*.*</b>
+*<b>^Z</b>
 
 Ready
 
