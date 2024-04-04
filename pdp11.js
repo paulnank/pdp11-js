@@ -2154,9 +2154,15 @@ function updateLights() {
                 ((CPU.displayPhysical & 0x400000) >>> 12);
         }
     }
-    panel.addressLights = updatePanel(panel.addressLights, addressLights, panel.addressId);
-    panel.displayLights = updatePanel(panel.displayLights, displayLights, panel.displayId);
-    panel.statusLights = updatePanel(panel.statusLights, statusLights, panel.statusId);
+	if (addressLights !== panel.addressLights) {
+		panel.addressLights = updatePanel(panel.addressLights, addressLights, panel.addressId);
+    }
+	if (displayLights !== panel.displayLights) {
+		panel.displayLights = updatePanel(panel.displayLights, displayLights, panel.displayId);
+    }
+	if (statusLights !== panel.statusLights) {
+		panel.statusLights = updatePanel(panel.statusLights, statusLights, panel.statusId);
+	}
 }
 
 // Reset processor, copy bootcode into memory, jump to start of bootcode

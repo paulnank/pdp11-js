@@ -712,10 +712,11 @@ function dl11(vt52Unit, deviceVector) {
 
 // register the console terminal
 iopage.register(0o17777560, 4, dl11(0, 0o60));
-// and another for fun...
+// and another two for fun...
 iopage.register(0o17776500, 4, dl11(1, 0o310));
-//iopage.register(0o17776510, 4, dl11(2, 0o320));
+iopage.register(0o17776510, 4, dl11(2, 0o320));
 //iopage.register(0o17776520, 4, dl11(3, 0o330));
+//iopage.register(0o17776530, 4, dl11(3, 0o340));
 
 // register an LP11 line printer on the i/o page
 
@@ -1053,7 +1054,7 @@ iopage.register(0o17772520, 6, (function() {
         mtc, //   17772522 mtc Command Register 15 ERR 12 14-13 den 10-8 unit INI 7 RDY 6 IE 3-1 fun 0 GO
         mtbrc, // 17772524 mtbrc Byte Record Counter
         mtcma, // 17772526 mtcma Current Memory Address Register
-        mtd, //   17772530 mtd Data Buffer Register
+     // mtd,      17772530 mtd Data Buffer Register
         mtrd, //  17772532 mtrd TU10 Read Lines
         iMask; // drive interrupt mask
     var mtControlBlock = []; // i/o control block - contains url, cache and other bits for each drive
@@ -1063,7 +1064,6 @@ iopage.register(0o17772520, 6, (function() {
         mtc = 0x6080; // 14-13 bpi 7 cu rdy
         mtbrc = 0;
         mtcma = 0;
-        mtd = 0;
         mtrd = 0;
         iMask = 0;
     }
