@@ -77,11 +77,11 @@ var CPU = {
     flagC: 0x10000, //  PSW C bit (when not in PSW)
     flagNZ: 0x8000, //  PSW NZ status (when not in PSW)
     flagV: 0x8000, //   PSW V bit (when not in PSW)
+    interruptRequested: 1, // flag to mark if an interrupt has been requested
     memory: new Array(MAX_MEMORY / 2), // Main memory (in words - addresses must be halved for byte indexing)
     mmuEnable: 0, // MMU enable mask for MMU_READ and/or MMU_WRITE
     mmuLastPage: 0, // last used MMU page for MMR0 - 2 bits of mode and 4 bits of I/D page - used as an index into PAR/PDR
     mmuMode: 0, // current memory management mode (0=kernel,1=super,2=undefined,3=user)
-    mmuPageMask: 0, // preloaded with CPU mode and I/D mask to speed page number creation
     mmuPAR: [
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //0 kernel (8 i and 8 d pages)
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //1 super
@@ -94,9 +94,9 @@ var CPU = {
         0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, // 2 illegal
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 //3 user
     ], // memory management PDR registers by mode
+    mmuPageMask: 0, // preloaded with CPU mode and I/D mask to speed page number creation
     modifyAddress: -1, // If the register is < 0 then remember the memory physical address
     modifyRegister: -1, // Remember the address of a register in a read/write (modify) cycle
-    interruptRequested: 1, // flag to mark if an interrupt has been requested
     registerAlt: [0, 0, 0, 0, 0, 0], // Alternate registers R0 - R5
     registerVal: [0, 0, 0, 0, 0, 0, 0, 0], // Current registers  R0 - R7
     runState: STATE_HALT, // current machine state STATE_RUN, STATE_STEP, STATE_RESET, STATE_WAIT or STATE_HALT
@@ -234,7 +234,7 @@ function setMMUmode(mmuMode) {
 // writePSW() is used to update the CPU Processor Status Word. The PSW should generally
 // be written through this routine so that changes can be tracked properly, for example
 // the correct register set, the current memory management mode, etc. Note that for
-// performance reasons the N, Z, V, and C flags are stored outside the PSW (CPU.PSW)
+// performance reasons the N, Z, V, and C flags may be stored outside the PSW (CPU.PSW)
 // when CPU.flagNZ, CPU.flagV, and CPU.flagC contain a value other than NaN. Also
 // CPU.mmuMode mirrors the current processor mode in bits 14 & 15 of the PSW, except
 // when being manipulated by instructions which work across modes (MFPD, MFPI, MTPD,
@@ -304,7 +304,7 @@ function testC() { // Test C
 }
 
 function testNxV() { // Test N xor V
-    " use strict";
+    "use strict";
     if (testN()) {
         return !testV();
     } else {
@@ -328,15 +328,15 @@ function readPSW() {
         if (CPU.flagV & 0x8000) {
             flags |= 2;
         }
-        CPU.PSW = (CPU.PSW & 0xfff1) | flags;
-        CPU.flagNZ = NaN;
-        if (!isNaN(CPU.flagC)) {
+        CPU.flagNZ = NaN; // NZV flags are now inside the PSW
+        if (isNaN(CPU.flagC)) {
+            CPU.PSW = (CPU.PSW & 0xfff1) | flags;
+        } else {
             if (CPU.flagC & 0x10000) {
-                CPU.PSW |= 1;
-            } else {
-                CPU.PSW &= 0xfffe;
+                flags |= 1;
             }
-            CPU.flagC = NaN;
+            CPU.flagC = NaN; // C is also in the PSW
+            CPU.PSW = (CPU.PSW & 0xfff0) | flags;
         }
     }
     return CPU.PSW;
@@ -348,16 +348,14 @@ function readPSW() {
 function setFlags(mask, value) { // Set or clear selected flags in mask
     "use strict";
     mask &= 0xf;
-    if (mask) {
-        CPU.PSW = (readPSW() & ~mask) | (value & mask);
-    }
+    CPU.PSW = (readPSW() & ~mask) | (value & mask);
 }
 
 function zeroNZVC() { // Set flags for 0 value (Z becomes 1)
     "use strict";
     CPU.PSW = (CPU.PSW & 0xfff0) | 4;
-    CPU.flagNZ = NaN; // All flags inside the PSW
-    CPU.flagC = NaN;
+    CPU.flagNZ = NaN; // NZV flags are inside the PSW
+    CPU.flagC = NaN; // C is also in the PSW
 }
 
 function setNZ(result) { // Set N & Z clearing V (C unchanged)
@@ -418,7 +416,7 @@ function setByteNZVC(result, flagV) { // Set all flag conditions (byte)
 
 function trap(vector, errorMask) {
     "use strict";
-    var newPC, newPSW, doubleTrap = 0;
+    let newPC, newPSW, doubleTrap = 0;
     if (CPU.trapPSW > -2) { // console mode doesn't actually do all the regular trap stuff
         if (CPU.trapPSW < 0) {
             CPU.trapMask = 0; // No other traps unless we cause one here
@@ -470,8 +468,7 @@ function readWordByPhysical(physicalAddress) {
 function writeWordByPhysical(physicalAddress, data) {
     "use strict";
     if (physicalAddress < IOBASE_UNIBUS) {
-        CPU.memory[physicalAddress >>> 1] = data;
-        return 0;
+        return CPU.memory[physicalAddress >>> 1] = data;
     } else {
         return iopage.access(physicalAddress, data, 0);
     }
@@ -495,11 +492,10 @@ function writeByteByPhysical(physicalAddress, data) {
     if (physicalAddress < IOBASE_UNIBUS) {
         let memoryIndex = physicalAddress >>> 1;
         if (physicalAddress & 1) {
-            CPU.memory[memoryIndex] = (data << 8) | (CPU.memory[memoryIndex] & 0xff);
+            return CPU.memory[memoryIndex] = (data << 8) | (CPU.memory[memoryIndex] & 0xff);
         } else {
-            CPU.memory[memoryIndex] = (CPU.memory[memoryIndex] & 0xff00) | data;
+            return CPU.memory[memoryIndex] = (CPU.memory[memoryIndex] & 0xff00) | data;
         }
-        return 0;
     } else {
         return iopage.access(physicalAddress, data, 1);
     }
@@ -543,7 +539,7 @@ function writeByteByPhysical(physicalAddress, data) {
 
 function mapVirtualToPhysical(virtualAddress, accessMask) {
     "use strict";
-    var physicalAddress;
+    let physicalAddress;
     CPU.displayAddress = virtualAddress; // Remember virtual address for display purposes
     if (!(accessMask & CPU.mmuEnable)) { // This access does not require the MMU
         physicalAddress = virtualAddress & 0xffff; // virtual address without MMU is 16 bit (no I/D)
@@ -653,7 +649,7 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
 
 function readWordByVirtual(virtualAddress) { // input address is 17 bit (I/D)
     "use strict";
-    var physicalAddress;
+    let physicalAddress;
     if ((physicalAddress = mapVirtualToPhysical(virtualAddress, MMU_WORD_READ)) < 0) {
         return physicalAddress;
     }
@@ -662,7 +658,7 @@ function readWordByVirtual(virtualAddress) { // input address is 17 bit (I/D)
 
 function writeWordByVirtual(virtualAddress, data) { // input address is 17 bit (I/D)
     "use strict";
-    var physicalAddress;
+    let physicalAddress;
     if ((physicalAddress = mapVirtualToPhysical(virtualAddress, MMU_WORD_WRITE)) < 0) {
         return physicalAddress;
     }
@@ -688,7 +684,7 @@ function stackCheck(virtualAddress) {
 
 function pushWord(data, skipLimitCheck) {
     "use strict";
-    var virtualAddress;
+    let virtualAddress;
     virtualAddress = CPU.registerVal[6] = (CPU.registerVal[6] - 2) & 0xffff; // BSD meeds SP updated before any fault :-(
     if (!(CPU.MMR0 & 0xe000)) {
         CPU.MMR1 = (CPU.MMR1 << 8) | 0xf6;
@@ -703,7 +699,7 @@ function pushWord(data, skipLimitCheck) {
 
 function popWord() {
     "use strict";
-    var data;
+    let data;
     if ((data = readWordByVirtual(CPU.registerVal[6] | 0x10000)) >= 0) {
         CPU.registerVal[6] = (CPU.registerVal[6] + 2) & 0xffff;
     }
@@ -754,7 +750,7 @@ function popWord() {
 
 function getVirtualByMode(addressMode, accessMode) {
     "use strict";
-    var virtualAddress, autoIncrement, reg = addressMode & 7;
+    let virtualAddress, autoIncrement, reg = addressMode & 7;
     switch ((addressMode >>> 3) & 7) {
         case 0: // Mode 0: Registers don't have a virtual address so trap!
             return trap(0o4, 0x00); // Trap 4 - 0x00 Illegal addressing mode
@@ -886,7 +882,7 @@ function getVirtualByMode(addressMode, accessMode) {
 
 function mapPhysicalByMode(addressMode, accessMode) {
     "use strict";
-    var virtualAddress;
+    let virtualAddress;
     if ((virtualAddress = getVirtualByMode(addressMode, accessMode)) < 0) {
         return virtualAddress;
     }
@@ -912,8 +908,7 @@ function readWordByMode(addressMode) {
 function writeWordByMode(addressMode, data) {
     "use strict";
     if (!(addressMode & 0o70)) { // If register mode write to the register
-        CPU.registerVal[addressMode & 7] = data & 0xffff;
-        return 0;
+        return CPU.registerVal[addressMode & 7] = data & 0xffff;
     } else {
         let physicalAddress;
         if ((physicalAddress = mapPhysicalByMode(addressMode, MMU_WORD_WRITE)) < 0) {
@@ -942,8 +937,7 @@ function modifyWordByMode(addressMode) {
 function modifyWord(data) {
     "use strict";
     if (CPU.modifyRegister >= 0) { // Modify the last register or memory address accessed
-        CPU.registerVal[CPU.modifyRegister] = data & 0xffff;
-        return 0;
+        return CPU.registerVal[CPU.modifyRegister] = data & 0xffff;
     } else {
         return writeWordByPhysical(CPU.modifyAddress, data & 0xffff);
     }
@@ -968,7 +962,7 @@ function readByteByMode(addressMode) {
 function writeByteByMode(addressMode, data) {
     "use strict";
     if (!(addressMode & 0o70)) { // If register mode write to the register
-        CPU.registerVal[addressMode & 7] = (CPU.registerVal[addressMode & 7] & 0xff00) | (data & 0xff);
+        return CPU.registerVal[addressMode & 7] = (CPU.registerVal[addressMode & 7] & 0xff00) | (data & 0xff);
     } else {
         let physicalAddress;
         if ((physicalAddress = mapPhysicalByMode(addressMode, MMU_BYTE_WRITE)) < 0) {
@@ -976,7 +970,6 @@ function writeByteByMode(addressMode, data) {
         }
         return writeByteByPhysical(physicalAddress, data & 0xff);
     }
-    return 0;
 }
 
 function modifyByteByMode(addressMode) {
@@ -998,8 +991,7 @@ function modifyByteByMode(addressMode) {
 function modifyByte(data) {
     "use strict";
     if (CPU.modifyRegister >= 0) { // Modify the last register or memory address accessed
-        CPU.registerVal[CPU.modifyRegister] = (CPU.registerVal[CPU.modifyRegister] & 0xff00) | (data & 0xff);
-        return 0;
+        return CPU.registerVal[CPU.modifyRegister] = (CPU.registerVal[CPU.modifyRegister] & 0xff00) | (data & 0xff);
     } else {
         return writeByteByPhysical(CPU.modifyAddress, data & 0xff);
     }
@@ -1073,14 +1065,14 @@ function modifyByte(data) {
 
 function pdp11Processor() {
     "use strict";
-    var instruction = 0,
+    let instruction = 0,
         src,
         dst = 0,
         result,
         virtualAddress, reg;
-    var loopCount, loopTime;
-    var CPU = window.CPU;
-    var registerVal = CPU.registerVal;
+    let loopCount, loopTime;
+    let CPU = window.CPU;
+    let registerVal = CPU.registerVal;
 
     // branch() calculates the branch to PC from a branch instruction offset
     function branch(instruction) {
@@ -2056,26 +2048,26 @@ function pdp11Processor() {
 
 
 var panel = {
-    LIGHTS_STATE: [0x280, 0x300, 0x200, 0x80], // RUN, RESET, WAIT, HALT -> RUN, MASTER, PAUSE lights
     LIGHTS_MODE: [0x10, 0x20, 0, 0x40], // Kernel, Super, Undefined, User -> Kernel, Super, User lights
-    addressLights: 0x3fffff, // current state of addressLights (a0-a21)
-    displayLights: 0xffff, // current state of displayLights (d0-d15)
-    statusLights: 0x3ffffff, // current state of statusLights (s0-s25)
+    LIGHTS_STATE: [0x280, 0x300, 0x200, 0x80], // RUN, RESET, WAIT, HALT -> RUN, MASTER, PAUSE lights
     addressId: [], // DOM id's for addressLights
+    addressLights: 0x3fffff, // current state of addressLights (a0-a21)
+    autoIncr: 0, // panel auto increment
     displayId: [], // DOM id's for displayLights
-    statusId: [], //  DOM id's for statusLights
+    displayLights: 0xffff, // current state of displayLights (d0-d15)
+    halt: 0, // halt switch position
+    lampTest: 0, // lamp switch test position
     powerSwitch: 0, // -1 off, 0 run, 1 locked
-    rotary1: 0,
-    rotary0: 0,
-    halt: 0,
-    step: 0,
-    lampTest: 0,
-    autoIncr: 0
+    rotary0: 0, // rotary switch 0 position
+    rotary1: 0, // rotary switch 1 position
+    statusId: [], //  DOM id's for statusLights
+    statusLights: 0x3ffffff, // current state of statusLights (s0-s25)
+    step: 0 // S Inst / S Bus switch position
 };
 
 function initPanel(idArray, idName, idCount) {
     "use strict";
-    var id, elementId, initVal = 0;
+    let id, elementId, initVal = 0;
     for (id = 0; id < idCount; id++) {
         if ((elementId = document.getElementById(idName + id))) {
             idArray[id] = elementId.style;
@@ -2100,11 +2092,11 @@ function initPanel(idArray, idName, idCount) {
 
 function updateLights() {
     "use strict";
-    var addressLights, displayLights, statusLights;
+    let addressLights, displayLights, statusLights;
 
     function updatePanel(oldMask, newMask, idArray) { // Update lights to match newMask
         "use strict";
-        var id, changeMask;
+        let id, changeMask;
         changeMask = oldMask ^ newMask;
         for (id = 0; changeMask; id++, changeMask >>= 1, oldMask >>= 1) { // while any differences..
             if (changeMask & 1) { // If this light has changed...
@@ -2154,15 +2146,15 @@ function updateLights() {
                 ((CPU.displayPhysical & 0x400000) >>> 12);
         }
     }
-	if (addressLights !== panel.addressLights) {
-		panel.addressLights = updatePanel(panel.addressLights, addressLights, panel.addressId);
+    if (addressLights !== panel.addressLights) {
+        panel.addressLights = updatePanel(panel.addressLights, addressLights, panel.addressId);
     }
-	if (displayLights !== panel.displayLights) {
-		panel.displayLights = updatePanel(panel.displayLights, displayLights, panel.displayId);
+    if (displayLights !== panel.displayLights) {
+        panel.displayLights = updatePanel(panel.displayLights, displayLights, panel.displayId);
     }
-	if (statusLights !== panel.statusLights) {
-		panel.statusLights = updatePanel(panel.statusLights, statusLights, panel.statusId);
-	}
+    if (statusLights !== panel.statusLights) {
+        panel.statusLights = updatePanel(panel.statusLights, statusLights, panel.statusId);
+    }
 }
 
 // Reset processor, copy bootcode into memory, jump to start of bootcode
