@@ -921,8 +921,7 @@ function writeWordByMode(addressMode, data) {
 function modifyWordByMode(addressMode) {
     "use strict";
     if (!(addressMode & 0o70)) { // If register mode get register value and remember which register
-        CPU.modifyRegister = addressMode & 7;
-        return CPU.registerVal[CPU.modifyRegister];
+        return CPU.registerVal[CPU.modifyRegister = addressMode & 7];
     } else {
         let physicalAddress;
         if ((physicalAddress = mapPhysicalByMode(addressMode, MMU_WORD_MODIFY)) < 0) {
@@ -975,8 +974,7 @@ function writeByteByMode(addressMode, data) {
 function modifyByteByMode(addressMode) {
     "use strict";
     if (!(addressMode & 0o70)) { // If register mode get register value and remember which register
-        CPU.modifyRegister = addressMode & 7;
-        return CPU.registerVal[CPU.modifyRegister] & 0xff;
+        return CPU.registerVal[CPU.modifyRegister = addressMode & 7] & 0xff;
     } else {
         let physicalAddress;
         if ((physicalAddress = mapPhysicalByMode(addressMode, MMU_BYTE_MODIFY)) < 0) {
@@ -1085,7 +1083,7 @@ function pdp11Processor() {
             CPU.runState = STATE_HALT; // fall through to execute one instruction then halt
         case STATE_RUN:
             loopTime = Date.now() + 12;
-            loopCount = 1000;
+            loopCount = 2000;
             do {
                 // check if an interrupt has been requested - with a one instruction delay after SPL (!)
                 if (CPU.interruptRequested) {
@@ -1172,16 +1170,15 @@ function pdp11Processor() {
                                                 case 2: // RTI 000002
                                                 case 6: // RTT 000006
                                                     //LOG_INSTRUCTION(instruction, "rtt", 0);
-                                                    if ((result = popWord()) >= 0) { // new PC
-                                                        let savePSW = popWord();
-                                                        if (savePSW >= 0) { // new PSW
-                                                            savePSW &= 0xf8ff;
+                                                    if ((dst = popWord()) >= 0) { // new PC
+                                                        if ((result = popWord()) >= 0) { // get new PSW
+                                                            result &= 0xf8ff;
                                                             if (CPU.mmuMode) { // user / super restrictions
                                                                 // keep SPL and allow lower only for modes and register set
-                                                                savePSW = (savePSW & 0xf81f) | (CPU.PSW & 0xf8e0);
+                                                                result = (result & 0xf81f) | (CPU.PSW & 0xf8e0);
                                                             }
-                                                            registerVal[7] = result;
-                                                            writePSW(savePSW);
+                                                            registerVal[7] = dst;
+                                                            writePSW(result);
                                                             CPU.trapMask &= ~0x10; // turn off Trace trap
                                                             if (instruction === 2) {
                                                                 CPU.trapMask |= CPU.PSW & 0x10; // RTI enables immediate trace
@@ -1209,10 +1206,10 @@ function pdp11Processor() {
                                             switch ((instruction >>> 3) & 7) { // 00002xR register or CC
                                                 case 0: // RTS 00020R
                                                     //LOG_INSTRUCTION(instruction, "rts", 5);
-                                                    if ((result = popWord()) >= 0) {
+                                                    if ((dst = popWord()) >= 0) {
                                                         reg = instruction & 7;
                                                         registerVal[7] = registerVal[reg];
-                                                        registerVal[reg] = result;
+                                                        registerVal[reg] = dst;
                                                     }
                                                     break;
                                                 case 3: // SPL 00023N
@@ -1241,8 +1238,7 @@ function pdp11Processor() {
                                         case 3: // SWAB 0003DD
                                             //LOG_INSTRUCTION(instruction, "swab", 1);
                                             if ((dst = modifyWordByMode(instruction)) >= 0) {
-                                                result = (dst << 8) | (dst >>> 8);
-                                                if (modifyWord(result) >= 0) {
+                                                if (modifyWord((dst << 8) | (dst >>> 8)) >= 0) {
                                                     setNZC(dst & 0xff00);
                                                 }
                                             }
@@ -1311,9 +1307,8 @@ function pdp11Processor() {
                                         case 0o51: // COM 0051DD
                                             //LOG_INSTRUCTION(instruction, "com", 1);
                                             if ((dst = modifyWordByMode(instruction)) >= 0) {
-                                                result = ~dst;
-                                                if (modifyWord(result) >= 0) {
-                                                    setNZC(result);
+                                                if (modifyWord(~dst) >= 0) {
+                                                    setNZC(~dst);
                                                 }
                                             }
                                             break;
@@ -1322,7 +1317,7 @@ function pdp11Processor() {
                                             if ((dst = modifyWordByMode(instruction)) >= 0) {
                                                 result = dst + 1;
                                                 if (modifyWord(result) >= 0) {
-                                                    setNZV(result, result & (result ^ dst));
+                                                    setNZV(result, result & ~dst);
                                                 }
                                             }
                                             break;
@@ -1331,7 +1326,7 @@ function pdp11Processor() {
                                             if ((dst = modifyWordByMode(instruction)) >= 0) {
                                                 result = dst + 0xffff;
                                                 if (modifyWord(result) >= 0) {
-                                                    setNZV(result, (result ^ dst) & dst);
+                                                    setNZV(result, dst & ~result);
                                                 }
                                             }
                                             break;
@@ -1352,7 +1347,7 @@ function pdp11Processor() {
                                                     result++;
                                                 }
                                                 if (modifyWord(result) >= 0) {
-                                                    setNZVC(result, result & (result ^ dst));
+                                                    setNZVC(result, result & ~dst);
                                                 }
                                             }
                                             break;
@@ -1364,14 +1359,14 @@ function pdp11Processor() {
                                                     result--;
                                                 }
                                                 if (modifyWord(result) >= 0) {
-                                                    setNZVC(result, (result ^ dst) & dst);
+                                                    setNZVC(result, dst & ~result);
                                                 }
                                             }
                                             break;
                                         case 0o57: // TST 0057DD
                                             //LOG_INSTRUCTION(instruction, "tst", 1);
-                                            if ((result = readWordByMode(instruction)) >= 0) {
-                                                setNZC(result);
+                                            if ((dst = readWordByMode(instruction)) >= 0) {
+                                                setNZC(dst);
                                             }
                                             break;
                                         case 0o60: // ROR 0060DD
@@ -1419,9 +1414,9 @@ function pdp11Processor() {
                                         case 0o64: // MARK 0064nn
                                             //LOG_INSTRUCTION(instruction, "mark", 0x13f);
                                             virtualAddress = (registerVal[7] + ((instruction & 0o77) << 1)) & 0xffff;
-                                            if ((result = readWordByVirtual(virtualAddress | 0x10000)) >= 0) {
+                                            if ((dst = readWordByVirtual(virtualAddress | 0x10000)) >= 0) {
                                                 registerVal[7] = registerVal[5];
-                                                registerVal[5] = result;
+                                                registerVal[5] = dst;
                                                 registerVal[6] = (virtualAddress + 2) & 0xffff;
                                             }
                                             break;
@@ -1430,12 +1425,12 @@ function pdp11Processor() {
                                             if (!(instruction & 0o70)) {
                                                 reg = instruction & 7;
                                                 if (reg !== 6 || ((CPU.PSW >>> 12) & 3) === CPU.mmuMode) {
-                                                    result = registerVal[reg];
+                                                    dst = registerVal[reg];
                                                 } else {
-                                                    result = CPU.stackPointer[(CPU.PSW >>> 12) & 3];
+                                                    dst = CPU.stackPointer[(CPU.PSW >>> 12) & 3];
                                                 }
-                                                if (pushWord(result, 0) >= 0) {
-                                                    setNZ(result);
+                                                if (pushWord(dst, 0) >= 0) {
+                                                    setNZ(dst);
                                                 }
                                             } else {
                                                 if ((virtualAddress = getVirtualByMode(instruction, MMU_WORD)) >= 0) {
@@ -1443,10 +1438,10 @@ function pdp11Processor() {
                                                         virtualAddress &= 0xffff;
                                                     }
                                                     setMMUmode((CPU.PSW >>> 12) & 3); // Use PM
-                                                    if ((result = readWordByVirtual(virtualAddress)) >= 0) {
+                                                    if ((dst = readWordByVirtual(virtualAddress)) >= 0) {
                                                         setMMUmode(CPU.PSW >>> 14); // Restore CM
-                                                        if (pushWord(result, 0) >= 0) {
-                                                            setNZ(result);
+                                                        if (pushWord(dst, 0) >= 0) {
+                                                            setNZ(dst);
                                                         }
                                                     }
                                                 }
@@ -1454,24 +1449,24 @@ function pdp11Processor() {
                                             break;
                                         case 0o66: // MTPI 0066DD
                                             //LOG_INSTRUCTION(instruction, "mtpi", 1);
-                                            if ((result = popWord()) >= 0) {
+                                            if ((dst = popWord()) >= 0) {
                                                 if (!(CPU.MMR0 & 0xe000)) {
                                                     CPU.MMR1 = 0o26;
                                                 }
                                                 if (!(instruction & 0o70)) {
                                                     reg = instruction & 7;
                                                     if (reg !== 6 || ((CPU.PSW >>> 12) & 3) === CPU.mmuMode) {
-                                                        registerVal[reg] = result;
+                                                        registerVal[reg] = dst;
                                                     } else {
-                                                        CPU.stackPointer[(CPU.PSW >>> 12) & 3] = result;
+                                                        CPU.stackPointer[(CPU.PSW >>> 12) & 3] = dst;
                                                     }
-                                                    setNZ(result);
+                                                    setNZ(dst);
                                                 } else { // Must extract virtual address before mode change...
                                                     if ((virtualAddress = getVirtualByMode(instruction, MMU_WORD)) >= 0) {
                                                         setMMUmode((CPU.PSW >>> 12) & 3); // Use previous mode
-                                                        if (writeWordByVirtual(virtualAddress & 0xffff, result) >= 0) {
+                                                        if (writeWordByVirtual(virtualAddress & 0xffff, dst) >= 0) {
                                                             setMMUmode(CPU.PSW >>> 14); // Restore CM
-                                                            setNZ(result);
+                                                            setNZ(dst);
                                                         }
                                                     }
                                                 }
@@ -1479,12 +1474,13 @@ function pdp11Processor() {
                                             break;
                                         case 0o67: // SXT 0067DD
                                             //LOG_INSTRUCTION(instruction, "sxt", 1);
-                                            result = 0;
                                             if (testN()) {
-                                                result = 0xffff;
+                                                dst = 0xffff;
+                                            } else {
+                                                dst = 0;
                                             }
-                                            if (writeWordByMode(instruction, result) >= 0) {
-                                                setNZ(result);
+                                            if (writeWordByMode(instruction, dst) >= 0) {
+                                                setNZ(dst);
                                             }
                                             break;
                                         default: // We don't know this 0o00xxDD instruction
@@ -1496,9 +1492,9 @@ function pdp11Processor() {
                             break;
                         case 1: // MOV  01SSDD
                             //LOG_INSTRUCTION(instruction, "mov", 2);
-                            if ((src = readWordByMode(instruction >>> 6)) >= 0) {
-                                if (writeWordByMode(instruction, src) >= 0) {
-                                    setNZ(src);
+                            if ((dst = readWordByMode(instruction >>> 6)) >= 0) {
+                                if (writeWordByMode(instruction, dst) >= 0) {
+                                    setNZ(dst);
                                 }
                             }
                             break;
@@ -1523,9 +1519,9 @@ function pdp11Processor() {
                             //LOG_INSTRUCTION(instruction, "bic", 2);
                             if ((src = readWordByMode(instruction >>> 6)) >= 0) {
                                 if ((dst = modifyWordByMode(instruction)) >= 0) {
-                                    result = dst & ~src;
-                                    if (modifyWord(result) >= 0) {
-                                        setNZ(result);
+                                    dst &= ~src;
+                                    if (modifyWord(dst) >= 0) {
+                                        setNZ(dst);
                                     }
                                 }
                             }
@@ -1534,9 +1530,9 @@ function pdp11Processor() {
                             //LOG_INSTRUCTION(instruction, "bis", 2);
                             if ((src = readWordByMode(instruction >>> 6)) >= 0) {
                                 if ((dst = modifyWordByMode(instruction)) >= 0) {
-                                    result = dst | src;
-                                    if (modifyWord(result) >= 0) {
-                                        setNZ(result);
+                                    dst |= src;
+                                    if (modifyWord(dst) >= 0) {
+                                        setNZ(dst);
                                     }
                                 }
                             }
@@ -1672,10 +1668,10 @@ function pdp11Processor() {
                                     break;
                                 case 4: // XOR 074RSS
                                     //LOG_INSTRUCTION(instruction, "xor", 6);
-                                    if ((result = modifyWordByMode(instruction)) >= 0) {
-                                        result ^= registerVal[(instruction >>> 6) & 7];
-                                        if (modifyWord(result) >= 0) {
-                                            setNZ(result);
+                                    if ((dst = modifyWordByMode(instruction)) >= 0) {
+                                        dst ^= registerVal[(instruction >>> 6) & 7];
+                                        if (modifyWord(dst) >= 0) {
+                                            setNZ(dst);
                                         }
                                     }
                                     break;
@@ -1761,9 +1757,8 @@ function pdp11Processor() {
                                         case 0o51: // COMB 1051DD
                                             //LOG_INSTRUCTION(instruction, "comb", 1);
                                             if ((dst = modifyByteByMode(instruction)) >= 0) {
-                                                result = ~dst;
-                                                if (modifyByte(result) >= 0) {
-                                                    setByteNZC(result);
+                                                if (modifyByte(~dst) >= 0) {
+                                                    setByteNZC(~dst);
                                                 }
                                             }
                                             break;
@@ -1772,7 +1767,7 @@ function pdp11Processor() {
                                             if ((dst = modifyByteByMode(instruction)) >= 0) {
                                                 result = dst + 1;
                                                 if (modifyByte(result) >= 0) {
-                                                    setByteNZV(result, result & (result ^ dst));
+                                                    setByteNZV(result, result & ~dst);
                                                 }
                                             }
                                             break;
@@ -1781,7 +1776,7 @@ function pdp11Processor() {
                                             if ((dst = modifyByteByMode(instruction)) >= 0) {
                                                 result = dst + 0xffff;
                                                 if (modifyByte(result) >= 0) {
-                                                    setByteNZV(result, (result ^ dst) & dst);
+                                                    setByteNZV(result, dst & ~result);
                                                 }
                                             }
                                             break;
@@ -1802,7 +1797,7 @@ function pdp11Processor() {
                                                     result++;
                                                 }
                                                 if (modifyByte(result) >= 0) {
-                                                    setByteNZVC(result, result & (result ^ dst));
+                                                    setByteNZVC(result, result & ~dst);
                                                 }
                                             }
                                             break;
@@ -1814,14 +1809,14 @@ function pdp11Processor() {
                                                     result--;
                                                 }
                                                 if (modifyByte(result) >= 0) {
-                                                    setByteNZVC(result, (result ^ dst) & dst);
+                                                    setByteNZVC(result, dst & ~result);
                                                 }
                                             }
                                             break;
                                         case 0o57: // TSTB 1057DD
                                             //LOG_INSTRUCTION(instruction, "tstb", 1);
-                                            if ((result = readByteByMode(instruction)) >= 0) {
-                                                setByteNZC(result);
+                                            if ((dst = readByteByMode(instruction)) >= 0) {
+                                                setByteNZC(dst);
                                             }
                                             break;
                                         case 0o60: // RORB 1060DD
@@ -1868,8 +1863,8 @@ function pdp11Processor() {
                                             break;
                                             //case 0o64: // MTPS 1064SS
                                             //    //LOG_INSTRUCTION(instruction, "mtps", 1);
-                                            //    if ((src = readByteByMode(instruction)) >= 0) {
-                                            //        writePSW((CPU.PSW & 0xff00) | (src & 0xef));
+                                            //    if ((dst = readByteByMode(instruction)) >= 0) {
+                                            //        writePSW((CPU.PSW & 0xff00) | (dst & 0xef));
                                             //    } // Temporary PDP 11/34A
                                             //    break;
                                         case 0o65: // MFPD 1065DD
@@ -1877,20 +1872,20 @@ function pdp11Processor() {
                                             if (!(instruction & 0o70)) {
                                                 reg = instruction & 7;
                                                 if (reg !== 6 || ((CPU.PSW >>> 12) & 3) === CPU.mmuMode) {
-                                                    result = registerVal[reg];
+                                                    dst = registerVal[reg];
                                                 } else {
-                                                    result = CPU.stackPointer[(CPU.PSW >>> 12) & 3];
+                                                    dst = CPU.stackPointer[(CPU.PSW >>> 12) & 3];
                                                 }
-                                                if (pushWord(result, 0) >= 0) {
-                                                    setNZ(result);
+                                                if (pushWord(dst, 0) >= 0) {
+                                                    setNZ(dst);
                                                 }
                                             } else {
                                                 if ((virtualAddress = getVirtualByMode(instruction, MMU_WORD)) >= 0) {
                                                     setMMUmode((CPU.PSW >>> 12) & 3); // Use PM
-                                                    if ((result = readWordByVirtual(virtualAddress | 0x10000)) >= 0) {
+                                                    if ((dst = readWordByVirtual(virtualAddress | 0x10000)) >= 0) {
                                                         setMMUmode(CPU.PSW >>> 14); // Restore CM
-                                                        if (pushWord(result, 0) >= 0) {
-                                                            setNZ(result);
+                                                        if (pushWord(dst, 0) >= 0) {
+                                                            setNZ(dst);
                                                         }
                                                     }
                                                 }
@@ -1898,24 +1893,24 @@ function pdp11Processor() {
                                             break;
                                         case 0o66: // MTPD 1066DD
                                             //LOG_INSTRUCTION(instruction, "mtpd", 1);
-                                            if ((result = popWord()) >= 0) {
+                                            if ((dst = popWord()) >= 0) {
                                                 if (!(CPU.MMR0 & 0xe000)) {
                                                     CPU.MMR1 = 0o26;
                                                 }
                                                 if (!(instruction & 0o70)) {
                                                     reg = instruction & 7;
                                                     if (reg !== 6 || ((CPU.PSW >>> 12) & 3) === CPU.mmuMode) {
-                                                        registerVal[reg] = result;
+                                                        registerVal[reg] = dst;
                                                     } else {
-                                                        CPU.stackPointer[(CPU.PSW >>> 12) & 3] = result;
+                                                        CPU.stackPointer[(CPU.PSW >>> 12) & 3] = dst;
                                                     }
-                                                    setNZ(result);
+                                                    setNZ(dst);
                                                 } else { // Must extract virtual address before mode change...
                                                     if ((virtualAddress = getVirtualByMode(instruction, MMU_WORD)) >= 0) {
                                                         setMMUmode((CPU.PSW >>> 12) & 3); // Use PM
-                                                        if (writeWordByVirtual(virtualAddress | 0x10000, result) >= 0) {
+                                                        if (writeWordByVirtual(virtualAddress | 0x10000, dst) >= 0) {
                                                             setMMUmode(CPU.PSW >>> 14); // Restore CM
-                                                            setNZ(result);
+                                                            setNZ(dst);
                                                         }
                                                     }
                                                 }
@@ -1923,16 +1918,16 @@ function pdp11Processor() {
                                             break;
                                             //case 0o67: // MTFS 1064SS
                                             //    //LOG_INSTRUCTION(instruction, "mfps", 1);
-                                            //    result = readPSW() & 0xff;
+                                            //    dst = readPSW() & 0xff;
                                             //    if (!(instruction & 0o70)) {
-                                            //        if (result & 0o200) {
-                                            //            result |= 0xff00;
+                                            //        if (dst & 0o200) {
+                                            //            dst |= 0xff00;
                                             //        }
-                                            //        registerVal[instruction & 7] = result;
-                                            //        setByteNZ(result);
+                                            //        registerVal[instruction & 7] = dst;
+                                            //        setByteNZ(dst);
                                             //    } else {
-                                            //        if (writeByteByMode(instruction, result) >= 0) {
-                                            //            setByteNZ(result);
+                                            //        if (writeByteByMode(instruction, dst) >= 0) {
+                                            //            setByteNZ(dst);
                                             //        }
                                             //    } // Temporary PDP 11/34A
                                             //    break;
@@ -1946,16 +1941,16 @@ function pdp11Processor() {
                             break;
                         case 9: // MOVB 11SSDD
                             //LOG_INSTRUCTION(instruction, "movb", 2);
-                            if ((result = readByteByMode(instruction >>> 6)) >= 0) {
+                            if ((dst = readByteByMode(instruction >>> 6)) >= 0) {
                                 if (!(instruction & 0o70)) { // Need sign extension when writing to a register
-                                    if (result & 0o200) {
-                                        result |= 0xff00; // Special case: movb sign extends register to word size
+                                    if (dst & 0o200) {
+                                        dst |= 0xff00; // Special case: movb sign extends register to word size
                                     }
-                                    registerVal[instruction & 7] = result;
-                                    setByteNZ(result);
+                                    registerVal[instruction & 7] = dst;
+                                    setByteNZ(dst);
                                 } else {
-                                    if (writeByteByMode(instruction, result) >= 0) {
-                                        setByteNZ(result);
+                                    if (writeByteByMode(instruction, dst) >= 0) {
+                                        setByteNZ(dst);
                                     }
                                 }
                             }
@@ -1972,8 +1967,8 @@ function pdp11Processor() {
                         case 11: // BITB 13SSDD
                             //LOG_INSTRUCTION(instruction, "bitb", 2);
                             if ((src = readByteByMode(instruction >>> 6)) >= 0) {
-                                if ((result = readByteByMode(instruction)) >= 0) {
-                                    setByteNZ(src & result);
+                                if ((dst = readByteByMode(instruction)) >= 0) {
+                                    setByteNZ(src & dst);
                                 }
                             }
                             break;
@@ -1981,9 +1976,9 @@ function pdp11Processor() {
                             //LOG_INSTRUCTION(instruction, "bicb", 2);
                             if ((src = readByteByMode(instruction >>> 6)) >= 0) {
                                 if ((dst = modifyByteByMode(instruction)) >= 0) {
-                                    result = dst & ~src;
-                                    if (modifyByte(result) >= 0) {
-                                        setByteNZ(result);
+                                    dst &= ~src;
+                                    if (modifyByte(dst) >= 0) {
+                                        setByteNZ(dst);
                                     }
                                 }
                             }
@@ -1992,9 +1987,9 @@ function pdp11Processor() {
                             //LOG_INSTRUCTION(instruction, "bisb", 2);
                             if ((src = readByteByMode(instruction >>> 6)) >= 0) {
                                 if ((dst = modifyByteByMode(instruction)) >= 0) {
-                                    result = dst | src;
-                                    if (modifyByte(result) >= 0) {
-                                        setByteNZ(result);
+                                    dst |= src;
+                                    if (modifyByte(dst) >= 0) {
+                                        setByteNZ(dst);
                                     }
                                 }
                             }
@@ -2020,13 +2015,11 @@ function pdp11Processor() {
                             break;
                     }
                 }
-
-                if (--loopCount <= 0) { // check time remaining every 1000 cycles
+                if (--loopCount <= 0) {
                     if (Date.now() >= loopTime) {
                         break;
-                    } else {
-                        loopCount = 1000;
                     }
+                    loopCount = 2000;
                 }
             } while (CPU.runState === STATE_RUN);
 
@@ -2039,11 +2032,10 @@ function pdp11Processor() {
                 CPU.displayDataPaths = registerVal[0];
                 CPU.displayAddress = registerVal[7];
             }
-            break;
     }
 
-    updateLights();
     setTimeout(pdp11Processor, 4);
+    updateLights();
 }
 
 
@@ -2094,20 +2086,23 @@ function updateLights() {
     "use strict";
     let addressLights, displayLights, statusLights;
 
+
     function updatePanel(oldMask, newMask, idArray) { // Update lights to match newMask
         "use strict";
-        let id, changeMask;
-        changeMask = oldMask ^ newMask;
-        for (id = 0; changeMask; id++, changeMask >>= 1, oldMask >>= 1) { // while any differences..
-            if (changeMask & 1) { // If this light has changed...
-                if (oldMask & 1) {
-                    idArray[id].visibility = 'hidden';
-                } else {
-                    idArray[id].visibility = 'visible';
-                }
+        let mask = newMask ^ oldMask; // difference mask
+        for (let id = 0; mask;) {
+            while (!(mask & 1)) {
+                id++;
+                mask >>>= 1;
             }
+            if (newMask & (1 << id)) {
+                idArray[id].visibility = 'visible';
+            } else {
+                idArray[id].visibility = 'hidden';
+            }
+            id++;
+            mask >>>= 1;
         }
-        return newMask;
     }
     if (panel.powerSwitch < 0) {
         addressLights = 0;
@@ -2146,14 +2141,18 @@ function updateLights() {
                 ((CPU.displayPhysical & 0x400000) >>> 12);
         }
     }
+
     if (addressLights !== panel.addressLights) {
-        panel.addressLights = updatePanel(panel.addressLights, addressLights, panel.addressId);
+        updatePanel(panel.addressLights, addressLights, panel.addressId);
+        panel.addressLights = addressLights;
     }
     if (displayLights !== panel.displayLights) {
-        panel.displayLights = updatePanel(panel.displayLights, displayLights, panel.displayId);
+        updatePanel(panel.displayLights, displayLights, panel.displayId);
+        panel.displayLights = displayLights;
     }
     if (statusLights !== panel.statusLights) {
-        panel.statusLights = updatePanel(panel.statusLights, statusLights, panel.statusId);
+        updatePanel(panel.statusLights, statusLights, panel.statusId);
+        panel.statusLights = statusLights;
     }
 }
 
