@@ -143,7 +143,7 @@ iopage.register(0o17777770, 4, (function() {
         CPU.PIR = 0;
         CPU.stackLimit = 0xff;
         CPU.CPU_Error = 0;
-        CPU.MMR0 = CPU.MMR3 = CPU.MMR3KSxU = CPU.mmuEnable = 0;
+        CPU.MMR0 = CPU.MMR3 = CPU.mmuEnable = 0;
         setMMUmode(0);
         CPU.mmuLastPage = 0;
     }
@@ -444,9 +444,9 @@ var mmuRegisterPAR = {
         "use strict";
         var result, index; // Index becomes 0-15 for kernel mode, 16-31 for super, and 48-63 for user mode
         index = (((physicalAddress & 0o0600) >>> 3) ^ ((physicalAddress & 0o0100) >>> 2)) | ((physicalAddress >>> 1) & 0o17);
-        result = insertData(CPU.mmuPAR[index] >>> 6, physicalAddress, data, byteFlag);
+        result = insertData(CPU.mmuPAR[index], physicalAddress, data, byteFlag);
         if (result >= 0) {
-            CPU.mmuPAR[index] = result << 6;
+            CPU.mmuPAR[index] = result;
             CPU.mmuPDR[index] &= 0xff0f; // access impacts PDR as well
         }
         return result;

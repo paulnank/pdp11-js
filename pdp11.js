@@ -17,7 +17,6 @@ const
     MMU_READ = 16, // READ & WRITE bits used to indicate access type in memory operations
     MMU_WRITE = 32, // but beware lower 4 bits used as auto-increment length when getting virtual address
     MMU_LENGTH_MASK = 0xf, // Mask for operand length (which can be up to 8 for FPP)
-    MMU_LENGTH_EVEN = MMU_LENGTH_MASK - 1, // Mask length even only (for SP)
     MMU_BYTE = 1, // Byte length in 4 bits - also used as byte test mask
     MMU_WORD = 2, // Word length
     MMU_BYTE_READ = MMU_READ | MMU_BYTE, // Read flag with byte length
@@ -74,42 +73,29 @@ var CPU = {
     displayMicroAdrs: 0, // Micro Address display (we don't really have one)
     displayPhysical: 0, // Physical address display for console operations
     displayRegister: 0, // Console display lights register (set by software)
-    flagC: 0x10000, //  PSW C bit (when not in PSW)
-    flagNZ: 0xffff, //  PSW NZ status (when not in PSW)
-    flagV: 0x8000, //   PSW V bit (when not in PSW)
+    flagC: NaN, //    PSW C bit (when not in PSW)
+    flagNZ: NaN, //   PSW NZ status (when not in PSW)
+    flagV: 0x8000, // PSW V bit (when not in PSW)
     interruptRequested: 1, // flag to mark if an interrupt has been requested
-    memory: new Array(MAX_MEMORY / 2), // Main memory (in words - addresses must be halved for byte indexing)
+    memory: new Uint16Array(MAX_MEMORY >>> 1), // Main memory (in words - addresses must be halved for byte indexing)
     mmuEnable: 0, // MMU enable mask for MMU_READ and/or MMU_WRITE
     mmuLastPage: 0, // last used MMU page for MMR0 - 2 bits of mode and 4 bits of I/D page - used as an index into PAR/PDR
     mmuMode: 0, // current memory management mode (0=kernel,1=super,2=undefined,3=user)
-    mmuPAR: [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //0 kernel (8 i and 8 d pages)
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //1 super
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //2 illegal
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 //3 user
-    ], // memory management PAR registers by mode
-    mmuPDR: [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //0 kernel (8 i and 8 d pages)
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //1 super
-        0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, // 2 illegal
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 //3 user
-    ], // memory management PDR registers by mode
+    mmuPAR: new Uint16Array(64), //mmu par register by kernel (8 i and 8 d pages), super, illegal & user
+    mmuPDR: new Uint16Array(64), //mmu pdr register by kernel (8 i and 8 d pages), super, illegal & user
     mmuPageMask: 0, // MMR3 I/D page mask
-    modifyAddress: -1, // If the register is < 0 then remember the memory physical address
+    modifyAddress: 0, // Remember memory physical address
     modifyRegister: -1, // Remember the address of a register in a read/write (modify) cycle
-    registerAlt: [0, 0, 0, 0, 0, 0], // Alternate registers R0 - R5
-    registerVal: [0, 0, 0, 0, 0, 0, 0, 0], // Current registers  R0 - R7
+    registerAlt: new Uint16Array(6), // Alternate registers R0 - R5
+    registerVal: new Uint16Array(8), // Current registers  R0 - R7
     runState: STATE_HALT, // current machine state STATE_RUN, STATE_STEP, STATE_RESET, STATE_WAIT or STATE_HALT
     stackLimit: 0xff, // stack overflow limit
-    stackPointer: [0, 0, 0, 0], // Alternate R6 (kernel, super, illegal, user)
+    stackPointer: new Uint16Array(4), // Alternate R6 (kernel, super, illegal, user)
     statusLights: 0x3000, // Need to remember console address error light status
     switchRegister: 0, // console switch register
     trapMask: 0, // Mask of traps to be taken at the end of the current instruction
     trapPSW: -1, // PSW when first trap invoked - for tackling double traps
-    unibusMap: [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    ] // 32 double word unibus mapping registers
+    unibusMap: new Uint32Array(32) // 32 double word unibus mapping registers
 };
 
 // Instruction logging stuff - useful ONLY in browser debugging mode!!
@@ -226,7 +212,7 @@ function LOG_INSTRUCTION(instruction, name, format) {
 
 function setMMUmode(mmuMode) {
     "use strict";
-    CPU.mmuPageMask = (CPU.MMR3 << (mmuMode < 2 ? mmuMode + 1 : mmuMode)) & 8 | 0x37;
+    CPU.mmuPageMask = ((CPU.MMR3 << (mmuMode & 2 ? mmuMode : mmuMode + 1)) & 8) | 0x37;
     CPU.mmuMode = mmuMode;
 }
 
@@ -246,8 +232,9 @@ function setMMUmode(mmuMode) {
 function writePSW(newPSW) {
     "use strict";
     if ((newPSW ^ CPU.PSW) & 0x0800) { // register set change?
-        for (let i = 0; i <= 5; i++) {
-            let temp = CPU.registerVal[i];
+        let i, temp;
+        for (i = 0; i <= 5; i++) {
+            temp = CPU.registerVal[i];
             CPU.registerVal[i] = CPU.registerAlt[i];
             CPU.registerAlt[i] = temp; // swap the active register sets
         }
@@ -349,7 +336,7 @@ function setFlags(mask, value) { // Set or clear selected flags in mask
     CPU.PSW = (readPSW() & ~mask) | (value & mask);
 }
 
-function setNZVCzero() { // Set flags for 0 value (Z becomes 1)
+function setZero() { // Set flags for 0 value (Z becomes 1)
     "use strict";
     CPU.PSW = (CPU.PSW & 0xfff0) | 4;
     CPU.flagNZ = NaN; // NZV flags are inside the PSW
@@ -412,10 +399,11 @@ function setByteNZVC(result, flagV) { // Set all flag conditions (byte)
 // CPU.trapPSW records the first PSW for double trap handling. The special value of -2
 // allows console operations to propagate an abort without trapping to the new vector.
 
+
 function trap(vector, errorMask) {
     "use strict";
-    let newPC, newPSW, doubleTrap = 0;
     if (CPU.trapPSW > -2) { // console mode doesn't actually do all the regular trap stuff
+        let newPC, newPSW, doubleTrap = 0;
         if (CPU.trapPSW < 0) {
             CPU.trapMask = 0; // No other traps unless we cause one here
             CPU.trapPSW = readPSW(); // Remember original PSW
@@ -435,19 +423,23 @@ function trap(vector, errorMask) {
             if ((newPSW = readWordByVirtual(((vector + 2) & 0xffff) | 0x10000)) >= 0) {
                 writePSW((newPSW & 0xcfff) | ((CPU.trapPSW >>> 2) & 0x3000)); // set new CPU.PSW with previous mode
                 if (doubleTrap) {
-                    CPU.CPU_Error |= 4; // Double trap treated as red zone error
-                    CPU.registerVal[6] = 4; // Reset stack
-                }
-                if (pushWord(CPU.trapPSW, doubleTrap) >= 0 && pushWord(CPU.registerVal[7], doubleTrap) >= 0) {
+                    writeWordByVirtual(0x10000, CPU.registerVal[7]);
+                    writeWordByVirtual(0x10002, CPU.trapPSW);
+                    CPU.registerVal[6] = 0; // Reset stack
                     CPU.registerVal[7] = newPC;
+                    CPU.CPU_Error |= 4; // Double trap treated as red zone error
+                } else {
+                    if (pushWord(CPU.trapPSW) >= 0 && pushWord(CPU.registerVal[7]) >= 0) {
+                        CPU.registerVal[7] = newPC;
+                    }
                 }
+                if (errorMask) { // Check if this trap sets any CPU error flags
+                    CPU.displayPhysical |= 0x400000; // All CPU error flags set ADRS ERR light
+                    CPU.CPU_Error |= errorMask & 0xfc;
+                }
+                CPU.trapPSW = -1; // reset flag that we have a trap within a trap
             }
         }
-        CPU.trapPSW = -1; // reset flag that we have a trap within a trap
-    }
-    if (errorMask) { // Check if this trap sets any CPU error flags
-        CPU.displayPhysical |= 0x400000; // All CPU error flags set ADRS ERR light
-        CPU.CPU_Error |= errorMask & 0xfc;
     }
     return -1; // signal that a trap has occurred
 }
@@ -466,7 +458,7 @@ function readWordByPhysical(physicalAddress) {
 function writeWordByPhysical(physicalAddress, data) {
     "use strict";
     if (physicalAddress < IOBASE_UNIBUS) {
-        return CPU.memory[physicalAddress >>> 1] = data;
+        return (CPU.memory[physicalAddress >>> 1] = data);
     } else {
         return iopage.access(physicalAddress, data, 0);
     }
@@ -476,9 +468,9 @@ function readByteByPhysical(physicalAddress) {
     "use strict";
     if (physicalAddress < IOBASE_UNIBUS) {
         if (physicalAddress & 1) {
-            return CPU.memory[physicalAddress >>> 1] >>> 8;
+            return (CPU.memory[physicalAddress >>> 1] >>> 8);
         } else {
-            return CPU.memory[physicalAddress >>> 1] & 0xff;
+            return (CPU.memory[physicalAddress >>> 1] & 0xff);
         }
     } else {
         return iopage.access(physicalAddress, -1, 1);
@@ -490,9 +482,9 @@ function writeByteByPhysical(physicalAddress, data) {
     if (physicalAddress < IOBASE_UNIBUS) {
         let memoryIndex = physicalAddress >>> 1;
         if (physicalAddress & 1) {
-            return CPU.memory[memoryIndex] = (data << 8) | (CPU.memory[memoryIndex] & 0xff);
+            return (CPU.memory[memoryIndex] = (data << 8) | (CPU.memory[memoryIndex] & 0xff));
         } else {
-            return CPU.memory[memoryIndex] = (CPU.memory[memoryIndex] & 0xff00) | data;
+            return (CPU.memory[memoryIndex] = (CPU.memory[memoryIndex] & 0xff00) | data);
         }
     } else {
         return iopage.access(physicalAddress, data, 1);
@@ -550,9 +542,10 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
             }
         }
     } else { // This access is mapped by the MMU
-        let errorMask, page, pdr;
-        page = ((virtualAddress >>> 13) | (CPU.mmuMode << 4)) & CPU.mmuPageMask; // insert mode, page no, and set I/D
-        physicalAddress = ((virtualAddress & 0x1fff) + CPU.mmuPAR[page]) & 0x3fffff;
+        let page = ((virtualAddress >>> 13) | (CPU.mmuMode << 4)) & CPU.mmuPageMask;
+        let pdr = CPU.mmuPDR[page];
+        let errorMask = 0;
+        physicalAddress = ((virtualAddress & 0x1fff) + (CPU.mmuPAR[page] << 6)) & 0x3fffff;
         if (!(CPU.MMR3 & 0x10)) { // 18 bit mapping needs extra trimming
             physicalAddress &= 0x3ffff;
             if (physicalAddress >= IOBASE_18BIT) {
@@ -579,9 +572,12 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
                 CPU.mmuLastPage = page;
             }
         }
-        errorMask = 0;
-        pdr = CPU.mmuPDR[page];
         switch (pdr & 0x7) { // Check the Access Control Field (ACF) - really a page type
+            case 0:
+            case 3:
+            default:
+                errorMask = 0x8000; // non-resident abort
+                break;
             case 1: // read-only with trap
                 errorMask = 0x1000; // MMU trap - then fall thru
             case 2: // read-only
@@ -602,11 +598,6 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
                 if ((pdr & 0xc0) !== 0xc0) { // if A & W already set skip
                     CPU.mmuPDR[page] = pdr | (accessMask & MMU_WRITE ? 0xc0 : 0x80); // Set A & W bits
                 }
-                break;
-            case 0:
-            case 3:
-            default:
-                errorMask = 0x8000; // non-resident abort
                 break;
         }
         switch (pdr & 0x7f08) { // check page length
@@ -683,17 +674,14 @@ function stackCheck(virtualAddress) {
     return virtualAddress;
 }
 
-function pushWord(data, skipLimitCheck) {
+function pushWord(data) {
     "use strict";
-    let virtualAddress;
-    virtualAddress = CPU.registerVal[6] = (CPU.registerVal[6] - 2) & 0xffff; // BSD meeds SP updated before any fault :-(
+    let virtualAddress = CPU.registerVal[6] = (CPU.registerVal[6] + 0xfffe) & 0xffff; // BSD meeds SP updated before any fault :-(
     if (!(CPU.MMR0 & 0xe000)) {
         CPU.MMR1 = (CPU.MMR1 << 8) | 0xf6;
     }
-    if (!skipLimitCheck) {
-        if ((virtualAddress = stackCheck(virtualAddress)) < 0) {
-            return virtualAddress;
-        }
+    if ((virtualAddress = stackCheck(virtualAddress)) < 0) {
+        return virtualAddress;
     }
     return writeWordByVirtual(virtualAddress | 0x10000, data);
 }
@@ -726,6 +714,7 @@ function popWord() {
 //      7   @x(R)       x from I space but address and operand from D space
 //
 // Kernel mode stack limit checks are implemented for addressing modes 1, 2, 4 & 6 (!)
+// (the other modes can't write relative to SP!)
 //
 // The accessMode field specifies two bit flags for read or write, or both for a modify.
 // Mask values for these are constants MMU_READ and MMU_WRITE which are used by the MMU
@@ -758,8 +747,6 @@ function getVirtualByMode(addressMode, accessMode) {
         case 1: // Mode 1: (R)
             virtualAddress = CPU.registerVal[reg];
             switch (reg) {
-                case 7: // (PC)
-                    break;
                 case 6: // (SP)
                     if (accessMode & MMU_WRITE) {
                         if ((virtualAddress = stackCheck(virtualAddress)) < 0) {
@@ -768,53 +755,50 @@ function getVirtualByMode(addressMode, accessMode) {
                     } // Fall through for D space
                 default: // (Rx)
                     virtualAddress |= 0x10000; // Use D space
-                    break;
+                case 7: // (PC)
             }
-            return virtualAddress;
+            return virtualAddress; // (R) I or D space
         case 2: // Mode 2: (R)+ including immediate operand #x
             virtualAddress = CPU.registerVal[reg];
             switch (reg) {
                 case 7: // (PC)+  AKA  #x in I space
-                    autoIncrement = 2; // R7 always increments by 2
+                    autoIncrement = 2;
                     break;
                 case 6: // (SP)+
-                    autoIncrement = (accessMode + 1) & MMU_LENGTH_EVEN;
                     if (accessMode & MMU_WRITE) {
                         if ((virtualAddress = stackCheck(virtualAddress)) < 0) {
                             return virtualAddress;
                         }
                     }
+                    autoIncrement = (accessMode + 1) & (MMU_LENGTH_MASK - 1);
                     virtualAddress |= 0x10000; // Use D space for (SP)+
                     break;
                 default: // (Rx)+
                     autoIncrement = accessMode & MMU_LENGTH_MASK;
-                    virtualAddress |= 0x10000; // Use D space
+                    virtualAddress |= 0x10000; // Use D space for (Rx)+
                     break;
             }
-            break;
+            break; // (R)+ I or D space
         case 3: // Mode 3: @(R)+
             virtualAddress = CPU.registerVal[reg];
-            if (reg !== 7) {
-                virtualAddress |= 0x10000; // Use D space if not R7
-            }
-            if ((virtualAddress = readWordByVirtual(virtualAddress)) < 0) {
+            if ((virtualAddress = readWordByVirtual(reg === 7 ? virtualAddress : virtualAddress | 0x10000)) < 0) {
                 return virtualAddress;
             }
             //if (reg === 7) {
             //    LOG_OPERAND(virtualAddress);
             //}
             autoIncrement = 2;
-            virtualAddress |= 0x10000; // Use D space
+            virtualAddress |= 0x10000; // @(R)+ in D space
             break;
         case 4: // Mode 4: -(R)
             switch (reg) {
                 case 7: // -(PC)  how you would use that?
-                    autoIncrement = -2; // R7 always decrements by 2
-                    virtualAddress = (CPU.registerVal[reg] - 2) & 0xffff;
+                    autoIncrement = 0xfffe; // -2
+                    virtualAddress = (CPU.registerVal[7] + autoIncrement) & 0xffff;
                     break;
                 case 6: // -(SP)
-                    autoIncrement = -((accessMode + 1) & MMU_LENGTH_EVEN);
-                    virtualAddress = (CPU.registerVal[reg] + autoIncrement) & 0xffff;
+                    autoIncrement = (0x10000 - (accessMode & MMU_LENGTH_MASK)) & 0xfffe;
+                    virtualAddress = (CPU.registerVal[6] + autoIncrement) & 0xffff;
                     if (accessMode & MMU_WRITE) {
                         if ((virtualAddress = stackCheck(virtualAddress)) < 0) {
                             return virtualAddress;
@@ -823,21 +807,18 @@ function getVirtualByMode(addressMode, accessMode) {
                     virtualAddress |= 0x10000; // Use D space for -(SP)
                     break;
                 default: // -(Rx)
-                    autoIncrement = -(accessMode & MMU_LENGTH_MASK);
+                    autoIncrement = 0x10000 - (accessMode & MMU_LENGTH_MASK);
                     virtualAddress = ((CPU.registerVal[reg] + autoIncrement) & 0xffff) | 0x10000;
                     break;
             }
-            break;
+            break; // -(R) I or D space
         case 5: // Mode 5: @-(R)
-            virtualAddress = (CPU.registerVal[reg] - 2) & 0xffff;
-            if (reg !== 7) {
-                virtualAddress |= 0x10000; // Use D space if not R7
-            }
-            if ((virtualAddress = readWordByVirtual(virtualAddress)) < 0) {
+            autoIncrement = 0xfffe; // -2
+            virtualAddress = (CPU.registerVal[reg] + autoIncrement) & 0xffff;
+            if ((virtualAddress = readWordByVirtual(reg === 7 ? virtualAddress : virtualAddress | 0x10000)) < 0) {
                 return virtualAddress;
             }
-            autoIncrement = -2;
-            virtualAddress |= 0x10000; // Use D space
+            virtualAddress |= 0x10000; // @-(R) in D space
             break;
         case 6: // Mode 6: d(R)
             if ((virtualAddress = readWordByVirtual(CPU.registerVal[7])) < 0) { // Always I space
@@ -851,26 +832,24 @@ function getVirtualByMode(addressMode, accessMode) {
                     return virtualAddress;
                 }
             }
-            return virtualAddress | 0x10000;
-        default: // 7 Mode 7: @d(R)
+            return virtualAddress | 0x10000; // d(R) in D space
+        default: // Mode 7: @d(R)
             if ((virtualAddress = readWordByVirtual(CPU.registerVal[7])) < 0) { // Always I space
                 return virtualAddress;
             }
             //LOG_OPERAND(virtualAddress);
             CPU.registerVal[7] = (CPU.registerVal[7] + 2) & 0xffff;
-            virtualAddress = (virtualAddress + CPU.registerVal[reg]) & 0xffff;
-            if ((virtualAddress = readWordByVirtual(virtualAddress | 0x10000)) < 0) {
+            if ((virtualAddress = readWordByVirtual(((virtualAddress + CPU.registerVal[reg]) & 0xffff) | 0x10000)) < 0) {
                 return virtualAddress;
             }
-            return virtualAddress | 0x10000; // @x
+            return virtualAddress | 0x10000; // @d(R) in D space
     }
     CPU.registerVal[reg] = (CPU.registerVal[reg] + autoIncrement) & 0xffff;
     if (!(CPU.MMR0 & 0xe000)) {
-        CPU.MMR1 = (CPU.MMR1 << 8) | ((autoIncrement << 3) & 0xf8) | reg;
+        CPU.MMR1 = (CPU.MMR1 << 8) | ((autoIncrement & 0x1f) << 3) | reg;
     }
     return virtualAddress;
 }
-
 
 
 // Convert an instruction operand into a 17 bit I/D virtual address and then into a
@@ -905,7 +884,7 @@ function readWordByMode(addressMode) {
 function writeWordByMode(addressMode, data) {
     "use strict";
     if (!(addressMode & 0o70)) { // If register mode write to the register
-        return CPU.registerVal[addressMode & 7] = data & 0xffff;
+        return (CPU.registerVal[addressMode & 7] = data & 0xffff);
     } else {
         let physicalAddress;
         if ((physicalAddress = mapPhysicalByMode(addressMode, MMU_WORD_WRITE)) < 0) {
@@ -932,7 +911,7 @@ function modifyWordByMode(addressMode) {
 function modifyWord(data) {
     "use strict";
     if (CPU.modifyRegister >= 0) { // Modify the last register or memory address accessed
-        return CPU.registerVal[CPU.modifyRegister] = data & 0xffff;
+        return (CPU.registerVal[CPU.modifyRegister] = data & 0xffff);
     } else {
         return writeWordByPhysical(CPU.modifyAddress, data & 0xffff);
     }
@@ -941,7 +920,7 @@ function modifyWord(data) {
 function readByteByMode(addressMode) {
     "use strict";
     if (!(addressMode & 0o70)) { // If register mode just get register value
-        return CPU.registerVal[addressMode & 7] & 0xff;
+        return (CPU.registerVal[addressMode & 7] & 0xff);
     } else {
         let physicalAddress;
         if ((physicalAddress = mapPhysicalByMode(addressMode, MMU_BYTE_READ)) < 0) {
@@ -957,7 +936,7 @@ function readByteByMode(addressMode) {
 function writeByteByMode(addressMode, data) {
     "use strict";
     if (!(addressMode & 0o70)) { // If register mode write to the register
-        return CPU.registerVal[addressMode & 7] = (CPU.registerVal[addressMode & 7] & 0xff00) | (data & 0xff);
+        return (CPU.registerVal[addressMode & 7] = (CPU.registerVal[addressMode & 7] & 0xff00) | (data & 0xff));
     } else {
         let physicalAddress;
         if ((physicalAddress = mapPhysicalByMode(addressMode, MMU_BYTE_WRITE)) < 0) {
@@ -970,7 +949,7 @@ function writeByteByMode(addressMode, data) {
 function modifyByteByMode(addressMode) {
     "use strict";
     if (!(addressMode & 0o70)) { // If register mode get register value and remember which register
-        return CPU.registerVal[CPU.modifyRegister = addressMode & 7] & 0xff;
+        return (CPU.registerVal[CPU.modifyRegister = addressMode & 7] & 0xff);
     } else {
         let physicalAddress;
         if ((physicalAddress = mapPhysicalByMode(addressMode, MMU_BYTE_MODIFY)) < 0) {
@@ -984,7 +963,7 @@ function modifyByteByMode(addressMode) {
 function modifyByte(data) {
     "use strict";
     if (CPU.modifyRegister >= 0) { // Modify the last register or memory address accessed
-        return CPU.registerVal[CPU.modifyRegister] = (CPU.registerVal[CPU.modifyRegister] & 0xff00) | (data & 0xff);
+        return (CPU.registerVal[CPU.modifyRegister] = (CPU.registerVal[CPU.modifyRegister] & 0xff00) | (data & 0xff));
     } else {
         return writeByteByPhysical(CPU.modifyAddress, data & 0xff);
     }
@@ -1108,9 +1087,9 @@ function pdp11Processor() {
                 // Remember if T-bit trap required at the end of this instruction
                 CPU.trapMask = CPU.PSW & 0x10;
                 if ((instruction = readWordByVirtual(registerVal[7])) >= 0) {
-                    //if (registerVal[7] === 0o26576) { // DDEEBBUUGG
-                    //    console.log("PC " + registerVal[7].toString(8) + " instruction: " + instruction.toString(8) + " R0: " + registerVal[0].toString(8) + " R4: " + registerVal[4].toString(8));
-                    //}
+                    //    if (registerVal[7] == 0o26576) { // DDEEBBUUGG
+                    //        console.log("@" + registerVal[7].toString(8) + ": " + instruction.toString(8) + " r0: " + registerVal[0].toString(8) + " r4: " + registerVal[4].toString(8) + " psw: " + readPSW().toString(8));
+                    //    }
                     registerVal[7] = (registerVal[7] + 2) & 0xffff;
                     switch (instruction >>> 12) { // xxSSDD Mostly double operand instructions
                         case 0: // 00xxxx mixed group
@@ -1279,7 +1258,7 @@ function pdp11Processor() {
                                 case 9: // JSR 004RDD continued (9 bit instruction so use 2 x 8 bit slots)
                                     //LOG_INSTRUCTION(instruction, "jsr", 6);
                                     if ((virtualAddress = getVirtualByMode(instruction, MMU_WORD)) >= 0) {
-                                        if (pushWord(registerVal[reg = (instruction >>> 6) & 7], 0) >= 0) {
+                                        if (pushWord(registerVal[reg = (instruction >>> 6) & 7]) >= 0) {
                                             registerVal[reg] = registerVal[7];
                                             registerVal[7] = virtualAddress & 0xffff;
                                         }
@@ -1290,7 +1269,7 @@ function pdp11Processor() {
                                         case 0o50: // CLR 0050DD
                                             //LOG_INSTRUCTION(instruction, "clr", 1);
                                             if (writeWordByMode(instruction, 0) >= 0) {
-                                                setNZVCzero();
+                                                setZero();
                                             }
                                             break;
                                         case 0o51: // COM 0051DD
@@ -1420,7 +1399,7 @@ function pdp11Processor() {
                                                 } else {
                                                     dst = CPU.stackPointer[(CPU.PSW >>> 12) & 3];
                                                 }
-                                                if (pushWord(dst, 0) >= 0) {
+                                                if (pushWord(dst) >= 0) {
                                                     setNZ(dst);
                                                 }
                                             } else {
@@ -1431,7 +1410,7 @@ function pdp11Processor() {
                                                     setMMUmode((CPU.PSW >>> 12) & 3); // Use PM
                                                     if ((dst = readWordByVirtual(virtualAddress)) >= 0) {
                                                         setMMUmode(CPU.PSW >>> 14); // Restore CM
-                                                        if (pushWord(dst, 0) >= 0) {
+                                                        if (pushWord(dst) >= 0) {
                                                             setNZ(dst);
                                                         }
                                                     }
@@ -1659,8 +1638,9 @@ function pdp11Processor() {
                                     break;
                                 case 4: // XOR 074RSS
                                     //LOG_INSTRUCTION(instruction, "xor", 6);
+                                    src = registerVal[(instruction >>> 6) & 7]; // Always fetch src before dst! :-(
                                     if ((dst = modifyWordByMode(instruction)) >= 0) {
-                                        dst ^= registerVal[(instruction >>> 6) & 7];
+                                        dst ^= src;
                                         if (modifyWord(dst) >= 0) {
                                             setNZ(dst);
                                         }
@@ -1742,7 +1722,7 @@ function pdp11Processor() {
                                         case 0o50: // CLRB 1050DD
                                             //LOG_INSTRUCTION(instruction, "clrb", 1);
                                             if (writeByteByMode(instruction, 0) >= 0) {
-                                                setNZVCzero();
+                                                setZero();
                                             }
                                             break;
                                         case 0o51: // COMB 1051DD
@@ -1869,7 +1849,7 @@ function pdp11Processor() {
                                                 } else {
                                                     dst = CPU.stackPointer[(CPU.PSW >>> 12) & 3];
                                                 }
-                                                if (pushWord(dst, 0) >= 0) {
+                                                if (pushWord(dst) >= 0) {
                                                     setNZ(dst);
                                                 }
                                             } else {
@@ -1877,7 +1857,7 @@ function pdp11Processor() {
                                                     setMMUmode((CPU.PSW >>> 12) & 3); // Use PM
                                                     if ((dst = readWordByVirtual(virtualAddress | 0x10000)) >= 0) {
                                                         setMMUmode(CPU.PSW >>> 14); // Restore CM
-                                                        if (pushWord(dst, 0) >= 0) {
+                                                        if (pushWord(dst) >= 0) {
                                                             setNZ(dst);
                                                         }
                                                     }
@@ -2078,8 +2058,6 @@ function initPanel(idArray, idName, idCount) {
 function updateLights() {
     "use strict";
     let addressLights, displayLights, statusLights;
-
-
     function updatePanel(oldMask, newMask, idArray) { // Update lights to match newMask
         "use strict";
         let mask = newMask ^ oldMask; // difference mask
