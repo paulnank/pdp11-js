@@ -1,13 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang='en'>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Javascript PDP 11/70 Emulator">
-<meta name="keywords" content="PDP,PDP-11,11/70,JavaScript,Emulator,Emulation">
-<meta name="author" content="Paul Nankervis">
 <title>Javascript PDP 11/70 Emulator</title>
-<style type="text/css">
+<meta name="description" content="Javascript PDP 11/70 Emulator">
+<meta name="keywords" content="PDP,PDP-11,11/70,JavaScript,Emulator">
+<style>
 :root {
   --unitWidth: 4px;
   --unitHeight: 5px;
@@ -548,7 +546,6 @@ b {
 </style>
 </head>
 <body>
-<html>
 <div class=frame>
   <div class=decBase>
     <span class=smallSpace></span>
@@ -1007,8 +1004,10 @@ b {
       This emulator came about because years ago I was a programmer for RSTS/E on a PDP 11/45 and had admired the console idle loop light pattern - but I couldn't quite remember how it looked. Given the unavailability of real systems it became time to write an emulator!
     </p>
     <p>
-      I was going to start with a PDP 11/45 emulator but the extra memory of a PDP 11/70 became far too attractive (a whole 4MB!). It took some time before I finally produced a
-      <a href="pdp11-45.html">PDP 11/45</a> version, and then later a <a href='../pdp10/pdp10.html'>PDP-10</a> version.
+      I was going to start with a PDP 11/45 emulator but the extra memory of a PDP 11/70 became far too attractive (nearly a whole 4MB!). I eventually wrote a
+      <a href="pdp11.html">PDP 11/70</a> version as well as a
+      <a href="pdp11-45.html">PDP 11/45</a> version, and later also a
+      <a href='../pdp10/pdp10.html'>PDP-10</a>.
     </p>
     <p>
       I met my core objective - I can now see the RSTS/E console light pattern that I was looking for, and found that newer versions (eg v9.6) have a different light pattern. Also I have now seen some of the light patterns for other OSes. RSX and BSD 2.11
@@ -1019,7 +1018,9 @@ b {
       <a href='RSTSv06c.html'>story</a>.
     </p>
     <p>
-      Note: The boot code in this emulator is a custom PDP 11 program running with it's own set of light patterns. It is initially loaded at address 120000 and has a LIGHTS command which operates by mapping and executing a WAIT instruction from a pattern of virtual addresses. You can also use the BOOT command to start one of the guest operating systems listed below, or the ODT command to start a version of the Octal Debugging Tool.
+      Many of the systems also include source in some form or another and it is very interesting to see the different approaches they used. All had a profound influence on systems which evolved later and unix in particular would be familiar to administrators of current systems. I reflect that if I had been exposed to Ultrix earlier I might have chosen a different career path.
+    <p>
+      The boot code in this emulator is a custom PDP 11 program running with it's own set of light patterns. It is initially loaded at address 120000 and includes a LIGHTS command which operates by mapping and executing a WAIT instruction from a pattern of virtual addresses. The resulting display simply shows the content of R0 and the address of the instruction being executed. You can also use the BOOT command to start one of the guest operating systems listed below, or the ODT command to start a version of the Octal Debugging Tool.
     </p>
     <p>
       However boot code like this was not part of early PDP 11s. These systems had no BIOS or other software to help get the bare metal started. If you were lucky perhaps the previous boot code would still be intact in non-volatile magnetic core memory, but in general booting the system required toggling in a small bootstrap loader from the front panel.
@@ -1070,6 +1071,7 @@ HALT, 120000, LOAD ADDRESS, ENABLE, START
       <b><a href='https://github.com/paulnank/nankervis-pdp11-js'>Github</a></b>.
       The main Javascript files are pdp11.js, fpp.js and iopage.js
     </p>
+    <p>
       Happy emulating!
     </p>
     <p>
@@ -1080,11 +1082,10 @@ HALT, 120000, LOAD ADDRESS, ENABLE, START
     <thead><tr><td>DISK</td><td>OS</td><td>Notes</td></tr></thead>
     <tbody>
         <tr><td class=disk>RK0</td><td class=system>Unix V5</td><td>Boot using: unix then login as root</td></tr>
-        <tr><td class=disk>RK1</td><td class=system>RT11 v4.0</td><td>The lightest/fastest OS here</td></tr>
+        <tr><td class=disk>RK1</td><td class=system>RT11 v4.0</td><td>The smallest OS here</td></tr>
         <tr><td class=disk>RK2</td><td class=system>RSTS V06C-03</td><td>Boot and login as 1,2 with password SYSTEM or as 11,70 using PDP</td></tr>
         <tr><td class=disk>RK3</td><td class=system>XXDP</td><td>Diagnostic OS and utilities</td></tr>
         <tr><td class=disk>RK4</td><td class=system>RT-11 3B</td><td>Distribution for RT-11 Version 3B</td></tr>
-        <tr><td class=disk>RK5</td><td class=system>RT-11 V5.4F</td><td>Distribution for RT-11 Version 5.4F</td></tr>
         <tr><td class=disk>TM0</td><td class=system>RSTS 4B-17</td><td>Boot ROLLIN from TM0 and restore DK0 with "DK:&lt;MT:VIXEN/REW". Reboot from DK0 with "/BO:DK" to auto-login as 1,2 (password is SYSTEM ) Relogin as 11,70 with password PDP Commands are case sensitive.</td></tr>
         <tr><td class=disk>RL0</td><td class=system>BSD 2.9</td><td>Boot using: rl(0,0)rlunix   CTRL/D to exit single user and start multiuser - login as root (no password)</td></tr>
         <tr><td class=disk>RL1</td><td class=system>RSX 11M v3.2</td><td>Login as 1,2 with password SYSTEM</td></tr>
@@ -1730,50 +1731,199 @@ drwxrwxrwx 2 root     superuse      48 Feb 18 18:16 usr
 <h3>Example boot of RSX 11M v3.2</h3>
 <pre>
 Boot&gt; <b>boot rl1</b>
-RSX-11M V3.2 BL26   1912K  MAPPED
+
+  RSX-11M V3.2 BL26   1912K  MAPPED
 &gt;RED DL1:=SY:
 &gt;RED DL1:=LB:
-&gt;MOU DL1:RSXM26
+&gt;MOU DL1:VIXEN
 &gt;@DL1:[1,2]STARTUP
-&gt;* Enter date and time ( dd-mmm-yy hh:mm ) [S]: <b>29-JAN-90 12:01</b>
-&gt;TIM 29-JAN-90 12:01
-&gt;INS $PIP
-&gt;INS $EDT
-&gt;BYE
-&gt;
-HAVE A GOOD AFTERNOON
-29-JAN-90 12:01 TT0:  LOGGED OFF
+&gt;* Enter date and time ( dd-mmm-yy hh:mm ) [S]:
+&gt;TIM
+00:00:12 29-APR-74
+&gt;ins $pip
+&gt;ins $edt
+&gt;ins $for
+&gt;ins $flx
+&gt;ins $tkb
+&gt;ins $bro
+&gt;bro all:Welcome to RSX V3.2
+
+29-APR-74 00:00     FROM TT0:   TO ALL:
+WELCOME TO RSX V3.2
+
 &gt;@ &lt;EOF&gt;
-&gt;<b>HELLO 1,2</b>
-PASSWORD:
-RSX-11M BL26   MULTI-USER SYSTEM
-GOOD AFTERNOON
-29-JAN-90 12:01 LOGGED ON TERMINAL TT0:
-Welcome to RSX-11M V3.2 timesharing
-&gt;<b>PIP/LI</b>
-DIRECTORY DL1:[1,2]
-29-JAN-90 12:01
-HELLO.MAC;1         1.         30-OCT-76 12:02
-SYE.HLP;1           8.         26-MAY-79 13:52
-EDTCOM.MSG;1        16.        26-MAY-79 13:52
-QIOSYM.MSG;1        29.        26-MAY-79 13:52
-LOGIN.TXT;1         1.         31-OCT-81 12:11
-HELP.HLP;1          1.         31-OCT-81 12:11
-STARTUP.CMD;1       1.         31-OCT-81 12:04
-FORTH.MAC;1         149.       30-OCT-76 12:02
-TOTAL OF 206./223. BLOCKS IN 8. FILES
-&gt;<b>INS $MAC</b>
-&gt;<b>MAC HELLO,HELLO=HELLO</b>
-&gt;<b>INS $TKB</b>
-&gt;<b>TKB HELLO=HELLO</b>
-&gt;<b>INS HELLO</b>
-&gt;<b>RUN HELLO</b>
-&gt;HELLO WORLD!
-&gt;<b>UNS HELLO</b>
-&gt;<b>BYE</b>
+&gt;<b>dev</b>
+LP0: LOADED
+PR0: LOADED
+DB0: LOADED TYPE=RP06
+DB1: LOADED TYPE=RP06
+DK0: LOADED
+DK1: LOADED
+DK2: LOADED
+DK3: LOADED
+DL0: LOADED TYPE=RL02
+DL1: PUBLIC MOUNTED LOADED LABEL=VIXEN TYPE=RL02
+DL2: LOADED TYPE=RL01
+DL3: LOADED TYPE=RL01
+MT0: LOADED
+MT1: LOADED
+MT2: LOADED
+MT3: LOADED
+TT0: [,] - LOGGED ON  LOADED
+TT1: LOADED
+TT2: LOADED
+NL0:
+TI0:
+CO0:    TT0:
+CL0:    TT0:
+LB0:    DL1:
+SY0:    DL1:
+&gt;<b>tas</b>
+...LDR 11     LDRPAR 248. 00002400 LB0:-00017060 FIXED
+TKTN   03.94  SYSPAR 248. 00010000 LB0:-00012411
+...RMD V01    GEN    225. 00040000 LB0:-00020004
+MTAACP 0010   GEN    200. 00013500 LB0:-00017626
+...DMO 22.00  GEN    160. 00040000 LB0:-00011467
+MCR... 02.01  SYSPAR 160. 00010000 LB0:-00017222
+...MOU 22.15  GEN    160. 00040000 LB0:-00012251
+...MCR 01     GEN    160. 00020000 LB0:-00017246
+F11ACP M0320  FCPPAR 149. 00024000 LB0:-00017140
+PMD... 05     GEN    140. 00020000 LB0:-00017735
+SHF... 04     SYSPAR 105. 00010000 LB0:-00020105
+...INS 04     GEN    100. 00040000 LB0:-00012024
+...SAV 04.22  GEN    100. 00040000 LB0:-00012340
+...UFD V0410  GEN    100. 00040000 LB0:-00012421
+QMG... 01.04  GEN     75. 00040000 LB0:-00017364
+PRT... 01.01  GEN     70. 00040000 LB0:-00017536
+LPP0   01.06  GEN     70. 00040000 LB0:-00017542
+...AT. 04.25  GEN     65. 00040000 LB0:-00011656
+...INI 20.01  GEN     60. 00040000 LB0:-00011762
+...QUE 1.0    GEN     50. 00040000 LB0:-00017437
+...PRI 1.0    GEN     50. 00040000 LB0:-00017437
+...ACS 01     GEN     50. 00040000 LB0:-00012457
+...BOO 03.4   GEN     50. 00040000 LB0:-00011441
+...LOA 03.3   GEN     50. 00040000 LB0:-00012057
+...HEL 01.24  GEN     50. 00040000 LB0:-00020210
+...BYE 02.2   GEN     50. 00004000 LB0:-00020202
+...UNL 02.8   GEN     50. 00040000 LB0:-00012430
+...PIP M1332  GEN     50. 00040000 LB0:-00014757
+...EDT 000012 GEN     50. 00075000 LB0:-00014326
+...FOR 007    GEN     50. 00160100 LB0:-00020317
+...FLX M11    GEN     50. 00040000 LB0:-00014502
+...TKB M36    GEN     50. 00040000 LB0:-00015421
+...BRO V02.6  GEN     50. 00030000 LB0:-00020251
+&gt;<b>bye</b>
 &gt;
-HAVE A GOOD AFTERNOON
-29-JAN-90 12:02 TT0:  LOGGED OFF
+HAVE A NICE DAY
+29-APR-74 00:00 TT0:  LOGGED OFF
+&gt;<b>hel</b>
+ACCOUNT OR NAME: <b>11,70</b>
+PASSWORD: <b>pdp</b>
+
+    RSX-11M BL26   MULTI-USER SYSTEM
+
+GOOD MORNING
+29-APR-74 00:00 LOGGED ON TERMINAL TT0:
+
+Welcome to RSX V3.2
+
+This is a minimal system with a user account of 11,70 and a password of
+PDP
+
+Hopefully it demonstrates how things were in the good old days
+
+Paul Nankervis
+paulnank@hotmail.com
+http://skn.noip.me/pdp11/pdp11.html
+
+&gt;<b>pip/li</b>
+
+DIRECTORY DL1:[11,70]
+29-APR-74 00:01
+
+HELLO.FTN;2         1.         13-MAR-77 09:03
+
+TOTAL OF 1./5. BLOCKS IN 1. FILE
+
+
+&gt;for hello,lp:=hello</b>
+.MAIN.
+&gt;<b>tkb hello/fp=hello,lb:[1,1]forots/lb</b>
+&gt;<b>pip/li</b>
+
+DIRECTORY DL1:[11,70]
+29-APR-74 00:02
+
+HELLO.OBJ;1         1.         29-APR-74 00:02
+HELLO.FTN;2         1.         13-MAR-77 09:03
+HELLO.TSK;1         30.     C  29-APR-74 00:02
+
+TOTAL OF 32./40. BLOCKS IN 3. FILES
+
+
+&gt;<b>run hello</b>
+  Hello world from Fortran IV
+&gt;<b>edt hello.ftn</b>
+
+* <b>&lt;CR&gt;</b>
+10  C   edt hello.ftn
+* <b>&lt;CR&gt;</b>
+20  C   for hello,lp:=hello
+* <b>&lt;CR&gt;</b>
+30  C   tkb hello/fp=hello,lb:[1,1]forots/lb
+* <b>&lt;CR&gt;</b>
+40  C   run fortst
+*<b>s/fortst/hello/</b>
+40  C   run hello
+*<b>exit</b>
+9 LINES OUTPUT
+
+&gt;<b>pip/li</b>
+
+DIRECTORY DL1:[11,70]
+29-APR-74 00:03
+
+HELLO.OBJ;1         1.         29-APR-74 00:02
+HELLO.FTN;2         1.         13-MAR-77 09:03
+HELLO.TSK;1         30.     C  29-APR-74 00:02
+HELLO.FTN;3         1.         29-APR-74 00:03
+
+TOTAL OF 33./45. BLOCKS IN 4. FILES
+
+&gt;<b>help</b>
+
+        Welcome to RSX-11M V3.2
+
+ The general form of the HELP command is:
+    HELP qualifier1 qualifier2 ... qualifier9
+ HELP displays entries from the system help file (LB:[1,2]HELP.HLP).
+ HELP presently provides information for the following primary
+ qualifiers (i.e., qualifier1):
+
+ ABORT      ACS         ACTIVE      ALLOCATE
+ ALTER      ASSIGN      ATL         BOOT
+ BRK        BROADCAST   BYE         CANCEL
+ CLQUEUE    DEALLOCATE  DEVICES     DMOUNT
+ FIX        HELLO       INITVOLUME  INSTALL
+ LOAD       LUNS        MOUNT       OPEN
+ PARTITIONS PRINT       QUEUE       REASSIGN
+ REDIRECT   REMOVE      RESUME      RUN
+ SAVE       SET         SYNTAX      UFD
+ UNLOAD     VMR
+
+ To get information about how to log onto this system, type:
+
+    HELP HELLO
+
+ To get further information about the syntax of the HELP command and of
+ the help displays, type:
+
+    HELP SYNTAX
+
+&gt;<b>bye</b>
+&gt;
+HAVE A NICE DAY
+29-APR-74 00:03 TT0:  LOGGED OFF
 &gt;
 </pre>
 <h3>Example boot of RSTS/E v7.0</h3>
@@ -1987,14 +2137,14 @@ Sizing Memory...
 
 Boot: hp(0,0)unix    (CTRL/C will abort auto-boot)
 
-hp(0,0)unix: 36754+55616+8128+7744+8128+7616+3648
+hp(0,0)unix: 37006+55744+8128+7680+7296+7232+5312+3648
 
 ULTRIX-11 Kernel V3.1
 
 realmem = 3915776
 buffers = 73728
 clists  = 2080
-usermem = 3677312
+usermem = 3672896
 maxumem = 417792
 proc on q
 erase = delete, kill = ^U, intr = ^C
@@ -2006,15 +2156,14 @@ Restricted rights:
         to restrictions stated in your contract with
         Digital Equipment Corporation.
 
-*UNIX is a trademark of AT&amp;T Bell Laboratories.
+*UNIX is a trademark of AT&T Bell Laboratories.
 
 Mounted /dev/hp01 on /usr
-Mounted /dev/hp05 on /user1
+Mounted /dev/hp04 on /user1
 
-Sat Oct 31 16:52:30 PST 1981
+Sat Oct 31 09:11:16 PDT 1981
 
-ERROR LOG has - 1 of 200 blocks used
-
+ERROR LOG has - 2 of 200 blocks used
 
 ULTRIX-11 System V3.1 (vixen)
 
@@ -2023,303 +2172,74 @@ login: <b>root</b>
 Welcome to the ULTRIX-11 System
 
 erase = delete, kill = ^U, intr = ^C
-vixen# <b>ls -al</b>
-total 373
-drwxr-xr-x16 root        912 Oct 31 16:40 .
-drwxr-xr-x16 root        912 Oct 31 16:40 ..
--rw-rw-r-- 1 root         93 Jan 15 06:07 .cshrc
--rw-rw-r-- 1 root        115 Jan 15 06:07 .login
--rw-r--r-- 1 root        204 Oct 31 16:39 .profile
-drwx------ 2 root        144 Oct 31 17:00 .setup
-drwxr-xr-x 2 root       3424 Oct 31 16:02 bin
--rw-r--r-- 1 root      42548 Jan 20 13:43 boot
--rw-r--r-- 1 root      42548 Jan 20 13:43 boot.bu
--rw-r--r-- 1 root        191 Oct  6 07:58 crt.profile
-drwxr-xr-x 2 root       4736 Oct 31 16:52 dev
-drwxr-xr-x 4 root       1232 Oct 31 16:52 etc
--rw-r--r-- 2 root     131330 Oct 31 16:25 gunix
--rw-rw-r-- 1 root         36 Oct 31 16:40 hello.c
-drwxr-xr-x 2 root        544 Oct 31 17:00 lib
-drwx------ 2 root        512 Sep 26 08:53 lost+found
-drwxr-xr-x 2 root        256 Aug  6 17:21 mdec
-drwxrwxr-x 2 root         32 Oct 31 16:20 media
-drwx------ 2 root         32 Jul 10  1980 mnt
-drwx------ 2 root        256 Sep 29 16:01 opr
--rw-r--r-- 1 root        185 Oct  6 07:58 prt.profile
-drwxr-xr-x 2 root        640 Jul 28 05:45 sas
--rw-rw-r-- 1 root        249 Oct 31 16:40 size.c
-drwxrwxrwx 2 root        304 Oct 31 16:02 tmp
--rw-r--r-- 2 root     131330 Oct 31 16:25 unix
-drwxr-xr-x 6 root         96 Oct 31 16:37 user1
-drwxr-xr-x24 root        384 Oct 31 16:05 usr
 vixen# <b>df</b>
 Filesystem    total    kbytes  kbytes  percent
    node       kbytes    used    free   used    Mounted on
-/dev/hp00       4606    3120    1486    68%    /
-/dev/hp01       9629    7800    1829    80%    /usr
-/dev/hp05      81036   28489   52547    35%    /user1
-vixen# <b>who</b>
-root     console     Oct 31 16:52
+/dev/hp00       4606    3065    1541    67%    /
+/dev/hp01       9629    9229     400    96%    /usr
+/dev/hp04     148244   17552  130692    12%    /user1
 vixen# <b>ps -aux</b>
 
    PID TTY TIME CMD
-    41 co  0:00 -sh
-    50 co  0:00 ps -aux
-vixen# <b>cc hello.c</b>
-vixen# <b>a.out</b>
-Hello world
-vixen# <b>cat> size.c
-#include &lt;stdio.h&gt;
-int main() {
-    printf("Size of char: %d byte\n",sizeof(char));
-    printf("Size of int: %d bytes\n",sizeof(int));
-    printf("Size of float: %d bytes\n",sizeof(float));
-    printf("Size of double: %d bytes\n",sizeof(double));
-}
-^D</b>
+    42 co  0:00 -sh
+    43 10  0:00 - 2
+    44 11  0:00 - 2
+    53 co  0:00 ps -aux
+vixen# <b>ls /dev</b>
+console hp06    kmem    nrht0   rhp00   rhp10   rl00    rrl00   tty00
+errlog  hp07    lp      nrmt0   rhp01   rhp11   rl07    rrl07   tty01
+hp00    hp10    maus0   nrtk0   rhp02   rhp12   rl10    rrl10   tty10
+hp01    hp11    maus1   null    rhp03   rhp13   rl17    rrl17   tty11
+hp02    hp12    maus2   ptyp0   rhp04   rhp17   rlp     rtk0    ttyp0
+hp03    hp13    maus3   ptyp1   rhp05   rht0    rmt0    swap    ttyp1
+hp04    hp17    mem     ptyp2   rhp06   rk0     rrk0    tk0     ttyp2
+hp05    ht0     mt0     ptyp3   rhp07   rk1     rrk1    tty     ttyp3
+vixen# <b>uname -a</b>
+ULTRIX-11 vixen 3 0 PDP-11/70
+vixen# <b>ls /user1/src/sys/sys</b>
+acct.c      machdep.c   pipe.c      subr_net.c  trap.c
+alloc.c     main.c      prf.c       sys1.c      ubmap.c
+clock.c     makefile    prim.c      sys2.c      uipc_domain.c
+errlog.c    malloc.c    rdwri.c     sys3.c      uipc_socket.c
+fakenet.s   maus.c      select.c    sys4.c      uipc_socket2.c
+fio.c       mbuf.c      sem.c       sys_berk.c  uipc_syscall.c
+flock.c     mbuf11.c    sepid.s     sys_socket.c    ureg.c
+fpsim.s     mkuchar.c   shuffle.c   sys_v7m.c
+iget.c      msg.c       sig.c       sysent.c
+ioctl.c     nami.c      slp.c       syslocal.c
+ipc.c       nonsepid.s  subr.c      text.c
+vixen# <b>/usr/games/hangman</b>
+guesses:  word: ....... errors: 0/7
+guess: <b>a</b>
+guesses: a word: ....... errors: 1/7
+guess: <b>e</b>
+guesses: ae word: .e..e.e errors: 1/7
+guess: <b>v</b>
+guesses: aev word: .e..eve errors: 1/7
+guess: <b>i</b>
+guesses: aeiv word: .e.ieve errors: 1/7
+guess: <b>l</b>
+guesses: aeilv word: .elieve errors: 1/7
+guess: <b>b</b>
+you win, the word is believe
+(1.00/1) guesses:  word: ........ errors: 0/7
+guess: <b>^C</b>
 vixen# <b>cc size.c</b>
 vixen# <b>a.out</b>
 Size of char: 1 byte
 Size of int: 2 bytes
+Size of long: 4 bytes
 Size of float: 4 bytes
 Size of double: 8 bytes
-vixen# <b>ls /user1</b>
-lost+found  root        src         user1
-vixen# <b>ls /user1/src</b>
-etc  src  sys  usr
-vixen# <b>ls -al /user1/src/usr</b>
-total 6
-drwxrwxr-x 6 root         96 Oct 31 16:38 .
-drwxrwxr-x 6 root         96 Oct 31 16:38 ..
-drwxrwxr-x 3 root         48 Oct 31 16:38 games
-drwxrwxr-x 5 root         80 Oct 31 16:38 include
-drwxrwxr-x 3 root         96 Oct 31 16:38 lib
-drwxrwxr-x 2 root         64 Oct 31 16:38 local
-vixen# <b>uname</b>
-ULTRIX-11
+vixen# <b>cp pi.c /dev/lp</b>
+vixen# <b>cc pi.c</b>
+vixen# <b>a.out 80</b>
+3.14159265358979323846264338327950288419716939937510582097494459230781640628620
 vixen# <b>^D</b>
 
 ULTRIX-11 System V3.1 (vixen)
 
-login: <b>sys</b>
-
-Welcome to the ULTRIX-11 System
-
-$ <b>cd conf</b>
-$ <b>sysgen</b>
-
-
-ULTRIX-11 System Generation Program
-
-For help, type h then press &lt;RETURN&gt;
-
-
-sysgen&gt; <b>c</b>
-
-For help, answer the question with ?&lt;RETURN&gt;
-To backup to the previous question, type &lt;CTRL/D&gt;
-
-Configuration name &lt;unix&gt; ? <b>vixen</b>
-
-Processor type:
-
-( 23 23+ 24 34 40 44 45 55 60 70 73 83 84 ) &lt; 70 &gt; ?
-
-Memory size in K bytes (K = 1024) &lt; 3824 &gt; ?
-
-I/O buffer cache size (NBUF: min = 16, max = 72) &lt; 72 &gt; ?
-
-Please enter the system (ROOT) disk controller first.
-
-Disk controller type:
-
-&lt; rh11 rh70 rp11 rk611 rk711 rl11 rx211 rk11,
-  uda50 kda50 rqdx1 rqdx2 rqdx3 klesi rux1 &gt; ? <b>rh11</b>
-
-First MASSBUS disk controller:
-
-Drive 0 type &lt; rm02 rp04 rp05 rp06 ml11 &gt; ? <b>rp06</b>
-
-Drive 1 type &lt; rm02 rp04 rp05 rp06 ml11 &gt; ? <b>rp06</b>
-
-Drive 2 type &lt; rm02 rp04 rp05 rp06 ml11 &gt; ?
-
-CSR address &lt;176700&gt; ?
-
-Vector address &lt;254&gt; ?
-
-Is the system disk on this controller &lt;yes&gt; ?
-
-System disk unit number &lt;0&gt; ?
-
-Disk controller type:
-
-&lt; rh11 rh70 rp11 rk611 rk711 rl11 rx211 rk11,
-  uda50 kda50 rqdx1 rqdx2 rqdx3 klesi rux1 &gt; ? <b>rl11</b>
-
-Drive 0 type &lt; rl01 rl02 &gt; ? <b>rl02</b>
-
-Drive 1 type &lt; rl01 rl02 &gt; ? <b>rl02</b>
-
-Drive 2 type &lt; rl01 rl02 &gt; ?
-
-CSR address &lt;174400&gt; ?
-
-Vector address &lt;160&gt; ?
-
-Disk controller type:
-
-&lt; rh11 rh70 rp11 rk611 rk711 rl11 rx211 rk11,
-  uda50 kda50 rqdx1 rqdx2 rqdx3 klesi rux1 &gt; ?
-
-Use standard placement of root, swap, and error log &lt;yes&gt; ?
-
-Magtape controller:
-
-&lt; tm02 tm03 tm11 ts11 tsv05 tsu05 tu80 tk50 tu81 &gt; ? <b>tk50</b>
-
-Magtape unit number &lt; 0-&gt;3 &gt; ? <b>0</b>
-
-CSR address &lt;174500&gt; ?
-
-Vector address &lt;260&gt; ?
-
-Magtape unit number &lt; 0-&gt;3 &gt; ?
-
-Magtape controller:
-
-&lt; tm02 tm03 tm11 ts11 tsv05 tsu05 tu80 tk50 tu81 &gt; ?
-
-Crash dump device &lt; tk50 rp06 &gt; ? <b>rp06</b>
-
-LP11/LPV11 line printer present &lt;no&gt; ? <b>y</b>
-
-CSR address &lt;177514&gt; ?
-
-vector address &lt;200&gt; ?
-
-Communications devices:
-
-&lt; dz dzv dzq dh dhu dhv dhdm du dn kl dl &gt; ? <b>dl</b>
-
-Number of units &lt;1&gt; ? <b>4</b>
-
-CSR address &lt;175610&gt; ?
-
-Vector address &lt;300&gt; ?
-
-Communications devices:
-
-&lt; dz dzv dzq dh dhu dhv dhdm du dn kl dl &gt; ?
-
-Number of pseudo ttys &lt;4&gt; ?
-
-Include C/A/T phototypesetter driver &lt;no&gt; ?
-
-User devices:
-
-&lt; u1 u2 u3 u4 &gt; ?
-
-Current CPU has floating point hardware!
-
-Include kernel floating point simulator &lt;no&gt; ?
-
-Include TCP/IP ethernet support &lt;yes&gt; ? <b>no</b>
-
-Use standard system parameters &lt;yes&gt; ?
-
-...
-
-Timezone (hours west/behind GMT) &lt;5=EST 6=CST 7=MST 8=PST&gt; ? <b>5</b>
-
-Does your area use daylight savings time &lt;yes&gt; ?
-
-Choose the Geographic Area for daylight savings time from the table below:
-
-                Geographic Area Selection
-                --------------- ---------
-                USA                1
-                Australia          2
-                Western Europe     3
-                Central Europe     4
-                Eastern Europe     5
-
-Enter the selection number &lt;1&gt; <b>2</b>
-
-
-ULTRIX-11 System Generation Program
-
-For help, type h then press &lt;RETURN&gt;
-
-
-sysgen&gt; <b>m</b>
-
-Configuration name &lt;unix&gt; ? <b>vixen</b>
-
-****** CREATING ULTRIX-11 CONFIGURATION AND VECTOR TABLES ******
-
-Device  Address Vector  units
-
-console 177560   60
-kw11-l  177456  100
-kw11-p  172540  104
-rl      174400  160     2
-lp      177514  200     1
-hp      176700  254     2       (crash dump device)
-tk      174500  260     1
-dl      175610  300     4
-
-Filsys  Device  maj/min start   length
-
-root    hp        9/0
-pipe    hp        9/0
-swap    hp        9/2   200     6070
-errlog  hp       26/2   0       200
-
-****** MAKING KERNEL FOR SEPARATE I &amp; D SPACE PROCESSORS ******
-
-as - -o l.o l.s
-/lib/cpp -P -DSEP_ID -DK_OV -DKERNEL dump.s &gt;dump.i
-as - -o dump_id.o dump.i
-rm -f dump.i
-cc -c -O -DSEP_ID -DKERNEL c.c
-cc -c -O -DSEP_ID -DKERNEL dds.c
-cc -c -O -DSEP_ID -DKERNEL tds.c
-cc -c -O -DSEP_ID -DKERNEL nds.c
-cc -c -O -DSEP_ID -DKERNEL dksizes.c
-cc -S -DKERNEL ec.c
-ed - ec.s &lt; :comm-to-bss
-as - -o ec.o ec.s
-rm ec.s
-
-The output file will be named unix_id!
-
-ovload
-
-The unix_id sizes must be within the following limits:
-
-root text segment &gt; 49152 but &lt;= 57344
-overlay text segments &lt;= 8192, 15 overlays maximum
-bss + data segments &lt;= 49088 total
-
-root+(overlay 1, overlay 2,...overlay n)+data+bss = root+data = (total)
-
-size unix_id
-55616+(8128,7744,8128,7616,3648)+6242+30512 = 92370b = 0264322b (90880 total text)
-rm l.o c.o dump_id.o dds.o tds.o nds.o dksizes.o ec.o
-
-New kernel is now named `vixen.os'!
-
-****** CHECKING SIZE OF NEW ULTRIX-11 OPERATING SYSTEM ******
-
-`vixen.os' within limits, SYSGEN successful!
-
-
-sysgen&gt; <b>^D</b>
-
-$ <b>su</b>
-# <b>cp vixen.os /unix</b>
-#
+login:
 </pre>
 <h3>Example boot of BSD 2.11</h3>
 <pre>
@@ -2327,178 +2247,153 @@ Boot&gt; <b>boot rp1</b>
 
 70Boot from xp(0,1,0) at 0176700
 Press &lt;CR&gt; to boot, or any other key to abort: 0
+
 : xp(0,1,0)unix
 Boot: bootdev=05010 bootcsr=0176700
 
-2.11 BSD UNIX #2: Oct 31 04:05:24 PST 1981
+2.11 BSD UNIX #1: Oct 31 09:13:53 CST 1981
     root@Sat:/usr/src/sys/VIXEN
 
+attaching sl
+attaching lo0
+
 phys mem  = 3915776
-avail mem = 3684480
+avail mem = 3489088
 user mem  = 307200
 
-hk ? csr 177440 vector 210 skipped:  No CSR.
-ht ? csr 172440 vector 224 skipped:  No CSR.
-ra ? csr 172150 vector 154 skipped:  No CSR.
+October 31 09:26:16 init: configure system
+
+lp 0 csr 177514 vector 200 attached
+rk 0 csr 177400 vector 220 attached
 rl 0 csr 174400 vector 160 attached
 tm 0 csr 172520 vector 224 attached
-tms ? csr 174500 vector 260 skipped:  No CSR.
-ts ? csr 172520 vector 224 interrupt vector already in use.
 xp 0 csr 176700 vector 254 attached
+cn 1 csr 176500 vector 310 attached
+cn 2 csr 176510 vector 320 attached
 Automatic reboot in progress...
-Sat Oct 31 16:00:38 PST 1981
-Sat Oct 31 16:00:38 PST 1981
+Sat Oct 31 09:26:21 CST 1981
+Sat Oct 31 09:26:21 CST 1981
 checking quotas: done.
-Assuming non-networking system ...
+Assuming NETWORKING system ...
+ifconfig: ioctl (SIOCGIFFLAGS): no such interface
+vixen.skn.noip.me: bad value
+add net default: gateway 127.0.0.1
+starting system logger
 checking for core dump...
 preserving editor files
 clearing /tmp
 standard daemons: update cron accounting.
-starting lpd
-starting local daemons: sendmail.
-Sat Oct 31 16:00:40 PST 1981
+starting network daemons: inetd rwhod printer.
+Sat Oct 31 09:26:23 CST 1981
+Oct 31 09:26:23 vixen October 31 09:26:23 init: kernel security level changed from 0 to 1
 
 
-2.11 BSD UNIX (vixen.2bsd.com) (console)
+2.11 BSD UNIX (vixen.skn.noip.me) (console)
 
 login: <b>root</b>
 erase, kill ^U, intr ^C
 # <b>df</b>
 Filesystem  1K-blocks     Used    Avail Capacity  Mounted on
-/dev/xp1a      163557    85424    78133    52%    /
+/dev/xp1a      163969    82864    81105    51%    /
 # <b>ps -aux</b>
 USER       PID NICE SZ TTY TIME COMMAND
-root         0   0   8 ?   0:00 swapper
-root         1   0  29 ?   0:00  (init)
-root        42   0  11 ?   0:00 update
-root        45   0  51 ?   0:00 cron
-root        49  -1  26 ?   0:00 acctd
-root        55   0  47 ?   0:00 /usr/sbin/lpd
-root        75   0  19 co  0:00 -sh
-root        81   0  59 co  0:00 ps -aux
-# <b>ls -al</b>
-total 721
-drwxr-xr-x 14 root         1024 Oct 31 04:11 .
-drwxr-xr-x 14 root         1024 Oct 31 04:11 ..
--rw-r--r--  1 root          349 Oct 29  1996 .cshrc
--rw-r--r--  1 root            0 May 17  1995 .hushlogin
--rw-r--r--  1 root          153 May  2  1997 .kermrc
--rw-r--r--  1 root          335 Oct 29  1996 .login
--rw-r--r--  1 root            8 Jan 17  1988 .mailrc
--rw-r--r--  1 root          152 Oct 29  1996 .profile
--rw-------  1 root            0 Apr 22  2000 .rhosts
--rw-r--r--  1 root           12 May  2  1997 .tiprc
--r--r--r--  1 root        18648 Aug 28  1992 README
--rw-r--r--  1 root         2714 Oct 31 02:55 VERSION
--rw-r--r--  1 root         3371 Oct 31 02:55 VERSION~
-drwxr-xr-x  3 root          512 Apr 23  2000 a
-drwxr-xr-x  2 root         1024 Apr 23  2000 bin
--rwxr-x---  1 root        36286 Oct 31 04:03 boot
-drwxr-xr-x  3 root         4608 Oct 31 04:23 dev
--rwxr-x--x  1 root        38798 Oct 31 04:03 disklabel
-drwxr-xr-x  3 root         1024 Oct 31 16:00 etc
--rwxr--r--  1 root       170258 Apr 22  2000 genunix
--rw-r-----  1 root        11520 Oct 31 16:00 hostid.core
-drwxr-xr-x  2 root          512 Apr 23  2000 lib
-drwxr-xr-x  2 root         1024 Aug 17  1990 lost+found
--rw-r--r--  1 root        27072 Oct 31 16:00 lpd.core
-drwxr-xr-x  2 root          512 Apr 23  2000 mdec
-drwxr-xr-x  2 root          512 Dec 31  1991 mnt
--rwxr-----  1 root       170258 Oct 31 03:15 oldunix
-drwxr-xr-x  2 root          512 Apr 23  2000 sbin
--rw-r--r--  1 root        24896 Oct 31 16:00 sendmail.core
-lrwxrwxrwx  1 root           11 Apr 23  2000 sys -&gt; usr/src/sys
-drwxrwxrwt  2 root          512 Oct 31 16:00 tmp
--rwxr-xr-x  1 root        30490 Oct 31 04:03 toyset
--rwxr--r--  1 root       170509 Oct 31 04:05 unix
-drwxr-xr-x 28 root          512 Oct 31 02:03 usr
-drwxr-xr-x  6 root          512 Apr 23  2000 var
-lrwxrwxrwx  1 root            4 Apr 23  2000 vmunix -&gt; unix
-# <b>while true; do echo; /usr/games/fortune; sleep 5; done</b>
+root         0   0   8 ?   0:00 [swapper]
+root         1   0  31 ?   0:00  (init)
+root        52   0  11 ?   0:00 update
+root        55   0  51 ?   0:00 cron
+root        59  -1  26 ?   0:00 acctd
+root        67   0  39 ?   0:00 /usr/sbin/inetd
+root        71   0  27 ?   0:00 rwhod
+root        75   0  47 ?   0:00 /usr/sbin/lpd
+root        42   0  58 co  0:00 syslogd
+root        81   0  19 co  0:00 -sh
+root        88   0  77 co  0:00 ps -aux
+root        82   0  29 l1  0:00 - std.9600 ttyl1 (getty)
+root        83   0  29 l2  0:00 - std.9600 ttyl2 (getty)
+# <b>ls /dev</b>
+MAKEDEV  nmt1     ptyp9    rl1b     rrl0b    rxp0d    ttyp1    xp0d
+acctlog  nmt8     ptypa    rl1c     rrl0c    rxp0e    ttyp2    xp0e
+console  nmt9     ptypb    rl1d     rrl0d    rxp0f    ttyp3    xp0f
+errlog   nrmt0    ptypc    rl1e     rrl0e    rxp0g    ttyp4    xp0g
+klog     nrmt1    ptypd    rl1f     rrl0f    rxp0h    ttyp5    xp0h
+kmem     nrmt8    ptype    rl1g     rrl0g    rxp1a    ttyp6    xp1a
+log      nrmt9    ptypf    rl1h     rrl0h    rxp1b    ttyp7    xp1b
+lp0      null     rk0h     rmt0     rrl1a    rxp1c    ttyp8    xp1c
+mem      printer  rk1h     rmt1     rrl1b    rxp1d    ttyp9    xp1d
+mt0      ptyp0    rl0a     rmt12    rrl1c    rxp1e    ttypa    xp1e
+mt1      ptyp1    rl0b     rmt13    rrl1d    rxp1f    ttypb    xp1f
+mt12     ptyp2    rl0c     rmt4     rrl1e    rxp1g    ttypc    xp1g
+mt13     ptyp3    rl0d     rmt5     rrl1f    rxp1h    ttypd    xp1h
+mt4      ptyp4    rl0e     rmt8     rrl1g    swap     ttype    zero
+mt5      ptyp5    rl0f     rmt9     rrl1h    tty      ttypf
+mt8      ptyp6    rl0g     rrk0h    rxp0a    ttyl1    xp0a
+mt9      ptyp7    rl0h     rrk1h    rxp0b    ttyl2    xp0b
+nmt0     ptyp8    rl1a     rrl0a    rxp0c    ttyp0    xp0c
+# <b>uname -a</b>
+BSD vixen.skn.noip.me 2.11 2.11 BSD UNIX #1: Oct 31 09:13:53 CST 1981       root@Sat:/usr/src/sys/VIXEN  pdp11
+# <b>/usr/games/fortune</b>
+IMPARTIAL:
+        Unable to perceive any promise of personal advantage from
+        espousing either side of a controversy or adopting either of two
+        conflicting opinions.
+# <b>/usr/games/fortune</b>
+I  wish  there was a knob on the TV to turn up the intelligence.
+There's a knob called "brightness", but it doesn't seem to work.
+                -- Gallagher
+# <b>/usr/games/hangman</b>
+     ______
+     |    |
+     |                                               Guessed:
+     |
+     |                                               Word #:           1
+     |                                               Current Average:  0.000
+   __|_____                                          Overall Average:  0.000
+   |      |___
+   |_________|
 
-A man's best friend is his dogma.
-
-Three rules for sounding like an expert:
-1. Oversimplify your explanations to the point of uselessness.
-2. Always point out second-order effects,
-   but never point out when they can be ignored.
-3. Come up with three rules.
-
-The human mind treats a new idea the way the
-body treats a strange protein: it rejects it.
-                -- P. Medawar
-
-Charlie was a chemist,
-But Charlie is no more.
-What Charlie thought was H2O was H2SO4.
-
-<b>^C</b>
-# <b>cat &gt; hello.c</b>
-<b>#include &lt;stdio.h&gt;
-main() {
-    printf("Hello world\n");
-}</b>
-<b>^D</b>
-# <b>cc hello.c</b>
-# <b>ls -al hello* a.out</b>
--rwxr-x--x  1 root         5335 Mar 31 15:52 a.out
--rw-r-----  1 root           59 Mar 31 15:52 hello.c
-# <b>./a.out</b>
-Hello world
-# <b>cat &gt; size.c</b>
-<b>#include &lt;stdio.h&gt;
-int main() {
-    printf("Size of char: %d byte\n",sizeof(char));
-    printf("Size of int: %d bytes\n",sizeof(int));
-    printf("Size of float: %d bytes\n",sizeof(float));
-    printf("Size of double: %d bytes\n",sizeof(double));
-}</b>
-<b>^D</b>
+ Word:  -------
+Guess: <b>^C</b>
 # <b>cc size.c</b>
 # <b>./a.out</b>
 Size of char: 1 byte
 Size of int: 2 bytes
+Size of long: 4 bytes
 Size of float: 4 bytes
 Size of double: 8 bytes
+# <b>cp pi.c /dev/lp0</b>
+# <b>cc pi.c</b>
+# <b>./a.out 90</b>
+3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348
 # <b>cd /sys/VIXEN</b>
-# <b>make</b>
-make -f Make.sys I=/usr/include H=../h M=../machine AS="/bin/as -V" CPP="/lib/cpp -P -DKERNEL -DVIXEN -DFPSIM -DSOFUB_MAP -I. -I../h"  CFLAGS="-O -DKERNEL -DVIXEN -DFPSIM -DSOFUB_MAP -I. -I../h" SED="/bin/sed"
-cc -O -DKERNEL -DVIXEN -DFPSIM -DSOFUB_MAP -I. -I../h -S ../sys/init_main.c
+# <b>time make</b>
+make -f Make.sys I=/usr/include H=../h M=../machine AS="/bin/as -V" CPP="/lib/cpp -P -DKERNEL -DVIXEN -DINET -I. -I../h"  CFLAGS="-O -DKERNEL -DVIXEN -DINET -I. -I../h" SED="/bin/sed"
+cc -O -DKERNEL -DVIXEN -DINET -I. -I../h -S ../sys/init_main.c
 /bin/sed -f SPLFIX init_main.s | /bin/as -V -u -o init_main.o
 rm -f init_main.s
-cc -O -DKERNEL -DVIXEN -DFPSIM -DSOFUB_MAP -I. -I../h -S ../sys/init_sysent.c
-...
+cc -O -DKERNEL -DVIXEN -DINET -I. -I../h -S ../sys/init_sysent.c
+....
+size netnix
 text    data    bss     dec     hex
-55168   8458    24348   87974   157a6   total text: 124736
-        overlays: 7680,7360,7680,7488,7488,7744,5632,8000,7744,2752
+59328   2218    37726   99272   183c8
 Compacting symbol table
-symcompact unix
-symcompact: 228 symbols removed
-Compacting strings table
-strcompact unix
+symcompact netnix
+symcompact: 243 symbols removed
+Compacting strings table - this will take a few minutes
+strcompact netnix
 rearranging symbols
-symorder ../pdp/symbols.sort unix
-./checksys unix
-System will occupy 220576 bytes of memory (including buffers and clists).
-
-               end {0100046}          nbuf {0020350}           buf {0046716}
-             nproc {0020336}          proc {0063746}         ntext {0020340}
-              text {0077006}         nfile {0020344}          file {0074352}
-            ninode {0020342}         inode {0020432}      ncallout {0020346}
-           callout {0037216}     ucb_clist {0020354}        nclist {0020352}
-          ram_size {0000000}       xitdesc {0020430}      quotdesc {0000000}
-         namecache {0037736}       _iosize {0010456}          nlog {0017414}
-# <b>make install</b>
-install -c -o root -g kmem -m 744 unix /unix
+symorder ../pdp/symbols.sort netnix
+      235.4 real       188.0 user        46.9 sys
 # <b>shutdown -h now</b>
-Shutdown at 04:29 (in 0 minutes) [pid 80]
+Shutdown at 09:35 (in 0 minutes) [pid 1595]
 
-        *** FINAL System shutdown message from root@vixen.2bsd.com ***
+        *** FINAL System shutdown message from root@vixen.skn.noip.me ***
 
 System going down IMMEDIATELY
 
 System shutdown time has arrived
-# syncing disks... done
+# Oct 31 09:35:33 vixen October 31 09:35:33 shutdown: halt by root:
+Oct 31 09:35:36 vixen syslogd: going down on signal 15
+syncing disks... done
 halting
 </pre>
 <h3>Example boot of RSTS V9.6</h3>
@@ -2918,7 +2813,7 @@ There is a small mailbox here.
 
 <h3>Software Sources</h3>
 <p>
-  The software used in this emulator has been sourced from many place on the Internet - unfortunately some of these now appear to have dissapeared. If you are looking for something I would suggest the following main sites, or failing that a google search. :-(
+  The software used in this emulator has been sourced from many places on the Internet and unfortunately many of these seem to have disappeared. If you are looking for something I would suggest the following main sites...
 <ul>
   <li>Documentation: <a href='http://bitsavers.org/pdf/dec/pdp11/'>http://bitsavers.org/pdf/dec/pdp11/</a> </li>
   <li>Software: <a href='http://bitsavers.org/bits/DEC/pdp11/'>http://bitsavers.org/bits/DEC/pdp11/</a> </li>
@@ -3026,12 +2921,12 @@ function examineDeposit(data) {
 const CPU_TYPE = 70; // This is a PDP 11/70
 
 </script>
-<script src='bootcode.js' type="text/javascript"></script>
-<script src='vt52.js' type="text/javascript"></script>
-<script src='pdp11.js?v=3' type="text/javascript"></script>
-<script src='fpp.js' type="text/javascript"></script>
-<script src='iopage.js?v=4' type="text/javascript"></script>
-<script src='vt11.js' type="text/javascript"></script>
+<script src='bootcode.js'></script>
+<script src='vt52.js'></script>
+<script src='pdp11.js'></script>
+<script src='fpp.js'></script>
+<script src='iopage.js'></script>
+<script src='vt11.js'></script>
 <script>
 boot();
 </script>

@@ -1,13 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang='en'>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Javascript PDP 11/45 Emulator">
-<meta name="keywords" content="PDP,PDP-11,11/45,JavaScript,Emulator,Emulation">
-<meta name="author" content="Paul Nankervis">
 <title>Javascript PDP 11/45 Emulator</title>
-<style type="text/css">
+<meta name="description" content="Javascript PDP 11/45 Emulator">
+<meta name="keywords" content="PDP,PDP-11,11/45,JavaScript,Emulator">
+<style>
 :root {
   --unitWidth: 4px;
   --unitHeight: 5px;
@@ -548,7 +546,6 @@ b {
 </style>
 </head>
 <body>
-<html>
 <div class=frame>
   <div class=decBase>
     <span class=smallSpace></span>
@@ -960,8 +957,10 @@ b {
       This emulator came about because years ago I was a programmer for RSTS/E on a PDP 11/45 and had admired the console idle loop light pattern - but I couldn't quite remember how it looked. Given the unavailability of real systems it became time to write an emulator!
     </p>
     <p>
-      I was going to start with a PDP 11/45 emulator but the extra memory of a PDP 11/70 became far too attractive (a whole 4MB!). So I first made a
-      <a href="pdp11.html">PDP 11/70</a> version before this one. Then later a <a href='../pdp10/pdp10.html'>PDP-10</a> version.
+      I was going to start with a PDP 11/45 emulator but the extra memory of a PDP 11/70 became far too attractive (nearly a whole 4MB!). I eventually wrote a
+      <a href="pdp11.html">PDP 11/70</a> version as well as a
+      <a href="pdp11-45.html">PDP 11/45</a> version, and later also a
+      <a href='../pdp10/pdp10.html'>PDP-10</a>.
     </p>
     <p>
       I met my core objective - I can now see the RSTS/E console light pattern that I was looking for, and found that newer versions (eg v9.6) have a different light pattern. Also I have now seen some of the light patterns for other OSes. RSX and BSD 2.11
@@ -972,7 +971,9 @@ b {
       <a href='RSTSv06c.html'>story</a>.
     </p>
     <p>
-      Note: The boot code in this emulator is a custom PDP 11 program running with it's own set of light patterns. It is initially loaded at address 120000 and has a LIGHTS command which operates by mapping and executing a WAIT instruction from a pattern of virtual addresses. You can also use the BOOT command to start one of the guest operating systems listed below, or the ODT command to start a version of the Octal Debugging Tool.
+      Many of the systems also include source in some form or another and it is very interesting to see the different approaches they used. All had a profound influence on systems which evolved later and unix in particular would be familiar to administrators of current systems. I reflect that if I had been exposed to Ultrix earlier I might have chosen a different career path.
+    <p>
+      The boot code in this emulator is a custom PDP 11 program running with it's own set of light patterns. It is initially loaded at address 120000 and includes a LIGHTS command which operates by mapping and executing a WAIT instruction from a pattern of virtual addresses. The resulting display simply shows the content of R0 and the address of the instruction being executed. You can also use the BOOT command to start one of the guest operating systems listed below, or the ODT command to start a version of the Octal Debugging Tool.
     </p>
     <p>
       However boot code like this was not part of early PDP 11s. These systems had no BIOS or other software to help get the bare metal started. If you were lucky perhaps the previous boot code would still be intact in non-volatile magnetic core memory, but in general booting the system required toggling in a small bootstrap loader from the front panel.
@@ -1023,6 +1024,7 @@ HALT, 120000, LOAD ADDRESS, ENABLE, START
       <b><a href='https://github.com/paulnank/nankervis-pdp11-js'>Github</a></b>.
       The main Javascript files are pdp11.js, fpp.js and iopage.js
     </p>
+    <p>
       Happy emulating!
     </p>
     <p>
@@ -1033,12 +1035,11 @@ HALT, 120000, LOAD ADDRESS, ENABLE, START
     <thead><tr><td>DISK</td><td>OS</td><td>Notes</td></tr></thead>
     <tbody>
         <tr><td class=disk>RK0</td><td class=system>Unix V5</td><td>Boot using: unix then login as root</td></tr>
-        <tr><td class=disk>RK1</td><td class=system>RT11 v4.0</td><td>The lightest/fastest OS here</td></tr>
+        <tr><td class=disk>RK1</td><td class=system>RT11 v4.0</td><td>The smallest OS here</td></tr>
         <tr><td class=disk>RK2</td><td class=system>RSTS V06C-03</td><td>Boot and login as 1,2 with password SYSTEM or as 11,70 using PDP</td></tr>
         <tr><td class=disk>RK3</td><td class=system>XXDP</td><td>Diagnostic OS and utilities</td></tr>
         <tr><td class=disk>RK4</td><td class=system>RT-11 3B</td><td>Distribution for RT-11 Version 3B</td></tr>
         <tr><td class=disk>TM0</td><td class=system>RSTS 4B-17</td><td>Boot ROLLIN from TM0 and restore DK0 with "DK:&lt;MT:VIXEN/REW". Reboot from DK0 with "/BO:DK" to auto-login as 1,2 (password is SYSTEM ) Relogin as 11,70 with password PDP Commands are case sensitive.</td></tr>
-        <tr><td class=disk>RL1</td><td class=system>RSX 11M v3.2</td><td>Login as 1,2 with password SYSTEM</td></tr>
     </tbody>
 </table>
 <h3>Example boot of Unix V5</h3>
@@ -1535,59 +1536,10 @@ PI      09:25 AM        24-Mar-75
 
 Ready
 </pre>
-<h3>Example boot of RSX 11M v3.2</h3>
-<pre>
-Boot&gt; <b>boot rl1</b>
-RSX-11M V3.2 BL26   1912K  MAPPED
-&gt;RED DL1:=SY:
-&gt;RED DL1:=LB:
-&gt;MOU DL1:RSXM26
-&gt;@DL1:[1,2]STARTUP
-&gt;* Enter date and time ( dd-mmm-yy hh:mm ) [S]: <b>29-JAN-90 12:01</b>
-&gt;TIM 29-JAN-90 12:01
-&gt;INS $PIP
-&gt;INS $EDT
-&gt;BYE
-&gt;
-HAVE A GOOD AFTERNOON
-29-JAN-90 12:01 TT0:  LOGGED OFF
-&gt;@ &lt;EOF&gt;
-&gt;<b>HELLO 1,2</b>
-PASSWORD:
-RSX-11M BL26   MULTI-USER SYSTEM
-GOOD AFTERNOON
-29-JAN-90 12:01 LOGGED ON TERMINAL TT0:
-Welcome to RSX-11M V3.2 timesharing
-&gt;<b>PIP/LI</b>
-DIRECTORY DL1:[1,2]
-29-JAN-90 12:01
-HELLO.MAC;1         1.         30-OCT-76 12:02
-SYE.HLP;1           8.         26-MAY-79 13:52
-EDTCOM.MSG;1        16.        26-MAY-79 13:52
-QIOSYM.MSG;1        29.        26-MAY-79 13:52
-LOGIN.TXT;1         1.         31-OCT-81 12:11
-HELP.HLP;1          1.         31-OCT-81 12:11
-STARTUP.CMD;1       1.         31-OCT-81 12:04
-FORTH.MAC;1         149.       30-OCT-76 12:02
-TOTAL OF 206./223. BLOCKS IN 8. FILES
-&gt;<b>INS $MAC</b>
-&gt;<b>MAC HELLO,HELLO=HELLO</b>
-&gt;<b>INS $TKB</b>
-&gt;<b>TKB HELLO=HELLO</b>
-&gt;<b>INS HELLO</b>
-&gt;<b>RUN HELLO</b>
-&gt;HELLO WORLD!
-&gt;<b>UNS HELLO</b>
-&gt;<b>BYE</b>
-&gt;
-HAVE A GOOD AFTERNOON
-29-JAN-90 12:02 TT0:  LOGGED OFF
-&gt;
-</pre>
 
 <h3>Software Sources</h3>
 <p>
-  The software used in this emulator has been sourced from many place on the Internet - unfortunately some of these now appear to have dissapeared. If you are looking for something I would suggest the following main sites, or failing that a google search. :-(
+  The software used in this emulator has been sourced from many places on the Internet and unfortunately many of these seem to have disappeared. If you are looking for something I would suggest the following main sites...
 <ul>
   <li>Documentation: <a href='http://bitsavers.org/pdf/dec/pdp11/'>http://bitsavers.org/pdf/dec/pdp11/</a> </li>
   <li>Software: <a href='http://bitsavers.org/bits/DEC/pdp11/'>http://bitsavers.org/bits/DEC/pdp11/</a> </li>
@@ -1724,12 +1676,12 @@ function regExamineDeposit(data) { // PDP 11/45 additional functions
 const CPU_TYPE = 45; // This is a PDP 11/45
 
 </script>
-<script src='bootcode.js' type="text/javascript"></script>
-<script src='vt52.js' type="text/javascript"></script>
-<script src='pdp11.js?v=1' type="text/javascript"></script>
-<script src='fpp.js' type="text/javascript"></script>
-<script src='iopage.js?v=2' type="text/javascript"></script>
-<script src='vt11.js' type="text/javascript"></script>
+<script src='bootcode.js'></script>
+<script src='vt52.js'></script>
+<script src='pdp11.js'></script>
+<script src='fpp.js'></script>
+<script src='iopage.js'></script>
+<script src='vt11.js'></script>
 <script>
 boot();
 </script>
