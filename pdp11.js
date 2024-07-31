@@ -743,35 +743,42 @@ function getVirtualByMode(addressMode, accessMode) {
         case 0: // Mode 0: R Registers don't have a virtual address so trap!
             return trap(0o4, 0x00); // Trap 4 - 0x00 Illegal addressing mode
         case 1: // Mode 1: (R)
-            if (reg <= 6) {
-                virtualAddress = CPU.registerVal[reg] | 0x10000;
-                if (reg === 6 && (accessMode & MMU_WRITE)) {
-                    if ((virtualAddress = stackCheck(virtualAddress)) < 0) {
-                        return virtualAddress;
-                    }
-                }
-            } else {
-                virtualAddress = CPU.registerVal[reg];
-            }
-            return virtualAddress; // (R) in I or D space
-        case 2: // Mode 2: (R)+ including immediate operand #x)
-            if (reg <= 6) {
-                virtualAddress = CPU.registerVal[reg] | 0x10000;
-                if (reg === 6) {
-                    if (accessMode & MMU_WRITE) { // (SP)+
+            switch (reg) {
+                case 6: // (SP)
+                    virtualAddress = CPU.registerVal[reg] | 0x10000; // D space
+                    if (accessMode & MMU_WRITE) {
                         if ((virtualAddress = stackCheck(virtualAddress)) < 0) {
-                            return virtualAddress
+                            return virtualAddress;
                         }
                     }
-                    autoIncrement = (accessMode + 1) & MMU_LENGTH_EVEN;
-                } else { // (Rx)+
-                    autoIncrement = accessMode & MMU_LENGTH_MASK;
-                }
-            } else { // (PC)+ aka #d
-                autoIncrement = 2;
-                virtualAddress = CPU.registerVal[reg];
+                    break;
+                case 7: // (PC)
+                    virtualAddress = CPU.registerVal[reg]; // I space
+                    break;
+                default: // (Rx)
+                    virtualAddress = CPU.registerVal[reg] | 0x10000; // D space
             }
-            break; // (R)+ I or D space
+            return virtualAddress; // (R)  can be either space
+        case 2: // Mode 2: (R)+ including immediate operand #x
+            switch (reg) {
+                case 6: // (SP)+}
+                    autoIncrement = (accessMode + 1) & MMU_LENGTH_EVEN;
+                    virtualAddress = CPU.registerVal[reg] | 0x10000; // D space
+                    if (accessMode & MMU_WRITE) {
+                        if ((virtualAddress = stackCheck(virtualAddress)) < 0) {
+                            return virtualAddress;
+                        }
+                    }
+                    break;
+                case 7: // (PC)+ aka #d
+                    autoIncrement = 2;
+                    virtualAddress = CPU.registerVal[reg]; // I space
+                    break;
+                default: // (Rx)+space
+                    autoIncrement = accessMode & MMU_LENGTH_MASK;
+                    virtualAddress = CPU.registerVal[reg] | 0x10000; // D space
+            }
+            break; // (R)+  can be either space
         case 3: // Mode 3: @(R)+
             if ((virtualAddress = readWordByVirtual(reg === 7 ? CPU.registerVal[7] : CPU.registerVal[reg] | 0x10000)) < 0) {
                 return virtualAddress;
@@ -780,50 +787,51 @@ function getVirtualByMode(addressMode, accessMode) {
             //    LOG_OPERAND(virtualAddress);
             //}
             autoIncrement = 2;
-            virtualAddress |= 0x10000; // @(R)+ in D space
-            break;
+            virtualAddress |= 0x10000; // D space
+            break; // @(R)+  D space
         case 4: // Mode 4: -(R)
-            if (reg <= 6) {
-                if (reg === 6) { // -(SP)
-                    autoIncrement = (0x10000 - ((accessMode + 1) & MMU_LENGTH_EVEN));
-                    virtualAddress = (CPU.registerVal[6] + autoIncrement) | 0x10000;
+            switch (reg) {
+                case 6: // -(SP)
+                    autoIncrement = 0x10000 - ((accessMode + 1) & MMU_LENGTH_EVEN);
+                    virtualAddress = (CPU.registerVal[6] + autoIncrement) | 0x10000; // D space
                     if (accessMode & MMU_WRITE) {
                         if ((virtualAddress = stackCheck(virtualAddress)) < 0) {
                             return virtualAddress;
                         }
-                    } // -(SP) in D space
-                } else { // -(Rx)
+                    }
+                    break;
+                case 7: // -(PC)  How would you use that?
+                    autoIncrement = 0xfffe; // -2
+                    virtualAddress = (CPU.registerVal[7] + autoIncrement) & 0xffff; // I space
+                    break;
+                default: // -(Rx)
                     autoIncrement = 0x10000 - (accessMode & MMU_LENGTH_MASK);
-                    virtualAddress = (CPU.registerVal[reg] + autoIncrement) | 0x10000;
-                }
-            } else { // -(PC)  how you would use that?
-                autoIncrement = 0xfffe; // -2
-                virtualAddress = (CPU.registerVal[7] + autoIncrement) & 0xffff;
+                    virtualAddress = (CPU.registerVal[reg] + autoIncrement) | 0x10000; // D space
             }
-            break; // -(R) I or D space
+            break; // -(R)  can be either space
         case 5: // Mode 5: @-(R)
             autoIncrement = 0xfffe; // -2
-            virtualAddress = (CPU.registerVal[reg] + autoIncrement) | 0x10000;
+            virtualAddress = (CPU.registerVal[reg] + autoIncrement) | 0x10000; // D space
             if ((virtualAddress = readWordByVirtual(reg === 7 ? virtualAddress & 0xffff : virtualAddress)) < 0) {
                 return virtualAddress;
             }
-            virtualAddress |= 0x10000; // @-(R) in D space
-            break;
+            virtualAddress |= 0x10000; // D space
+            break; // @-(R)  D space
         case 6: // Mode 6: d(R)
-            if ((virtualAddress = readWordByVirtual(CPU.registerVal[7])) < 0) { // Always I space
+            if ((virtualAddress = readWordByVirtual(CPU.registerVal[7])) < 0) { // I space
                 return virtualAddress;
             }
             //LOG_OPERAND(virtualAddress);
             CPU.registerVal[7] = (CPU.registerVal[7] + 2) & 0xffff;
-            virtualAddress = (CPU.registerVal[reg] + virtualAddress) | 0x10000;
+            virtualAddress = (CPU.registerVal[reg] + virtualAddress) | 0x10000; // D space
             if (reg === 6 && (accessMode & MMU_WRITE)) {
-                if ((virtualAddress = stackCheck(virtualAddress)) < 0) { // mask for stack check
+                if ((virtualAddress = stackCheck(virtualAddress)) < 0) {
                     return virtualAddress;
                 }
             }
-            return virtualAddress; // d(R) in D space
+            return virtualAddress; // d(R)  D space
         case 7: // Mode 7: @d(R)
-            if ((virtualAddress = readWordByVirtual(CPU.registerVal[7])) < 0) { // Always I space
+            if ((virtualAddress = readWordByVirtual(CPU.registerVal[7])) < 0) { // I space
                 return virtualAddress;
             }
             //LOG_OPERAND(virtualAddress);
@@ -831,7 +839,7 @@ function getVirtualByMode(addressMode, accessMode) {
             if ((virtualAddress = readWordByVirtual((CPU.registerVal[reg] + virtualAddress) | 0x10000)) < 0) {
                 return virtualAddress;
             }
-            return virtualAddress | 0x10000; // @d(R) in D space
+            return virtualAddress | 0x10000; // @d(R)  D space
     }
     CPU.registerVal[reg] = (CPU.registerVal[reg] + autoIncrement) & 0xffff;
     if (!(CPU.MMR0 & 0xe000)) {
@@ -1032,17 +1040,15 @@ function branch(instruction) {
 
 function pdp11Processor() {
     "use strict";
-    var dst, instruction, src, reg, result, virtualAddress;
-    //const CPU = window.CPU;
-    //const registerVal = CPU.registerVal;
-
+    let dst, instruction, src, reg, result, virtualAddress;
+    let loopTime, loopCount;
 
     switch (CPU.runState) {
         case STATE_STEP:
             CPU.runState = STATE_HALT; // fall through to execute one instruction then halt
         case STATE_RUN:
-            let loopTime = Date.now() + 12;
-            let loopCount = 2000;
+            loopTime = Date.now() + 12;
+            loopCount = 2000;
             dst = 0;
             do {
                 // check if an interrupt has been requested - with a one instruction delay after SPL (!)
@@ -1300,10 +1306,9 @@ function pdp11Processor() {
                                         case 0o55: // ADC 0055DD
                                             //LOG_INSTRUCTION(instruction, "adc", 1);
                                             if ((dst = modifyWordByMode(instruction)) >= 0) {
+                                                result = 0;
                                                 if (testC()) {
                                                     result = ~dst & ++dst;
-                                                } else {
-                                                    result = 0;
                                                 }
                                                 if (modifyWord(dst) >= 0) {
                                                     setNZVC(dst, result);
@@ -1313,10 +1318,9 @@ function pdp11Processor() {
                                         case 0o56: // SBC 0056DD
                                             //LOG_INSTRUCTION(instruction, "sbc", 1);
                                             if ((dst = modifyWordByMode(instruction)) >= 0) {
+                                                result = 0;
                                                 if (testC()) {
                                                     result = dst & ~(--dst);
-                                                } else {
-                                                    result = 0;
                                                 }
                                                 if (modifyWord(dst) >= 0) {
                                                     setNZVC(dst, result);
@@ -1434,10 +1438,9 @@ function pdp11Processor() {
                                             break;
                                         case 0o67: // SXT 0067DD
                                             //LOG_INSTRUCTION(instruction, "sxt", 1);
+                                            dst = 0;
                                             if (testN()) {
-                                                dst = 0xffff;
-                                            } else {
-                                                dst = 0;
+                                                dst = 0xffff
                                             }
                                             if (writeWordByMode(instruction, dst) >= 0) {
                                                 setNZ(dst);
@@ -1753,10 +1756,9 @@ function pdp11Processor() {
                                         case 0o55: // ADCB 01055DD
                                             //LOG_INSTRUCTION(instruction, "adcb", 1);
                                             if ((dst = modifyByteByMode(instruction)) >= 0) {
+                                                result = 0;
                                                 if (testC()) {
                                                     result = ~dst & ++dst;
-                                                } else {
-                                                    result = 0;
                                                 }
                                                 if (modifyByte(dst) >= 0) {
                                                     setByteNZVC(dst, result);
@@ -1766,10 +1768,9 @@ function pdp11Processor() {
                                         case 0o56: // SBCB 01056DD
                                             //LOG_INSTRUCTION(instruction, "sbcb", 1);
                                             if ((dst = modifyByteByMode(instruction)) >= 0) {
+                                                result = 0;
                                                 if (testC()) {
                                                     result = dst & ~(--dst);
-                                                } else {
-                                                    result = 0;
                                                 }
                                                 if (modifyByte(dst) >= 0) {
                                                     setByteNZVC(dst, result);
@@ -2050,7 +2051,6 @@ function updateLights() {
     let addressLights, displayLights, statusLights;
 
     function updatePanel(oldMask, newMask, idArray) { // Update lights to match newMask
-        "use strict";
         let mask = newMask ^ oldMask; // difference mask
         for (let id = 0; mask; id++, mask >>>= 1) {
             while (!(mask & 1)) {
