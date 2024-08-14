@@ -304,12 +304,12 @@ function readPSW() {
     "use strict";
     if (!isNaN(CPU.flagNZ)) {
         let flags = 0;
-        if (CPU.flagNZ & 0x8000) {
-            flags = 8;
-        } else {
-            if (!(CPU.flagNZ & 0xffff)) {
-                flags = 4;
+        if (CPU.flagNZ & 0xffff) {
+            if (CPU.flagNZ & 0x8000) {
+                flags = 8;
             }
+        } else {
+            flags = 4;
         }
         if (CPU.flagV & 0x8000) {
             flags |= 2;
@@ -1083,9 +1083,9 @@ function pdp11Processor() {
                 // Remember if T-bit trap required at the end of this instruction
                 CPU.trapMask = CPU.PSW & 0x10;
                 if ((instruction = readWordByVirtual(CPU.registerVal[7])) >= 0) {
-                    //    if (CPU.registerVal[7] == 0o26576) { // DDEEBBUUGG
-                    //        console.log("@" + CPU.registerVal[7].toString(8) + ": " + instruction.toString(8) + " r0: " + CPU.registerVal[0].toString(8) + " r4: " + CPU.registerVal[4].toString(8) + " psw: " + readPSW().toString(8));
-                    //    }
+                    //if (CPU.registerVal[7] == 0o30214) { // DDEEBBUUGG
+                    //  console.log("@" + CPU.registerVal[7].toString(8) + ": " + instruction.toString(8) + " r0: " + CPU.registerVal[0].toString(8) + " r4: " + CPU.registerVal[4].toString(8) + " psw: " + readPSW().toString(8));
+                    //}
                     CPU.registerVal[7] = (CPU.registerVal[7] + 2) & 0xffff;
                     switch (instruction >>> 12) { // xxSSDD Mostly double operand instructions
                         case 0: // 00xxxx mixed group
@@ -1308,7 +1308,8 @@ function pdp11Processor() {
                                             if ((dst = modifyWordByMode(instruction)) >= 0) {
                                                 result = 0;
                                                 if (testC()) {
-                                                    result = ~dst & ++dst;
+                                                    result = ~dst;
+                                                    result &= ++dst;
                                                 }
                                                 if (modifyWord(dst) >= 0) {
                                                     setNZVC(dst, result);
@@ -1320,7 +1321,8 @@ function pdp11Processor() {
                                             if ((dst = modifyWordByMode(instruction)) >= 0) {
                                                 result = 0;
                                                 if (testC()) {
-                                                    result = dst & ~(--dst);
+                                                    result = dst--;
+                                                    result &= ~dst;
                                                 }
                                                 if (modifyWord(dst) >= 0) {
                                                     setNZVC(dst, result);
@@ -1440,7 +1442,7 @@ function pdp11Processor() {
                                             //LOG_INSTRUCTION(instruction, "sxt", 1);
                                             dst = 0;
                                             if (testN()) {
-                                                dst = 0xffff
+                                                dst = 0xffff;
                                             }
                                             if (writeWordByMode(instruction, dst) >= 0) {
                                                 setNZ(dst);
@@ -1524,11 +1526,10 @@ function pdp11Processor() {
                                         if (dst & 0x8000) {
                                             dst -= 0x10000;
                                         }
-                                        result = src * dst;
-                                        CPU.registerVal[reg] = (result >>> 16) & 0xffff;
-                                        CPU.registerVal[reg | 1] = result & 0xffff;
-                                        result = (result >>> 16) | ((result & 0xffff) ? 1 : 0) | ((result < -32768 || result > 32767) ? 0x10000 : 0);
-                                        setNZC(result);
+                                        dst = src * dst;
+                                        CPU.registerVal[reg] = (dst >>> 16) & 0xffff;
+                                        CPU.registerVal[reg | 1] = dst & 0xffff;
+                                        setNZC(dst ? ((dst < 0 ? 0x8000 : 1) | (dst < -32768 || dst > 32767 ? 0x10000 : 0)) : 0);
                                     }
                                     break;
                                 case 1: // DIV 071RSS
@@ -1549,7 +1550,7 @@ function pdp11Processor() {
                                             if (result >= -32768 && result <= 32767) {
                                                 CPU.registerVal[reg] = result & 0xffff;
                                                 CPU.registerVal[reg | 1] = (dst - (result * src)) & 0xffff;
-                                                setNZC((result >>> 16) | (result ? 1 : 0));
+                                                setNZC(result ? (result < 0 ? 0x8000 : 1) : 0);
                                             } else {
                                                 setNZVC(((dst >>> 16) & 0x8000) | (result ? 1 : 0), 0x8000); // Bad result
                                                 if (!(result & 0x7fffffff)) setFlags(4, 4); // Set zero flag
@@ -1563,37 +1564,36 @@ function pdp11Processor() {
                                 case 2: // ASH 072RSS
                                     //LOG_INSTRUCTION(instruction, "ash", 6);
                                     if ((src = readWordByMode(instruction)) >= 0) {
-                                        reg = (instruction >>> 6) & 7;
-                                        result = CPU.registerVal[reg];
+                                        reg = (instruction >> 6) & 7;
+                                        dst = CPU.registerVal[reg];
                                         src &= 0x3f;
-                                        if (!(src && result)) {
-                                            setNZC(result);
+                                        if (!src) {
+                                            setNZC(dst);
                                         } else {
-                                            if (src & 0x20) { // ASH right (1-32)
+                                            if (src & 0x20) { // ASH right (negative 1-32)
                                                 src = 64 - src; // Make into count
                                                 if (src > 16) {
-                                                    src = 16; // Enforce limit (beyond 16 C copies sign)
+                                                    src = 16;
                                                 }
-                                                dst = result >>> (src - 1); // Low bit becomes carry
-                                                if (result & 0x8000) { // If sign bit 1's fill
-                                                    result = ((0xffff0000 | result) >>> src) & 0xffff;
-                                                } else {
-                                                    result >>>= src;
+                                                if (dst & 0x8000) {
+                                                    dst |= 0xffff0000; // sign extend
                                                 }
-                                                setNZC((dst << 16) | result);
+                                                result = dst << (17 - src); // position C
+                                                dst = (dst >> src) & 0xffff;
+                                                setNZC((result & 0x10000) | dst);
                                             } else { // ASH left (1-31)
                                                 if (src > 17) {
-                                                    src = 17; // Enforce limit (beyond 16 C becomes 0)
+                                                    src = 17;
                                                 }
-                                                result <<= src;
-                                                dst = result & 0xffff8000; // Get bits shifted out plus sign
-                                                if (dst && dst !== ((0xffff << src) & 0xffff8000)) { // Check bits shifted out match sign
-                                                    setNZVC(result, 0x8000); // Set V if not
+                                                dst <<= src;
+                                                result = dst & 0xffff8000;
+                                                if (result && result !== ((0xffff << src) & 0xffff8000)) { // Check if sign bit changed
+                                                    setNZVC(dst, 0x8000); // Set V if any sign bit change
                                                 } else {
-                                                    setNZC(result);
+                                                    setNZC(dst);
                                                 }
                                             }
-                                            CPU.registerVal[reg] = result & 0xffff;
+                                            CPU.registerVal[reg] = dst & 0xffff;
                                         }
                                     }
                                     break;
@@ -1601,31 +1601,36 @@ function pdp11Processor() {
                                     //LOG_INSTRUCTION(instruction, "ashc", 6);
                                     if ((src = readWordByMode(instruction)) >= 0) {
                                         reg = (instruction >>> 6) & 7;
-                                        result = (CPU.registerVal[reg] << 16) | CPU.registerVal[reg | 1];
+                                        dst = (CPU.registerVal[reg] << 16) | CPU.registerVal[reg | 1];
                                         src &= 0x3f;
-                                        if (!(src && result)) {
-                                            setNZC(result >>> 16 | (result ? 1 : 0));
+                                        if (!src) { // 0 shift special case
+                                            setNZC(dst ? (dst < 0 ? 0x8000 : 1) : 0);
                                         } else {
-                                            if (src & 0x20) { // ASHC right (1-32)
-                                                src = 64 - src; // Make into count
-                                                dst = result >>> (src - 1); // Low bit becomes carry
-                                                if (result & 0x80000000) { // If sign bit shift with 1's fill
-                                                    result = (0xffffffff << (32 - src)) | (result >>> src);
+                                            if (src & 0x20) { // ASHC right (negative 1-32)
+                                                src = 64 - src; // Make positive
+                                                if (src < 17) { // position C
+                                                    result = dst << (17 - src);
                                                 } else {
-                                                    result >>>= src;
+                                                    result = dst >>> (src - 17);
                                                 }
-                                                setNZC((dst << 16) | (result ? (result >>> 16) | 1 : 0));
-                                            } else { // ASHC left (1-31)
-                                                dst = result >>> (31 - src); // EQKC confirms ANY change of sign during shift sets V :-(
-                                                result <<= src;
-                                                if (dst && dst !== (0xffffffff >>> (31 - src))) { // Low bits are carry and sign
-                                                    setNZVC((dst << 15) | (result ? 1 : 0), 0x8000); // Set V if any change of sign
+                                                dst = dst >> src; // *Signed shift to get result
+                                                setNZC((result & 0x10000) | (dst ? (dst < 0 ? 0x8000 : 1) : 0));
+                                            } else { // ASHC left (0-31)
+                                                if (src < 16) { // position C & N
+                                                    result = dst >>> (16 - src);
                                                 } else {
-                                                    setNZC((dst << 15) | (result ? 1 : 0));
+                                                    result = dst << (src - 16);
+                                                }
+                                                if (((dst << src) >> src) !== dst) { // *Signed shift bit change check
+                                                    dst = dst << src;
+                                                    setNZVC((result & 0x18000) | (dst ? 1 : 0), 0x8000); // Set V if any sign
+                                                } else {
+                                                    dst = dst << src;
+                                                    setNZC((result & 0x18000) | (dst ? 1 : 0));
                                                 }
                                             }
-                                            CPU.registerVal[reg] = (result >>> 16) & 0xffff;
-                                            CPU.registerVal[reg | 1] = result & 0xffff;
+                                            CPU.registerVal[reg] = (dst >>> 16) & 0xffff;
+                                            CPU.registerVal[reg | 1] = dst & 0xffff;
                                         }
                                     }
                                     break;
@@ -1758,7 +1763,8 @@ function pdp11Processor() {
                                             if ((dst = modifyByteByMode(instruction)) >= 0) {
                                                 result = 0;
                                                 if (testC()) {
-                                                    result = ~dst & ++dst;
+                                                    result = ~dst;
+                                                    result &= ++dst;
                                                 }
                                                 if (modifyByte(dst) >= 0) {
                                                     setByteNZVC(dst, result);
@@ -1770,7 +1776,8 @@ function pdp11Processor() {
                                             if ((dst = modifyByteByMode(instruction)) >= 0) {
                                                 result = 0;
                                                 if (testC()) {
-                                                    result = dst & ~(--dst);
+                                                    result = dst--;
+                                                    result &= ~dst;
                                                 }
                                                 if (modifyByte(dst) >= 0) {
                                                     setByteNZVC(dst, result);
