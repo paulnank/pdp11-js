@@ -9,9 +9,7 @@
 :root {
   --unitWidth: 4px;
   --unitHeight: 5px;
-  --ledColor: radial-gradient(circle at 2px 1px, #fafa10, #f21600);
-  --red: #c22020;
-  --purple: #682468;
+  --ledColor: radial-gradient(circle at 2px 2px, yellow, red);
 }
 
 .frame {
@@ -193,7 +191,7 @@
   width: calc(100% - 1px);
   height: calc(var(--unitHeight) * 2);
   line-height: calc(var(--unitHeight) * 2);
-  font-size: calc(var(--unitHeight) * 1.5);
+  font-size: calc(var(--unitHeight) * 1.45);
   position: relative;
   float: left;
 }
@@ -440,13 +438,13 @@
 
 .switchPadHalf {
   width: 100%;
-  height: 50%;
+  height: 49%;
   line-height: calc(var(--unitHeight) * 4);
 }
 
 .switchPadBar {
   width: 100%;
-  height: 10%;
+  height: 2%;
   background: black;
 }
 
@@ -459,10 +457,10 @@
 .switch {
   width: calc(var(--unitWidth) * 5);
   height: calc(var(--unitHeight) * 1);
-  border-top: calc(var(--unitHeight) * 8) solid rgba(0, 0, 0, 0.06);
-  border-bottom: calc(var(--unitHeight) * 7) solid rgba(0, 0, 0, 0.5);
-  border-left: calc(var(--unitWidth) * 1.5) solid rgba(0, 0, 0, 0.3);
-  border-right: calc(var(--unitWidth) * 1.5) solid rgba(0, 0, 0, 0.4);
+  border-top: calc(var(--unitHeight) * 8) solid rgba(0, 0, 0, 0);
+  border-bottom: calc(var(--unitHeight) * 7) solid rgba(40, 0, 10, 0.4);
+  border-left: calc(var(--unitWidth) * 1.5) solid rgba(0, 0, 0, 0.25);
+  border-right: calc(var(--unitWidth) * 1.5) solid rgba(0, 0, 0, 0.35);
   transition: 0.33s;
   float: left;
 }
@@ -506,11 +504,19 @@
 }
 
 .red {
-  background-color: var(--red);
+  background: linear-gradient(crimson, firebrick);
+}
+
+.redBase {
+  background: crimson;
 }
 
 .purple {
-  background-color: var(--purple);
+  background: linear-gradient(darkmagenta, purple);
+}
+
+.purpleBase {
+  background: darkmagenta;
 }
 
 .black {
@@ -540,7 +546,7 @@ pre {
 }
 
 b {
-  color: red;
+  color: blue;
 }
 
 </style>
@@ -886,36 +892,36 @@ b {
     </div>
     <div class=floatLeft>
       <span class=space></span>
-      <span class="switch red" onClick="setSwitch(this, 17);"></span>
-      <span class="switch red" onClick="setSwitch(this, 16);"></span>
-      <span class="switch red" onClick="setSwitch(this, 15);"></span>
-      <span class="switch purple" onClick="setSwitch(this, 14);"></span>
-      <span class="switch purple" onClick="setSwitch(this, 13);"></span>
-      <span class="switch purple" onClick="setSwitch(this, 12);"></span>
-      <span class="switch red" onClick="setSwitch(this, 11);"></span>
-      <span class="switch red" onClick="setSwitch(this, 10);"></span>
-      <span class="switch red" onClick="setSwitch(this, 9);"></span>
-      <span class="switch purple" onClick="setSwitch(this, 8);"></span>
-      <span class="switch purple" onClick="setSwitch(this, 7);"></span>
-      <span class="switch purple" onClick="setSwitch(this, 6);"></span>
-      <span class="switch red" onClick="setSwitch(this, 5);"></span>
-      <span class="switch red" onClick="setSwitch(this, 4);"></span>
-      <span class="switch red" onClick="setSwitch(this, 3);"></span>
-      <span class="switch purple" onClick="setSwitch(this, 2);"></span>
-      <span class="switch purple" onClick="setSwitch(this, 1);"></span>
-      <span class="switch purple" onClick="setSwitch(this, 0);"></span>
+      <span class="switch redBase" onClick="setSwitch(this, 17);"></span>
+      <span class="switch redBase" onClick="setSwitch(this, 16);"></span>
+      <span class="switch redBase" onClick="setSwitch(this, 15);"></span>
+      <span class="switch purpleBase" onClick="setSwitch(this, 14);"></span>
+      <span class="switch purpleBase" onClick="setSwitch(this, 13);"></span>
+      <span class="switch purpleBase" onClick="setSwitch(this, 12);"></span>
+      <span class="switch redBase" onClick="setSwitch(this, 11);"></span>
+      <span class="switch redBase" onClick="setSwitch(this, 10);"></span>
+      <span class="switch redBase" onClick="setSwitch(this, 9);"></span>
+      <span class="switch purpleBase" onClick="setSwitch(this, 8);"></span>
+      <span class="switch purpleBase" onClick="setSwitch(this, 7);"></span>
+      <span class="switch purpleBase" onClick="setSwitch(this, 6);"></span>
+      <span class="switch redBase" onClick="setSwitch(this, 5);"></span>
+      <span class="switch redBase" onClick="setSwitch(this, 4);"></span>
+      <span class="switch redBase" onClick="setSwitch(this, 3);"></span>
+      <span class="switch purpleBase" onClick="setSwitch(this, 2);"></span>
+      <span class="switch purpleBase" onClick="setSwitch(this, 1);"></span>
+      <span class="switch purpleBase" onClick="setSwitch(this, 0);"></span>
       <span class="switch white" onclick="moveSwitch(this, panel.lampTest = 1 - panel.lampTest); if (!panel.powerSwitch) { if (panel.lamp) panel.lamp = 1; }"></span>
-      <span class="switch red" onClick="toggleSwitch(this, 0); CPU.displayAddress = CPU.switchRegister; panel.autoIncr = 0;"></span>
-      <span class="switch purple" onClick="toggleSwitch(this, 0); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) examineDeposit(-1); }"></span>
-      <span class="switch red" onClick="toggleSwitch(this, 0); if (!panel.powerSwitch && CPU.runState == STATE_HALT) { if (panel.halt) { CPU.runState = STATE_STEP; } else { CPU.runState = STATE_RUN; }}"></span>
-      <span class="switch purple" onClick="moveSwitch(this, panel.halt = 1 - panel.halt); if (!panel.powerSwitch) { if (panel.halt) { CPU.runState = STATE_HALT; }}"></span>
-      <span class="switch red" onClick="moveSwitch(this, panel.step = 1 - panel.step);"></span>
-      <span class="switch purple" onclick="toggleSwitch(this, 0); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) {iopage.reset(); CPU.registerVal[7] = CPU.displayAddress & 0xffff; if (!panel.halt) { CPU.runState = STATE_RUN; }}}"></span>
+      <span class="switch redBase" onClick="toggleSwitch(this, 0); CPU.displayAddress = CPU.switchRegister; panel.autoIncr = 0;"></span>
+      <span class="switch purpleBase" onClick="toggleSwitch(this, 0); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) examineDeposit(-1); }"></span>
+      <span class="switch redBase" onClick="toggleSwitch(this, 0); if (!panel.powerSwitch && CPU.runState == STATE_HALT) { if (panel.halt) { CPU.runState = STATE_STEP; } else { CPU.runState = STATE_RUN; }}"></span>
+      <span class="switch purpleBase" onClick="moveSwitch(this, panel.halt = 1 - panel.halt); if (!panel.powerSwitch) { if (panel.halt) { CPU.runState = STATE_HALT; }}"></span>
+      <span class="switch redBase" onClick="moveSwitch(this, panel.step = 1 - panel.step);"></span>
+      <span class="switch purpleBase" onclick="toggleSwitch(this, 0); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) {iopage.reset(); CPU.registerVal[7] = CPU.displayAddress & 0xffff; if (!panel.halt) { CPU.runState = STATE_RUN; }}}"></span>
       <span class="switch white"></span>
-      <span class="switch red" onClick="toggleSwitch(this, 0); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) examineDeposit(CPU.switchRegister); }"></span>
+      <span class="switch redBase" onClick="toggleSwitch(this, 0); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) examineDeposit(CPU.switchRegister); }"></span>
       <span class="switch white"></span>
-      <span class="switch purple" onclick="toggleSwitch(this, 0); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) regExamineDeposit(-1); }"></span>
-      <span class="switch red" onclick="toggleSwitch(this, 0); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) regExamineDeposit(CPU.switchRegister); }"></span>
+      <span class="switch purpleBase" onclick="toggleSwitch(this, 0); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) regExamineDeposit(-1); }"></span>
+      <span class="switch redBase" onclick="toggleSwitch(this, 0); if (!panel.powerSwitch) { if (CPU.runState == STATE_HALT) regExamineDeposit(CPU.switchRegister); }"></span>
     </div>
   </div>
 </div>
@@ -1122,14 +1128,14 @@ S  M Tu  W Th  F  S
 run</b>
 Calculating e
 e=2.718281828 (2.718281828)
-<b>CTRL/D</b>
+<b>^D</b>
 # <b>cat> hello.c
 main(argc, argv)
 char **argv;
 {
 printf("Hello world\n");
 }</b>
-<b>CTRL/D</b>
+<b>^D</b>
 # <b>cc hello.c</b>
 # <b>a.out</b>
 Hello world
@@ -1147,7 +1153,7 @@ c PI via Nilakantha series: 3 + 4/(2*3*4) - 4/(4*5*6) + 4/(6*7*8) ...
       write(6,70) pi
  70   format('PI is approximately ', d2.16)
       end</b>
-<b>CTRL/D</b>
+<b>^D</b>
 # <b>fc pi.f</b>
 # <b>a.out</b>
 PI is approximately 0.3141592653580503d+01
@@ -1241,14 +1247,14 @@ Boot&gt; <b>boot rk2</b>
 
 RSTS V06C-03 Vixen (DK2)
 
-Option:
+Option: <b>&lt;LF&gt;</b>
 
 You currently have: JOB MAX = 31, SWAP MAX = 28K.
 
 You currently have crash dump disabled.
 
-DD-MMM-YY? 31-OCT-76
-12:00 PM? 9:03
+DD-MMM-YY? <b>31-OCT-76</b>
+12:00 PM? <b>9:03</b>
 INIT    V06C-03 RSTS V06C-03 Vixen
 
 Command File Name?
@@ -1403,7 +1409,7 @@ M TO MOUNT ANOTHER REEL, OR K TO KILL REQUEST: <b>k</b>
 
 RSTS V04B-17 VIXEN
 
-OPTION? <b>^J</b>
+OPTION? <b>&lt;LF&gt;</b>
 DD-MON-YY? <b>24-MAR-75</b>
 HH:MM? <b>9:21</b>
 VIXEN  - SYSTEM PACK MOUNTED
@@ -1676,6 +1682,7 @@ function regExamineDeposit(data) { // PDP 11/45 additional functions
 const CPU_TYPE = 45; // This is a PDP 11/45
 
 </script>
+<script src="https://unpkg.com/fzstd@0.1.1"></script>
 <script src='bootcode.js'></script>
 <script src='vt52.js'></script>
 <script src='pdp11.js'></script>

@@ -575,6 +575,7 @@ function dl11(vt52Unit, deviceVector) {
     var unit = vt52Unit,
         vector = deviceVector,
         divElement;
+
     function init() {
         "use strict";
         rcsr = 0; // no character received
@@ -584,6 +585,7 @@ function dl11(vt52Unit, deviceVector) {
         xdelay = 0;
         iMask = 0;
     }
+
     function dlInput(unit, ch) { // called by vt52 code when a character has been typed
         "use strict";
         if (rcsr & 0x80) { // done still set
@@ -725,6 +727,7 @@ iopage.register(0o17777510, 2, (function() {
         lpdb, // 17777516 line printer data buffer
         iMask; // interrupt mask
     var lp11Element;
+
     function init() {
         "use strict";
         lpcs = 0x80; // done set, ie clear
@@ -798,149 +801,93 @@ iopage.register(0o17777510, 2, (function() {
 
 // =========== Disk I/O support routines ===========
 
-const
-    IO_BLOCKSIZE = 1024 * 1024; // 1 Mb request size. Larger reduces number of requests but increases count
-
-
-// extractXHR() copies the XMLHttpRequest response to disk cache returning
-// 0 on success or -1 on error
-
-function extractXHR(xhr, cache, block) {
-    "use strict";
-    var dataView, dataLength, dataIndex, blockIndex;
-    switch (xhr.status) {
-        case 416: // Out of range - make empty cache block
-            dataLength = 0;
-            break;
-        case 200: // Whole file response - fill cache from beginning
-            //block = 0; // Note case fall thru!
-        case 0: // Local response - have to assume we got appropriate response
-        case 206: // Partial response - use what is there
-            dataView = new Uint8Array(xhr.response);
-            dataLength = dataView.length;
-            break;
-        default: // Error - signal and exit
-            return -1; // Return error
-    }
-    dataIndex = 0; // Start copy to cache at the beginning
-    do {
-        if (cache[block] === undefined) {
-            cache[block] = new Uint8Array(IO_BLOCKSIZE); // Creates zero filled cache block
-            for (blockIndex = 0; blockIndex < IO_BLOCKSIZE && dataIndex < dataLength;) {
-                cache[block][blockIndex++] = dataView[dataIndex++] & 0xff;
-            }
-        } else {
-            dataIndex += IO_BLOCKSIZE; // Skip any existing cache blocks
-        }
-        block++;
-    } while (dataIndex < dataLength);
-
-    return 0; // Return success
-}
-
-// getData() is called at the completion of an XMLHttpRequest request to GET disk data.
-// It extracts the received data and stores it in the appropriate disk cache, then resumes
-// the pending i/o (which may trigger additional transfers).
-
-function getData(controlBlock, operation, position, address, count) {
-    "use strict";
-    if (extractXHR(controlBlock.xhr, controlBlock.cache, ~~(position / IO_BLOCKSIZE)) < 0) {
-        controlBlock.callback(controlBlock, 1, position, address, count); // NXD - error callback
-    } else {
-        diskIO(controlBlock, operation, position, address, count); // Resume I/O
-    }
-}
-
-// devices call diskIO() to do read and write functions. Reads must initially come from
-// server files but re-read and write functions use local cache.
-
 function diskIO(controlBlock, operation, position, address, count) {
     "use strict";
-    var block, offset, data;
-    block = ~~(position / IO_BLOCKSIZE); // Disk cache block
-    if (controlBlock.cache[block] !== undefined) {
-        offset = position % IO_BLOCKSIZE;
+    if (controlBlock.cache === undefined) {
+        try {
+            fetch('media/' + controlBlock.url + '.zst').then(
+                response => {
+                    if (!response.ok) {
+                        throw new Error('Network error');
+                    }
+                    return response.arrayBuffer();
+                }
+            ).then(
+                buffer => {
+                    // fzstd sourced from https://github.com/101arrowz/fzstd
+                    // <script src="https://unpkg.com/fzstd@0.1.1"></script>
+                    controlBlock.cache = fzstd.decompress(new Uint8Array(buffer));
+                    diskIO(controlBlock, operation, position, address, count);
+                }
+            );
+        } catch (err) {
+            controlBlock.callback(controlBlock, 9, position, address, count); // something broke
+        }
+
+    } else {
         while (count > 0) {
+            let data;
             switch (operation) {
                 case 1: // Write: write from memory to cache
                 case 3: // Check: compare memory with disk cache
                     data = readWordByPhysical((controlBlock.mapped ? mapUnibus(address) : address));
                     if (data < 0) {
-                        controlBlock.callback(controlBlock, 2, block * IO_BLOCKSIZE + offset, address, count); // NXM
+                        controlBlock.callback(controlBlock, 2, position, address, count); // NXM
                         return;
                     }
+                    while (position >= controlBlock.cache.length) controlBlock.cache.push(0);
                     if (operation === 1) { // write: put data into disk cache
-                        controlBlock.cache[block][offset] = data & 0xff;
-                        controlBlock.cache[block][offset + 1] = (data >>> 8) & 0xff;
+                        controlBlock.cache[position] = data & 0xff;
+                        controlBlock.cache[position + 1] = (data >>> 8) & 0xff;
                     } else { // check: compare memory with disk cache
-                        if (data !== ((controlBlock.cache[block][offset + 1] << 8) | controlBlock.cache[block][offset])) {
-                            controlBlock.callback(controlBlock, 3, block * IO_BLOCKSIZE + offset, address, count); // mismatch
+                        if (data !== ((controlBlock.cache[position + 1] << 8) | controlBlock.cache[position])) {
+                            controlBlock.callback(controlBlock, 3, position, address, count); // mismatch
                             return;
                         }
                     }
                     address += 2;
                     count -= 2; // bytes to go.... (currently all write operations are whole offsets)
-                    offset += 2;
+                    position += 2;
                     break;
                 case 2: // Read: read to memory from cache
-                    data = (controlBlock.cache[block][offset + 1] << 8) | controlBlock.cache[block][offset];
+                    if (position >= controlBlock.cache.length) {
+                        data = 0;
+                    } else {
+                        data = (controlBlock.cache[position + 1] << 8) | controlBlock.cache[position];
+                    }
                     if (count > 1) { // tape can read odd number of bytes - of course it can. :-(
                         if (writeWordByPhysical((controlBlock.mapped ? mapUnibus(address) : address), data) < 0) {
-                            controlBlock.callback(controlBlock, 2, block * IO_BLOCKSIZE + offset, address, count); // NXM
+                            controlBlock.callback(controlBlock, 2, position, address, count); // NXM
                             return;
                         }
                         address += 2;
                         count -= 2; // bytes to go....
                     } else {
                         if (writeByteByPhysical((controlBlock.mapped ? mapUnibus(address) : address), data & 0xff) < 0) {
-                            controlBlock.callback(controlBlock, 2, block * IO_BLOCKSIZE + offset, address, count); // NXM
+                            controlBlock.callback(controlBlock, 2, position, address, count); // NXM
                             return;
                         }
                         address += 1;
                         --count; // bytes to go....
                     }
-                    offset += 2;
+                    position += 2;
                     break;
                 case 4: // accumulate a record count into the address field for tape operations
-                    data = (controlBlock.cache[block][offset + 1] << 8) | controlBlock.cache[block][offset];
+                    data = (controlBlock.cache[position + 1] << 8) | controlBlock.cache[position];
                     address = (data << 16) | (address >>> 16);
                     count -= 2; // bytes to go....
-                    offset += 2;
+                    position += 2;
                     break;
                 case 5: // read one lousy byte (for PTR) - result also into address field!!!!
-                    address = controlBlock.cache[block][offset++];
+                    address = controlBlock.cache[position++];
                     count = 0; // force end!
                     break;
                 default:
                     panic(); // invalid operation - how did we get here?
             }
-            if (offset >= IO_BLOCKSIZE) {
-                offset = 0;
-                block++;
-                if (controlBlock.cache[block] === undefined) {
-                    break;
-                }
-            }
         }
-        position = block * IO_BLOCKSIZE + offset;
+        controlBlock.callback(controlBlock, 0, position, address, count); // success callback
     }
-    if (count > 0) { // I/O not complete so we need to get some data
-        if (controlBlock.xhr === undefined) {
-            controlBlock.xhr = new XMLHttpRequest();
-        }
-        controlBlock.xhr.open("GET", controlBlock.url, true);
-        controlBlock.xhr.responseType = "arraybuffer";
-        controlBlock.xhr.onreadystatechange = function() {
-            if (controlBlock.xhr.readyState === controlBlock.xhr.DONE) {
-                getData(controlBlock, operation, position, address, count);
-            }
-        };
-        block = ~~(position / IO_BLOCKSIZE);
-        controlBlock.xhr.setRequestHeader("Range", "bytes=" + (block * IO_BLOCKSIZE) + "-" + ((block + 1) * IO_BLOCKSIZE - 1));
-        controlBlock.xhr.send(null);
-        return;
-    }
-    controlBlock.callback(controlBlock, 0, position, address, count); // success callback
 }
 
 // register the paper tape reader on the i/o page
@@ -948,16 +895,17 @@ function diskIO(controlBlock, operation, position, address, count) {
 iopage.register(0o17777550, 2, (function() {
     var ptrcs, // 17777550 // paper tape reader control register 15 ERR 11 BUSY 7 DONE 6 IE 0 GO
         ptrdb, // 17777552 // paper tape reader data buffer
-        ptrName, // paper tape file name
+        ptrName = "", // paper tape file name
         iMask; // interrupt mask
     var ptControlblock;
+
     function init() {
         "use strict";
         ptrcs = 0;
         ptrdb = 0;
         iMask = 0;
-        document.getElementById("ptr").onchange = selectPaperTape;
     }
+
     function selectPaperTape() {
         ptrName = document.getElementById("ptr").value;
         ptrcs = 0; // clear status when tape selected
@@ -965,11 +913,12 @@ iopage.register(0o17777550, 2, (function() {
             ptControlblock = undefined; // Forget any existing details
         }
     }
+
     function ptCallback(controlBlock, code, position, address, count) {
         "use strict";
         controlBlock.position = position;
         ptrdb = address & 0xff; // diskIO function 5 stores a byte in address
-        if (code !== 0) {
+        if (code) {
             ptrcs |= 0x8000; // set ERROR
         }
         if (ptrcs & 0x40) { // if ie...
@@ -979,6 +928,7 @@ iopage.register(0o17777550, 2, (function() {
         ptrcs = (ptrcs | 0x80) & ~0x800; // set DONE clear BUSY
     }
     init();
+    document.getElementById("ptr").onchange = selectPaperTape;
     return {
         access: function(physicalAddress, data, byteFlag) {
             "use strict";
@@ -1002,7 +952,7 @@ iopage.register(0o17777550, 2, (function() {
                             } else {
                                 if (ptControlblock === undefined) {
                                     ptControlblock = {
-                                        "cache": [],
+                                        //"cache": [],
                                         "callback": ptCallback,
                                         "mapped": 1,
                                         "url": ptrName,
@@ -1054,7 +1004,7 @@ iopage.register(0o17772520, 6, (function() {
         mtc, //   17772522 mtc Command Register 15 ERR 12 14-13 den 10-8 unit INI 7 RDY 6 IE 3-1 fun 0 GO
         mtbrc, // 17772524 mtbrc Byte Record Counter
         mtcma, // 17772526 mtcma Current Memory Address Register
-     // mtd,      17772530 mtd Data Buffer Register
+        // mtd,      17772530 mtd Data Buffer Register
         mtrd, //  17772532 mtrd TU10 Read Lines
         iMask; // drive interrupt mask
     var mtControlBlock = []; // i/o control block - contains url, cache and other bits for each drive
@@ -1067,6 +1017,7 @@ iopage.register(0o17772520, 6, (function() {
         mtrd = 0;
         iMask = 0;
     }
+
     function mtCallback(controlBlock, code, position, address, count) {
         "use strict";
         if (code === 0 && controlBlock.command > 0) {
@@ -1121,11 +1072,16 @@ iopage.register(0o17772520, 6, (function() {
             mtc = (mtc & ~0x30) | ((address >>> 12) & 0x30);
         }
         switch (code) {
+            case 0: // no error
+                break;
             case 1: // read error
                 mts |= 0x100; // Bad tape error
                 break;
             case 2: // NXM
                 mts |= 0x80; // NXM
+                break;
+            default: // ouch - something broke
+                mts |= 0x100; // BTE bad tape
                 break;
         }
         if (mtc & 0x40) { // if ie...
@@ -1135,6 +1091,7 @@ iopage.register(0o17772520, 6, (function() {
         mts |= 1; // tape unit ready
         mtc |= 0x80; // command complete
     }
+
     function go() { // execute command loaded into mtc register
         "use strict";
         var drive = (mtc >>> 8) & 3;
@@ -1148,7 +1105,7 @@ iopage.register(0o17772520, 6, (function() {
             mts |= 0x40; // set drive select
             if (mtControlBlock[drive] === undefined) {
                 mtControlBlock[drive] = {
-                    "cache": [],
+                    //"cache": [],
                     "callback": mtCallback,
                     "mapped": 1,
                     "url": "tm" + drive + ".tap",
@@ -1286,7 +1243,15 @@ iopage.register(0o17772520, 6, (function() {
 
 iopage.register(0o17777400, 8, (function() {
     "use strict";
-    const TRACKS = [406, 406, 406, 406, 406, 406, 406, 0];
+    const idle = {
+        'sectors': 0,
+        'tracks': 0
+    }; // drive not in use
+    const rk05 = {
+        'sectors': 12,
+        'tracks': 406
+    }; // rk05
+    const geometry = [rk05, rk05, rk05, rk05, rk05, rk05, idle, idle]; // installed drives
     var
         rkds, // 17777400 Drive Status 15-13 ID 11 RK05 8 SOK 7 DRY 6 RDY 3-0 SECT (should be per disk)
         rker, // 17777402 Error Register
@@ -1308,15 +1273,17 @@ iopage.register(0o17777400, 8, (function() {
         rkda = 0;
         iMask = 0;
     }
+
     function rkCallback(controlBlock, code, position, address, count) {
         "use strict";
         rkba = address & 0xffff;
         rkcs = (rkcs & ~0x30) | ((address >>> 12) & 0x30);
         rkwc = (0x10000 - (count >>> 1)) & 0xffff;
         position = ~~(position / 512);
-        rkda = (rkda & 0xe000) | ((~~(position / 12)) << 4) | (position % 12);
+        rkda = (rkda & 0xe000) | ((~~(position / geometry[controlBlock.drive].sectors)) << 4) |
+            (position % geometry[controlBlock.drive].sectors);
         switch (code) {
-            case 0: // mo error
+            case 0: // no error
                 rkcs |= 0x80;
                 break;
             case 1: // read error
@@ -1332,6 +1299,10 @@ iopage.register(0o17777400, 8, (function() {
                 rker |= 0x8001; // Report TE (Write check error)
                 rkcs |= 0x8000;
                 break;
+            default: // ouch - something broke
+                rker |= 0x9000; // SKE seek error
+                rkcs |= 0xc000;
+                break;
         }
         if (rkcs & 0x40) { // if ie...
             iMask |= 0x100; // command complete
@@ -1340,6 +1311,7 @@ iopage.register(0o17777400, 8, (function() {
         rkds = (controlBlock.drive << 13) | (rkds & 0x1ff0); // Insert drive into status
         rkcs |= 0x80; // command complete
     }
+
     function go() { // execute command loaded into rkcs register
         "use strict";
         var sector, address, count;
@@ -1360,28 +1332,28 @@ iopage.register(0o17777400, 8, (function() {
             case 1: // write
             case 2: // read
             case 3: // check
-                if (TRACKS[drive] === 0) {
+                if (geometry[drive].tracks === 0) {
                     rker |= 0x8080; // NXD non-existant drive
                     break;
                 }
-                if (((rkda >>> 4) & 0x1ff) >= TRACKS[drive]) {
+                if (((rkda >>> 4) & 0x1ff) >= geometry[drive].tracks) {
                     rker |= 0x8040; // NXC non-existant cylinder
                     break;
                 }
-                if ((rkda & 0xf) >= 12) {
+                if ((rkda & 0xf) >= geometry[drive].sectors) {
                     rker |= 0x8020; // NXS non-existant sector
                     break;
                 }
                 if (rkControlBlock[drive] === undefined) {
                     rkControlBlock[drive] = {
-                        "cache": [],
+                        //"cache": [],
                         "callback": rkCallback,
                         "mapped": 1,
                         "url": "rk" + drive + ".dsk",
                         "drive": drive
                     };
                 }
-                sector = (((rkda >>> 4) & 0x1ff) * 12 + (rkda & 0xf));
+                sector = (((rkda >>> 4) & 0x1ff) * geometry[drive].sectors + (rkda & 0xf));
                 address = ((rkcs & 0x30) << 12) | rkba;
                 count = (0x10000 - rkwc) & 0xffff;
                 diskIO(rkControlBlock[drive], (rkcs >>> 1) & 7, sector * 512, address, count << 1);
@@ -1493,9 +1465,22 @@ iopage.register(0o17777400, 8, (function() {
 
 iopage.register(0o17774400, 4, (function() {
     "use strict";
-    const SECTORS = [40, 40, 40, 40]; // sectors per track
-    const TRACKS = [1024, 1024, 512, 512]; // First two drives RL02 - last two RL01 - cylinders * 2
-    const STATUS = [0o235, 0o235, 0o35, 0o35]; // First two drives RL02 - last two RL01
+    const idle = {
+        'status': 0,
+        'sectors': 0,
+        'tracks': 0
+    }; // drive not in use
+    const rl01 = {
+        'status': 0o35,
+        'sectors': 40,
+        'tracks': 512
+    }; // rl01
+    const rl02 = {
+        'status': 0o235,
+        'sectors': 40,
+        'tracks': 1024
+    }; // rl02
+    const geometry = [rl02, rl02, rl01, rl01]; // installed drives
     var
         csr, // 17774400 Control status register 15-13 ERR 9-8 drive 7 RDY 6 IE 5-4 MEX 3-1 FUN 0 DRDY
         bar, // 17774402 Bus address
@@ -1513,20 +1498,26 @@ iopage.register(0o17774400, 4, (function() {
         DAR = 0;
         iMask = 0;
     }
+
     function rlCallback(controlBlock, code, position, address, count) {
         "use strict";
         var sector = ~~(position / 256);
         bar = address & 0xffff;
         csr = (csr & ~0x30) | ((address >>> 12) & 0x30);
-        dar = ((~~(sector / SECTORS[controlBlock.drive])) << 6) | (sector % SECTORS[controlBlock.drive]);
+        dar = ((~~(sector / geometry[controlBlock.drive].sectors)) << 6) | (sector % geometry[controlBlock.drive].sectors);
         DAR = dar;
         mpr = (0x10000 - (count >>> 1)) & 0xffff;
         switch (code) {
+            case 0: // no error code
+                break;
             case 1: // read error
-                csr |= 0x8400; // Report operation incomplete
+                csr |= 0x8400; // Read or write error
                 break;
             case 2: // NXM
-                csr |= 0xa000; // NXM
+                csr |= 0xa000; // NXM Non-existant memory
+                break;
+            default: // ouch - something broke
+                csr |= 0x8200; // OPI Operation incomplete
                 break;
         }
         if (csr & 0x40) { // if ie...
@@ -1535,6 +1526,7 @@ iopage.register(0o17774400, 4, (function() {
         }
         csr |= 0x81; // set ready & drive ready
     }
+
     function go() { // execute command loaded into csr register
         "use strict";
         var sector, address, count;
@@ -1542,7 +1534,7 @@ iopage.register(0o17774400, 4, (function() {
         csr &= ~0x1; // clear drive ready
         if (rlControlBlock[drive] === undefined) {
             rlControlBlock[drive] = {
-                "cache": [],
+                //"cache": [],
                 "callback": rlCallback,
                 "mapped": 1,
                 "url": "rl" + drive + ".dsk",
@@ -1556,7 +1548,7 @@ iopage.register(0o17774400, 4, (function() {
                 break;
             case 2: // get status
                 if (mpr & 8) csr &= 0x3f;
-                mpr = STATUS[drive] | (DAR & 0o100); // bit 6 Head Select bit 7 Drive Type 1=rl02
+                mpr = geometry[drive].status | (DAR & 0o100); // bit 6 Head Select bit 7 Drive Type 1=rl02
                 break;
             case 3: // seek
                 if ((dar & 3) === 1) {
@@ -1572,30 +1564,30 @@ iopage.register(0o17774400, 4, (function() {
                 mpr = DAR;
                 break;
             case 5: // write
-                if ((dar >>> 6) >= TRACKS[drive]) {
+                if ((dar >>> 6) >= geometry[drive].tracks) {
                     csr |= 0x9400; // HNF
                     break;
                 }
-                if ((dar & 0x3f) >= SECTORS[drive]) {
+                if ((dar & 0x3f) >= geometry[drive].sectors) {
                     csr |= 0x9400; // HNF
                     break;
                 }
-                sector = ((dar >>> 6) * SECTORS[drive]) + (dar & 0x3f);
+                sector = ((dar >>> 6) * geometry[drive].sectors) + (dar & 0x3f);
                 address = bar | ((csr & 0x30) << 12);
                 count = (0x10000 - mpr) & 0xffff;
                 diskIO(rlControlBlock[drive], 1, sector * 256, address, count << 1);
                 return;
             case 6: // read
             case 7: // Read data without header check
-                if ((dar >>> 6) >= TRACKS[drive]) {
+                if ((dar >>> 6) >= geometry[drive].tracks) {
                     csr |= 0x9400; // HNF
                     break;
                 }
-                if ((dar & 0x3f) >= SECTORS[drive]) {
+                if ((dar & 0x3f) >= geometry[drive].sectors) {
                     csr |= 0x9400; // HNF
                     break;
                 }
-                sector = ((dar >>> 6) * SECTORS[drive]) + (dar & 0x3f);
+                sector = ((dar >>> 6) * geometry[drive].sectors) + (dar & 0x3f);
                 address = ((csr & 0x30) << 12) | bar;
                 count = (0x10000 - mpr) & 0xffff;
                 diskIO(rlControlBlock[drive], 2, sector * 256, address, count << 1);
@@ -1676,10 +1668,25 @@ iopage.register(0o17774400, 4, (function() {
 
 iopage.register(0o17776700, 20, (function() {
     "use strict";
-    const DTYPE = [0o20022, 0o20022, 0o20020, 0o20020, 0o20020, 0, 0, 0]; // Type rp06, rp06, rp04, rp04...
-    const SECTORS = [22, 22, 22, 22, 22, 22, 22, 50]; // sectors per track
-    const SURFACES = [19, 19, 19, 19, 19, 19, 19, 32];
-    const CYLINDERS = [815, 815, 815, 815, 815, 411, 815, 630];
+    const idle = {
+        'dtype': 0,
+        'sectors': 0,
+        'surfaces': 0,
+        'cylinders': 0
+    }; // drive not in use
+    const rp04 = {
+        'dtype': 0o20020,
+        'sectors': 22,
+        'surfaces': 19,
+        'cylinders': 411
+    }; // rp04
+    const rp06 = {
+        'dtype': 0o20022,
+        'sectors': 22,
+        'surfaces': 19,
+        'cylinders': 815
+    }; // rp06
+    const geometry = [rp06, rp06, rp04, rp04, rp04, idle, idle, idle]; // installed drives
     var
         rpcs1, // 17776700  rpcs1 Control status 1
         rpwc, //  17776702  rpwc  Word count
@@ -1714,15 +1721,16 @@ iopage.register(0o17776700, 20, (function() {
         rpdc = [0, 0, 0, 0, 0, 0, 0, 0];
         iMask = 0;
     }
+
     function rpCallback(controlBlock, code, position, address, count) {
         "use strict";
         var sector, block = ~~((position + 511) / 512);
         rpcs1 = (rpcs1 & 0xfcff) | ((address >>> 8) & 0x300);
         rpba = address & 0xfffe;
         rpwc = (0x10000 - (count >>> 1)) & 0xffff;
-        sector = ~~(block / SECTORS[controlBlock.drive]);
-        rpda[controlBlock.drive] = ((sector % SURFACES[controlBlock.drive]) << 8) | (block % SECTORS[controlBlock.drive]);
-        rpdc[controlBlock.drive] = ~~(sector / SURFACES[controlBlock.drive]);
+        sector = ~~(block / geometry[controlBlock.drive].sectors);
+        rpda[controlBlock.drive] = ((sector % geometry[controlBlock.drive].surfaces) << 8) | (block % geometry[controlBlock.drive].sectors);
+        rpdc[controlBlock.drive] = ~~(sector / geometry[controlBlock.drive].surfaces);
         if (block >= controlBlock.maxblock) {
             rpds[controlBlock.drive] |= 0x400; // LST
         }
@@ -1736,6 +1744,9 @@ iopage.register(0o17776700, 20, (function() {
                 case 2: // NXM
                     rpcs2 |= 0x800; // NEM (NXM)
                     break;
+                default: // ouch - something broke
+                    rpcs2 |= 0x8000; // DLT Data late
+                    break;
             }
         }
         if (rpcs1 & 0x40) { // if ie...
@@ -1745,18 +1756,19 @@ iopage.register(0o17776700, 20, (function() {
         rpds[controlBlock.drive] |= 0x80; // set DRY
         rpcs1 |= 0x80; // set controller ready
     }
+
     function go() { // execute command loaded into rpcs1 register
         "use strict";
         var address, sector, drive = rpcs2 & 7;
         rpcs1 &= ~0x1; // clear go
-        if (DTYPE[drive] == 0) { // is drive present?
+        if (geometry[drive].dtype == 0) { // is drive present?
             rpcs2 |= 0x1000; // NED (12) non-existant drive
             rpcs1 |= 0xc000; // SC (15) + TRE (14)
         } else {
             rpds[drive] &= 0x7fff; // clear drive ATA bit
             if (rpControlBlock[drive] === undefined) {
                 rpControlBlock[drive] = {
-                    "cache": [],
+                    //"cache": [],
                     "callback": rpCallback,
                     "mapped": 1,
                     "url": "rp" + drive + ".dsk",
@@ -1799,8 +1811,8 @@ iopage.register(0o17776700, 20, (function() {
                         rpcs2 |= 0x0400; // PGE (10) program error
                         rpcs1 |= 0xc000; // SC (15) + TRE (14)
                     } else {
-                        if (rpdc[drive] >= CYLINDERS[drive] || (rpda[drive] >>> 8) >= SURFACES[drive] ||
-                            (rpda[drive] & 0xff) >= SECTORS[drive]) {
+                        if (rpdc[drive] >= geometry[drive].cylinders || (rpda[drive] >>> 8) >= geometry[drive].surfaces ||
+                            (rpda[drive] & 0xff) >= geometry[drive].sectors) {
                             rpcs1 |= 0xc000; // set SC & TRE
                             break;
                         }
@@ -1808,7 +1820,7 @@ iopage.register(0o17776700, 20, (function() {
                         rpcs2 &= 0x7; // clear DLT (15) WCE (14) UPE (13) NED (12) NXM (11) PGE (10) MXF (9) MDPE (8)
                         rpds[drive] &= ~0x480; // clear LST & DRY
                         address = ((rpcs1 & 0x300) << 8) | (rpba & 0xfffe);
-                        sector = (rpdc[drive] * SURFACES[drive] + (rpda[drive] >>> 8)) * SECTORS[drive] + (rpda[drive] & 0xff);
+                        sector = (rpdc[drive] * geometry[drive].surfaces + (rpda[drive] >>> 8)) * geometry[drive].sectors + (rpda[drive] & 0xff);
                         diskIO(rpControlBlock[drive], 1, sector * 512, address, ((0x10000 - rpwc) & 0xffff) << 1);
                         return;
                     }
@@ -1818,8 +1830,8 @@ iopage.register(0o17776700, 20, (function() {
                         rpcs2 |= 0x0400; // PGE (10) program error
                         rpcs1 |= 0xc000; // SC (15) + TRE (14)
                     } else {
-                        if (rpdc[drive] >= CYLINDERS[drive] || (rpda[drive] >>> 8) >= SURFACES[drive] ||
-                            (rpda[drive] & 0xff) >= SECTORS[drive]) {
+                        if (rpdc[drive] >= geometry[drive].cylinders || (rpda[drive] >>> 8) >= geometry[drive].surfaces ||
+                            (rpda[drive] & 0xff) >= geometry[drive].sectors) {
                             rpcs1 |= 0xc000; // set SC & TRE
                             break;
                         }
@@ -1827,7 +1839,7 @@ iopage.register(0o17776700, 20, (function() {
                         rpcs2 &= 0x7; // clear DLT (15) WCE (14) UPE (13) NED (12) NXM (11) PGE (10) MXF (9) MDPE (8)
                         rpds[drive] &= ~0x480; // clear LST & DRY
                         address = ((rpcs1 & 0x300) << 8) | (rpba & 0xfffe);
-                        sector = (rpdc[drive] * SURFACES[drive] + (rpda[drive] >>> 8)) * SECTORS[drive] + (rpda[drive] & 0xff);
+                        sector = (rpdc[drive] * geometry[drive].surfaces + (rpda[drive] >>> 8)) * geometry[drive].sectors + (rpda[drive] & 0xff);
                         diskIO(rpControlBlock[drive], 2, sector * 512, address, ((0x10000 - rpwc) & 0xffff) << 1);
                         return;
                     }
@@ -1892,7 +1904,7 @@ iopage.register(0o17776700, 20, (function() {
                             init();
                         } else {
                             rpcs2 = (result & 0x07); // keep unit only
-                            if (DTYPE[rpcs2 & 7] == 0) {
+                            if (geometry[rpcs2 & 7].dtype == 0) {
                                 rpcs2 |= 0x1000; // NED (12) non-existant drive
                                 rpcs1 |= 0x4000; // TRE (14) transfer error
                             }
@@ -1926,7 +1938,7 @@ iopage.register(0o17776700, 20, (function() {
                     result = 0;
                     break;
                 case 0o26: // 17776726 rpdt  Drive type - see table (read only) (in DRIVE)
-                    result = DTYPE[rpcs2 & 7];
+                    result = geometry[rpcs2 & 7].dtype;
                     break;
                 case 0o30: // 17776730 rpsn  Serial number - use drive # + 1 (read only) (in DRIVE)
                     result = (rpcs2 & 7) + 1;
