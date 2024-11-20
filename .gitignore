@@ -1,3 +1,5 @@
 */*.dsk
 */*.tap
+*/*.ptap
+*/*.zst
 */os-images.tar.gz
