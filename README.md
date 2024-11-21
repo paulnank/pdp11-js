@@ -2,28 +2,32 @@
 
 ![alt text](./assets/pdp1170-large.png)
 
-This repository contains code to emulate either a PDP 11/45 or PDP 11/70 mini computer by Digital Equipment Corporation (DEC).
+This repository contains code to emulate either a 
+[PDP 11/45](https://paulnank.github.io/pdp11-js/pdp11-45.html) or a
+[PDP 11/70](https://paulnank.github.io/pdp11-js/pdp11.html) mini computer by Digital Equipment Corporation (DEC).
 
-The code in online and can be accessed at: [https://skn.noip.me/pdp11/pdp11.html](https://skn.noip.me/pdp11/pdp11.html)
+The emulator can be accessed at either [PDP 11/45](https://paulnank.github.io/pdp11-js/pdp11-45.html) or
+[PDP 11/70](https://paulnank.github.io/pdp11-js/pdp11.html).
 
-It enables PDP 11 operating systems to be run directly in a browser with no additional configuration or setup.
-
-## Disk Images
-
-Disk images (.DSK) containing a number of different PDP 11 operating systems can be found at:  [https://skn.noip.me/pdp11/](https://skn.noip.me/pdp11/)  These can be downloaded or run live in the emulator at that site.
+The emulator enables PDP 11 operating systems to be run directly in a browser with no additional configuration or setup.
 
 
 ## PDP 11/70 Emulator
 
-This emulator came about because years ago I was a programmer for RSTS/E on a PDP 11/45 and had admired the console idle loop light pattern - but I couldn't quite remember how it looked. Given the unavailability of real systems it became time to write an emulator!
+This emulator came about because years ago I was a programmer for RSTS/E on a 
+[PDP 11/45](https://paulnank.github.io/pdp11-js/pdp11-45.html) and had admired the console idle loop light pattern - but I couldn't quite remember how it looked. Given the unavailability of real systems it became time to write an emulator!
 
-I was going to start with a PDP 11/45 emulator but the extra memory of a PDP 11/70 became far too attractive (a whole 4MB!). It took some time before I finally produced a [PDP 11/45](http://skn.noip.me/pdp11/pdp11-45.html) version.
+I was going to start with a 
+[PDP 11/45](https://paulnank.github.io/pdp11-js/pdp11-45.html) emulator but the extra memory of a 
+[PDP 11/70](https://paulnank.github.io/pdp11-js/pdp11.html) became far too attractive (a whole 4MB!). It took some time before I finally produced a
+[PDP 11/45](https://paulnank.github.io/pdp11-js/pdp11-45.html) version.
 
 I met my core objective - I can now see the RSTS/E console light pattern that I was looking for, and found that newer versions (eg v9.6) have a different light pattern. Also I have now seen some of the light patterns for other OSes. RSX and BSD 2.11 have their own different patterns and Unix V5 and Ultrix operate with absolute minimum light movement (I'm assuming they operate mostly in WAIT mode).
 
-Getting all of the operating systems used here presents its own set of challenges - one of which is finding the software in the first place. But one of the most interesting was RSTS/E V06C which has its own [story](https://skn.noip.me/pdp11/RSTSv06c.html).
+Getting all of the operating systems used here presents its own set of challenges - one of which is finding the software in the first place. But one of the most interesting was RSTS/E V06C which has its own [story](https://paulnank.github.io/pdp11-js/RSTSv06c.html).
 
-Note: The boot code in this emulator is a custom PDP 11 program running with it's own set of light patterns. It is initially loaded at address 120000 and has a LIGHTS command which operates by mapping and executing a WAIT instruction from a pattern of virtual addresses. You can also use the BOOT command to start one of the guest operating systems, or the ODT command to start a version of the Octal Debugging Tool.
+Note: The [boot code](https://github.com/paulnank/pdp11-js/blob/master/macro-asm/boot.lst)
+in this emulator is a custom PDP 11 program running with it's own set of light patterns. It is initially loaded at address 120000 and has a LIGHTS command which operates by mapping and executing a WAIT instruction from a pattern of virtual addresses. You can also use the BOOT command to start one of the guest operating systems, or the ODT command to start a version of the Octal Debugging Tool.
 
 If you enjoy watching the light patterns for a working system then doing a make of BSD Unix provides a fairly good display. Boot from rp1, login to root, start make, and then watch the lights. Changing the console switch to physical display (PROG PHY) will show all 22 address bits being used:
 ```
@@ -65,6 +69,8 @@ To restart the initial boot code (if it has not been overwritten) use the switch
 ```
     	HALT, 120000, LOAD ADDRESS, ENABLE, START
 ```
+The javascript code and sources for the bootstrap loader are available online in 
+[github](https://github.com/paulnank/pdp11-js)
 
 Happy emulating!
 
