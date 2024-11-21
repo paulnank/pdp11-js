@@ -70,7 +70,7 @@ To restart the initial boot code (if it has not been overwritten) use the switch
     	HALT, 120000, LOAD ADDRESS, ENABLE, START
 ```
 The javascript code and sources for the bootstrap loader are available online in 
-[github](https://github.com/paulnank/pdp11-js)
+[github pages](https://github.com/paulnank/pdp11-js)
 
 Happy emulating!
 
