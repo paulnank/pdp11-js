@@ -9,7 +9,7 @@
 :root {
   --unitWidth: 4px;
   --unitHeight: 5px;
-  --ledColor: radial-gradient(circle at 2px 2px, yellow, red);
+  --ledColor: radial-gradient(circle at 4px 4px, yellow, red);
 }
 
 .frame {
@@ -457,10 +457,10 @@
 .switch {
   width: calc(var(--unitWidth) * 5);
   height: calc(var(--unitHeight) * 1);
-  border-top: calc(var(--unitHeight) * 8) solid rgba(0, 0, 0, 0);
-  border-bottom: calc(var(--unitHeight) * 7) solid rgba(40, 0, 10, 0.4);
-  border-left: calc(var(--unitWidth) * 1.5) solid rgba(0, 0, 0, 0.25);
-  border-right: calc(var(--unitWidth) * 1.5) solid rgba(0, 0, 0, 0.35);
+  border-top: calc(var(--unitHeight) * 8) solid rgba(0, 0, 0, .15);
+  border-bottom: calc(var(--unitHeight) * 7) solid rgba(40, 0, 10, 0.70);
+  border-left: calc(var(--unitWidth) * 1.5) solid rgba(0, 0, 0, 0.35);
+  border-right: calc(var(--unitWidth) * 1.5) solid rgba(0, 0, 0, 0.60);
   transition: 0.33s;
   float: left;
 }
@@ -1037,7 +1037,7 @@ HALT, 120000, LOAD ADDRESS, ENABLE, START
       Paul Nankervis
     </p>
 <h3>List of guest OS's:</h3>
-<table style="margin-left:25px" cellpadding=3>
+<table style="margin-left:25px" padding=3>
     <thead><tr><td>DISK</td><td>OS</td><td>Notes</td></tr></thead>
     <tbody>
         <tr><td class=disk>RK0</td><td class=system>Unix V5</td><td>Boot using: unix then login as root</td></tr>
@@ -1129,7 +1129,7 @@ run</b>
 Calculating e
 e=2.718281828 (2.718281828)
 <b>^D</b>
-# <b>cat> hello.c
+# <b>cat &gt; hello.c
 main(argc, argv)
 char **argv;
 {
@@ -1139,7 +1139,7 @@ printf("Hello world\n");
 # <b>cc hello.c</b>
 # <b>a.out</b>
 Hello world
-# <b>cat> pi.f
+# <b>cat &gt; pi.f
 c PI via Nilakantha series: 3 + 4/(2*3*4) - 4/(4*5*6) + 4/(6*7*8) ...
       double precision pi, n, d
       pi = 3.0
@@ -1201,10 +1201,10 @@ Welcome to Dungeon.                     This version created 10-AUG-78.
 You are in an open field west of a big white house with a boarded
 front door.
 There is a small mailbox here.
-><b>OPEN MAILBOX</b>
+&gt;<b>OPEN MAILBOX</b>
 Opening the mailbox reveals:
   A leaflet.
-><b>READ LEAFLET</b>
+&gt;<b>READ LEAFLET</b>
 Taken.
                     Welcome to Dungeon!
 
@@ -1229,7 +1229,7 @@ The current version was translated from MDL into FORTRAN IV by
 a somewhat paranoid DEC engineer who prefers to remain anonymous.
 
    On-line information may be obtained with the commands HELP and INFO.
-><b>QUIT</b>
+&gt;<b>QUIT</b>
 Your score would be   0 [total of 560 points], in    1 move.
 This gives you the rank of beginner.
 Do you wish to leave the game?
@@ -1392,9 +1392,7 @@ System RSTS V06C-03 Vixen
 Run time was 2.7 seconds
 Elapsed time was 2 minutes
 Good morning
-
 </pre>
-
 <h3>Example boot of RSTS 4B-17</h3>
 <pre>
 Boot&gt; <b>boot tm0</b>

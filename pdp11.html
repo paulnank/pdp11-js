@@ -9,7 +9,7 @@
 :root {
   --unitWidth: 4px;
   --unitHeight: 5px;
-  --ledColor: radial-gradient(circle at 2px 2px, yellow, red);
+  --ledColor: radial-gradient(circle at 4px 4px, yellow, red);
 }
 
 .frame {
@@ -444,7 +444,7 @@
 
 .switchPadBar {
   width: 100%;
-  height: 2%;
+  height: 4%;
   background: black;
 }
 
@@ -457,10 +457,10 @@
 .switch {
   width: calc(var(--unitWidth) * 5);
   height: calc(var(--unitHeight) * 1);
-  border-top: calc(var(--unitHeight) * 8) solid rgba(0, 0, 0, 0);
-  border-bottom: calc(var(--unitHeight) * 7) solid rgba(40, 0, 10, 0.4);
-  border-left: calc(var(--unitWidth) * 1.5) solid rgba(0, 0, 0, 0.25);
-  border-right: calc(var(--unitWidth) * 1.5) solid rgba(0, 0, 0, 0.35);
+  border-top: calc(var(--unitHeight) * 8) solid rgba(0, 0, 0, .15);
+  border-bottom: calc(var(--unitHeight) * 7) solid rgba(40, 0, 10, 0.70);
+  border-left: calc(var(--unitWidth) * 1.5) solid rgba(0, 0, 0, 0.35);
+  border-right: calc(var(--unitWidth) * 1.5) solid rgba(0, 0, 0, 0.60);
   transition: 0.33s;
   float: left;
 }
@@ -1084,7 +1084,7 @@ HALT, 120000, LOAD ADDRESS, ENABLE, START
       Paul Nankervis
     </p>
 <h3>List of guest OS's:</h3>
-<table style="margin-left:25px" cellpadding=3>
+<table style="margin-left:25px" padding=3>
     <thead><tr><td>DISK</td><td>OS</td><td>Notes</td></tr></thead>
     <tbody>
         <tr><td class=disk>RK0</td><td class=system>Unix V5</td><td>Boot using: unix then login as root</td></tr>
@@ -1185,7 +1185,7 @@ run</b>
 Calculating e
 e=2.718281828 (2.718281828)
 <b>^D</b>
-# <b>cat> hello.c
+# <b>cat &gt; hello.c
 main(argc, argv)
 char **argv;
 {
@@ -1195,7 +1195,7 @@ printf("Hello world\n");
 # <b>cc hello.c</b>
 # <b>a.out</b>
 Hello world
-# <b>cat> pi.f
+# <b>cat &gt; pi.f
 c PI via Nilakantha series: 3 + 4/(2*3*4) - 4/(4*5*6) + 4/(6*7*8) ...
       double precision pi, n, d
       pi = 3.0
@@ -1257,10 +1257,10 @@ Welcome to Dungeon.                     This version created 10-AUG-78.
 You are in an open field west of a big white house with a boarded
 front door.
 There is a small mailbox here.
-><b>OPEN MAILBOX</b>
+&gt;<b>OPEN MAILBOX</b>
 Opening the mailbox reveals:
   A leaflet.
-><b>READ LEAFLET</b>
+&gt;<b>READ LEAFLET</b>
 Taken.
                     Welcome to Dungeon!
 
@@ -1285,7 +1285,7 @@ The current version was translated from MDL into FORTRAN IV by
 a somewhat paranoid DEC engineer who prefers to remain anonymous.
 
    On-line information may be obtained with the commands HELP and INFO.
-><b>QUIT</b>
+&gt;<b>QUIT</b>
 Your score would be   0 [total of 560 points], in    1 move.
 This gives you the rank of beginner.
 Do you wish to leave the game?
@@ -1448,7 +1448,6 @@ System RSTS V06C-03 Vixen
 Run time was 2.7 seconds
 Elapsed time was 2 minutes
 Good morning
-
 </pre>
 <h3>Example boot of XXDP</h3>
 <pre>
@@ -1852,7 +1851,7 @@ HELLO.FTN;2         1.         13-MAR-77 09:03
 TOTAL OF 1./5. BLOCKS IN 1. FILE
 
 
-&gt;for hello,lp:=hello</b>
+&gt;<b>for hello,lp:=hello</b>
 .MAIN.
 &gt;<b>tkb hello/fp=hello,lb:[1,1]forots/lb</b>
 &gt;<b>pip/li</b>
@@ -1969,7 +1968,7 @@ DETACHING...
 
 ERRINT  V7.0-07 RSTS V7.0-07 Vixen
 ERRLOG File is 2% Full
-Change Size to < 100>?
+Change Size to &lt; 100&gt;?
 Utilize Crash File Output (Yes/No) &lt;No&gt;?
 Detaching . . .
 
@@ -1983,21 +1982,21 @@ Ready
 
 <b>DIR</b>
  Name .Ext    Size   Prot    Date       SY:[11,70]
-ACEY  .BAS       5   < 60> 31-Oct-76
-TREK  .BAS      16   < 60> 31-Oct-76
-TREK  .DOC       9   < 60> 31-Oct-76
-ANIMAL.BAS       5   < 60> 31-Oct-76
-STRTRK.BAS      27   < 60> 31-Mar-81
-STRTR1.BAS       9   < 60> 31-Mar-81
-ADVENT.DOC       4   < 60> 20-Jul-85
-ADVENT.SAV      93   <124> 20-Jul-85
-ADVENT.VAR      22   < 60> 20-Jul-85
-ADVTXT.TXT     125   < 60> 20-Jul-85
-SYSMAC.SML      42   < 60> 13-Mar-77
-HELLO .MAC       1   < 60> 13-Mar-77
-BOOT  .MAC      24   < 60> 13-Mar-77
-PRIME .BAS       1   < 60> 24-Mar-76
-PI    .BAS       1   < 60> 24-Mar-76
+ACEY  .BAS       5   &lt; 60&gt; 31-Oct-76
+TREK  .BAS      16   &lt; 60&gt; 31-Oct-76
+TREK  .DOC       9   &lt; 60&gt; 31-Oct-76
+ANIMAL.BAS       5   &lt; 60&gt; 31-Oct-76
+STRTRK.BAS      27   &lt; 60&gt; 31-Mar-81
+STRTR1.BAS       9   &lt; 60&gt; 31-Mar-81
+ADVENT.DOC       4   &lt; 60&gt; 20-Jul-85
+ADVENT.SAV      93   &lt;124&gt; 20-Jul-85
+ADVENT.VAR      22   &lt; 60&gt; 20-Jul-85
+ADVTXT.TXT     125   &lt; 60&gt; 20-Jul-85
+SYSMAC.SML      42   &lt; 60&gt; 13-Mar-77
+HELLO .MAC       1   &lt; 60&gt; 13-Mar-77
+BOOT  .MAC      24   &lt; 60&gt; 13-Mar-77
+PRIME .BAS       1   &lt; 60&gt; 24-Mar-76
+PI    .BAS       1   &lt; 60&gt; 24-Mar-76
 
 Total of 384 blocks in 15 files in SY:[11,70]
 
@@ -2162,7 +2161,7 @@ Restricted rights:
         to restrictions stated in your contract with
         Digital Equipment Corporation.
 
-*UNIX is a trademark of AT&T Bell Laboratories.
+*UNIX is a trademark of AT&amp;T Bell Laboratories.
 
 Mounted /dev/hp01 on /usr
 Mounted /dev/hp04 on /user1
@@ -2803,11 +2802,11 @@ Ready
 <b>switch dcl</b>
 $ <b>run auxlib$:fit</b>
 FIT    V10.1-A    RSTS V10.1-L RSTS/E V10.1
-FIT><b>*.*=dk1:dungeo.*/rt</b>
-FIT><b>*.*=dk1:dsave.dat/rt</b>
-FIT><b>*.*=dk1:dindx.dat/rt</b>
-FIT><b>*.*=dk1:dtext.dat/rt</b>
-FIT><b>^Z</b>
+FIT&gt;<b>*.*=dk1:dungeo.*/rt</b>
+FIT&gt;<b>*.*=dk1:dsave.dat/rt</b>
+FIT&gt;<b>*.*=dk1:dindx.dat/rt</b>
+FIT&gt;<b>*.*=dk1:dtext.dat/rt</b>
+FIT&gt;<b>^Z</b>
 $ <b>run dungeo</b>
 Welcome to Dungeon.                     This version created 10-AUG-78.
 You are in an open field west of a big white house with a boarded

@@ -801,94 +801,157 @@ iopage.register(0o17777510, 2, (function() {
 
 // =========== Disk I/O support routines ===========
 
+
+const IO_BLOCKSIZE = 131072; // Cache block size - matches the size of xhr GET requests
+
+// createCache puts data into the drive cache as blocks of 16bit words
+
+function createCache(cache, block, dataView) {
+    "use strict";
+    var dataLength = dataView.length;
+    for (let index = 0; index < dataLength; block++) {
+        if (cache[block] === undefined) {
+            cache[block] = new Uint16Array(IO_BLOCKSIZE >>> 1); // initialize cache block as words of zero
+            for (let word = 0; word < IO_BLOCKSIZE >>> 1 && index < dataLength; word++) {
+                let data = dataView[index++];
+                if (index < dataLength) {
+                    data |= dataView[index++] << 8;
+                }
+                cache[block][word] = data;
+            }
+        } else {
+            index += IO_BLOCKSIZE;
+        }
+    }
+}
+
+// getData processes the response from xhr GET requests
+
+function getData(controlBlock, operation, position, address, count, block) {
+    "use strict";
+    switch (controlBlock.xhr.status) {
+        case 200: // Success
+            //block = 0; // Deprecated - Note case fall thru!
+            //case 0: // Deprecated Local response - have to assume we got appropriate response
+        case 206: // Partial response - use what is there
+            createCache(controlBlock.cache, block, new Uint8Array(controlBlock.xhr.response));
+            break;
+        case 416: // Out of range - make empty cache block
+            createCache(controlBlock.cache, block, "");
+            break;
+        default: // Error - so fallback to trying to fetch a .zst file instead (as one chunk)
+            try {
+                fetch('media/' + controlBlock.url + '.zst').then(
+                    response => {
+                        if (!response.ok) {
+                            throw new Error('Network error');
+                        }
+                        return response.arrayBuffer();
+                    }
+                ).then(
+                    buffer => {
+                        // fzstd sourced from https://github.com/101arrowz/fzstd
+                        // <script src="https://unpkg.com/fzstd@0.1.1"></script>
+                        createCache(controlBlock.cache, block, fzstd.decompress(new Uint8Array(buffer)));
+                        diskIO(controlBlock, operation, position, address, count); // Resume I/O
+                    }
+                );
+            } catch (err) {
+                controlBlock.callback(controlBlock, 9, position, address, count); // something broke
+            }
+            return;
+    }
+    diskIO(controlBlock, operation, position, address, count); // Resume I/O
+}
+
+// diskIO reads/write data to the device cache - position and counts need to be in bytes for devices like magtape and paper tape
+
 function diskIO(controlBlock, operation, position, address, count) {
     "use strict";
-    if (controlBlock.cache === undefined) {
-        try {
-            fetch('media/' + controlBlock.url + '.zst').then(
-                response => {
-                    if (!response.ok) {
-                        throw new Error('Network error');
-                    }
-                    return response.arrayBuffer();
-                }
-            ).then(
-                buffer => {
-                    // fzstd sourced from https://github.com/101arrowz/fzstd
-                    // <script src="https://unpkg.com/fzstd@0.1.1"></script>
-                    controlBlock.cache = fzstd.decompress(new Uint8Array(buffer));
-                    diskIO(controlBlock, operation, position, address, count);
-                }
-            );
-        } catch (err) {
-            controlBlock.callback(controlBlock, 9, position, address, count); // something broke
-        }
-
-    } else {
+    var block = ~~(position / IO_BLOCKSIZE); // Disk cache block
+    if (controlBlock.cache[block] !== undefined) {
         while (count > 0) {
-            let data;
+            let data, offset = position - block * IO_BLOCKSIZE;
+            if (offset >= IO_BLOCKSIZE) {
+                block++;
+                if (controlBlock.cache[block] === undefined) {
+                    break;
+                }
+                offset = 0;
+            }
             switch (operation) {
                 case 1: // Write: write from memory to cache
                 case 3: // Check: compare memory with disk cache
-                    data = readWordByPhysical((controlBlock.mapped ? mapUnibus(address) : address));
-                    if (data < 0) {
-                        controlBlock.callback(controlBlock, 2, position, address, count); // NXM
+                    if ((data = readWordByPhysical((controlBlock.mapped ? mapUnibus(address) : address))) < 0) {
+                        controlBlock.callback(controlBlock, 2, position, address, count); // NXM fail callback
                         return;
                     }
-                    while (position >= controlBlock.cache.length) controlBlock.cache.push(0);
-                    if (operation === 1) { // write: put data into disk cache
-                        controlBlock.cache[position] = data & 0xff;
-                        controlBlock.cache[position + 1] = (data >>> 8) & 0xff;
-                    } else { // check: compare memory with disk cache
-                        if (data !== ((controlBlock.cache[position + 1] << 8) | controlBlock.cache[position])) {
-                            controlBlock.callback(controlBlock, 3, position, address, count); // mismatch
+                    if (operation === 1) { // 1 write: put data into disk cache
+                        controlBlock.cache[block][offset >>> 1] = data;
+                    } else { // 3 check: compare memory with disk cache
+                        if (data !== controlBlock.cache[block][offset >>> 1]) {
+                            controlBlock.callback(controlBlock, 3, position, address, count); // data mismatch callback
                             return;
                         }
                     }
                     address += 2;
-                    count -= 2; // bytes to go.... (currently all write operations are whole offsets)
                     position += 2;
+                    count -= 2; // bytes to go...
                     break;
-                case 2: // Read: read to memory from cache
-                    if (position >= controlBlock.cache.length) {
-                        data = 0;
-                    } else {
-                        data = (controlBlock.cache[position + 1] << 8) | controlBlock.cache[position];
-                    }
+                case 2: // 2 Read: read to memory from cache
+                    data = controlBlock.cache[block][offset >>> 1];
                     if (count > 1) { // tape can read odd number of bytes - of course it can. :-(
                         if (writeWordByPhysical((controlBlock.mapped ? mapUnibus(address) : address), data) < 0) {
-                            controlBlock.callback(controlBlock, 2, position, address, count); // NXM
+                            controlBlock.callback(controlBlock, 2, position, address, count); // NXM fail callback
                             return;
                         }
                         address += 2;
+                        position += 2;
                         count -= 2; // bytes to go....
                     } else {
                         if (writeByteByPhysical((controlBlock.mapped ? mapUnibus(address) : address), data & 0xff) < 0) {
-                            controlBlock.callback(controlBlock, 2, position, address, count); // NXM
+                            controlBlock.callback(controlBlock, 2, position, address, count); // NXM fail callback
                             return;
                         }
                         address += 1;
-                        --count; // bytes to go....
+                        position += 2;
+                        count--; // bytes to go....
                     }
-                    position += 2;
                     break;
                 case 4: // accumulate a record count into the address field for tape operations
-                    data = (controlBlock.cache[position + 1] << 8) | controlBlock.cache[position];
-                    address = (data << 16) | (address >>> 16);
-                    count -= 2; // bytes to go....
+                    address = (controlBlock.cache[block][offset >>> 1] << 16) | (address >>> 16);
                     position += 2;
+                    count -= 2; // bytes to go...
                     break;
                 case 5: // read one lousy byte (for PTR) - result also into address field!!!!
-                    address = controlBlock.cache[position++];
+                    data = controlBlock.cache[block][offset >> 1];
+                    address = (offset & 1 ? data >>> 8 : data & 0xff);
+                    position++;
                     count = 0; // force end!
                     break;
                 default:
                     panic(); // invalid operation - how did we get here?
             }
         }
-        controlBlock.callback(controlBlock, 0, position, address, count); // success callback
     }
+    if (count > 0) { // I/O did not complete so try and get data for the cache - first try an xhr GET request...
+        if (controlBlock.xhr === undefined) {
+            controlBlock.xhr = new XMLHttpRequest();
+        }
+        controlBlock.xhr.open("GET", 'media/' + controlBlock.url, true);
+        controlBlock.xhr.responseType = "arraybuffer";
+        controlBlock.xhr.onreadystatechange = function() {
+            if (controlBlock.xhr.readyState === controlBlock.xhr.DONE) {
+                getData(controlBlock, operation, position, address, count, block);
+            }
+        };
+        controlBlock.xhr.setRequestHeader("Range", "bytes=" + (block * IO_BLOCKSIZE) + "-" + ((block + 1) * IO_BLOCKSIZE - 1));
+        controlBlock.xhr.send(null);
+        return;
+    }
+    controlBlock.callback(controlBlock, 0, position, address, count); // I/O complete - success callback
 }
+
 
 // register the paper tape reader on the i/o page
 
@@ -952,7 +1015,7 @@ iopage.register(0o17777550, 2, (function() {
                             } else {
                                 if (ptControlblock === undefined) {
                                     ptControlblock = {
-                                        //"cache": [],
+                                        "cache": [],
                                         "callback": ptCallback,
                                         "mapped": 1,
                                         "url": ptrName,
@@ -1105,7 +1168,7 @@ iopage.register(0o17772520, 6, (function() {
             mts |= 0x40; // set drive select
             if (mtControlBlock[drive] === undefined) {
                 mtControlBlock[drive] = {
-                    //"cache": [],
+                    "cache": [],
                     "callback": mtCallback,
                     "mapped": 1,
                     "url": "tm" + drive + ".tap",
@@ -1346,7 +1409,7 @@ iopage.register(0o17777400, 8, (function() {
                 }
                 if (rkControlBlock[drive] === undefined) {
                     rkControlBlock[drive] = {
-                        //"cache": [],
+                        "cache": [],
                         "callback": rkCallback,
                         "mapped": 1,
                         "url": "rk" + drive + ".dsk",
@@ -1534,7 +1597,7 @@ iopage.register(0o17774400, 4, (function() {
         csr &= ~0x1; // clear drive ready
         if (rlControlBlock[drive] === undefined) {
             rlControlBlock[drive] = {
-                //"cache": [],
+                "cache": [],
                 "callback": rlCallback,
                 "mapped": 1,
                 "url": "rl" + drive + ".dsk",
@@ -1768,7 +1831,7 @@ iopage.register(0o17776700, 20, (function() {
             rpds[drive] &= 0x7fff; // clear drive ATA bit
             if (rpControlBlock[drive] === undefined) {
                 rpControlBlock[drive] = {
-                    //"cache": [],
+                    "cache": [],
                     "callback": rpCallback,
                     "mapped": 1,
                     "url": "rp" + drive + ".dsk",
