@@ -1,6 +1,6 @@
 # PDP 11 Media
 
-The emulator media images are included in the media folder in compressed format (ZST).
+Some of the emulator media images in the media folder are in compressed format (ZST) to keep github file sizes below limits.
 
 Files of type .dsk are disk images, .tap are magnetic tape images, and .ptap are paper tape images.
 
