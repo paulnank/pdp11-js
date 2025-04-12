@@ -958,7 +958,6 @@ function diskIO(controlBlock, operation, position, address, count) {
 iopage.register(0o17777550, 2, (function() {
     var ptrcs, // 17777550 // paper tape reader control register 15 ERR 11 BUSY 7 DONE 6 IE 0 GO
         ptrdb, // 17777552 // paper tape reader data buffer
-        ptrName = "", // paper tape file name
         iMask; // interrupt mask
     var ptControlblock;
 
@@ -967,14 +966,7 @@ iopage.register(0o17777550, 2, (function() {
         ptrcs = 0;
         ptrdb = 0;
         iMask = 0;
-    }
-
-    function selectPaperTape() {
-        ptrName = document.getElementById("ptr").value;
-        ptrcs = 0; // clear status when tape selected
-        if (ptControlblock !== undefined) {
-            ptControlblock = undefined; // Forget any existing details
-        }
+		ptControlblock = undefined; // Forget any existing tape details
     }
 
     function ptCallback(controlBlock, code, position, address, count) {
@@ -991,7 +983,7 @@ iopage.register(0o17777550, 2, (function() {
         ptrcs = (ptrcs | 0x80) & ~0x800; // set DONE clear BUSY
     }
     init();
-    document.getElementById("ptr").onchange = selectPaperTape;
+    document.getElementById("ptr").onclick = init;
     return {
         access: function(physicalAddress, data, byteFlag) {
             "use strict";
@@ -1008,24 +1000,25 @@ iopage.register(0o17777550, 2, (function() {
                                 iMask = 0;
                             }
                         }
-                        ptrcs = (ptrcs & ~0x41) | (result & 0x41); // only update ie and go
-                        if ((ptrcs & 0x8801) == 0x1) { // if not ERROR or BUSY and GO set...
-                            if (ptrName === "") {
-                                ptrcs = (ptrcs & ~0x1) | 0x8000; // clear GO and set ERROR if no tape
-                            } else {
-                                if (ptControlblock === undefined) {
-                                    ptControlblock = {
-                                        "cache": [],
-                                        "callback": ptCallback,
-                                        "mapped": 1,
-                                        "url": ptrName,
-                                        "position": 0
-                                    };
-                                }
-                                ptrcs = (ptrcs & ~0x1) | 0x800; // clear GO and set BUSY
-                                diskIO(ptControlblock, 5, ptControlblock.position, 0o17777552, 1); // read a byte!
-                            }
+                        ptrcs = (ptrcs & ~0x41) | (result & 0x41); // only update ie and go	
+						if (ptControlblock === undefined) {
+							let ptrName = document.getElementById("ptr").value;
+							if (ptrName === "") {
+								ptrcs = (ptrcs & ~0x1) | 0x8000; // clear GO and set ERROR if no tape
+							} else {
+								ptControlblock = {
+									"cache": [],
+									"callback": ptCallback,
+									"mapped": 1,
+									"url": ptrName + '.ptap',
+									"position": 0
+								};
+							}
                         }
+						if ((ptrcs & 0x8801) == 0x1) { // if not ERROR or BUSY and GO set...
+							ptrcs = (ptrcs & ~0x1) | 0x800; // clear GO and set BUSY
+							diskIO(ptControlblock, 5, ptControlblock.position, 0o17777552, 1); // read a byte!
+						}
                     }
                     break;
                 case 0o2: // 17777552 ptrdb paper tape reader data buffer
