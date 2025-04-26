@@ -213,7 +213,7 @@ function LOG_INSTRUCTION(instruction, name, format) {
 
 function setMMUmode(mmuMode) {
     "use strict";
-    CPU.mmuPageMask = ((CPU.MMR3 << (mmuMode & 2 ? mmuMode : mmuMode + 1)) & 8) | 0x37;
+    CPU.mmuPageMask = ((CPU.MMR3 << (mmuMode == 3 ? 3 : mmuMode + 1)) & 8) | (mmuMode << 4) | 0x7;
     CPU.mmuMode = mmuMode;
 }
 
@@ -537,8 +537,8 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
             }
         }
     } else { // This access is mapped by the MMU
-        let errorMask = 0;
-        let page = ((virtualAddress >>> 13) | (CPU.mmuMode << 4)) & CPU.mmuPageMask;
+        let errorMask = 0
+        let page = ((virtualAddress >>> 13) | 0x30) & CPU.mmuPageMask; // Make address into page number
         let pdr = CPU.mmuPDR[page];
         physicalAddress = ((virtualAddress & 0x1fff) + (CPU.mmuPAR[page] << 6)) & 0x3fffff;
         if (!(CPU.MMR3 & 0x10)) { // 18 bit mapping needs extra trimming
@@ -576,12 +576,10 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
             case 1: // read-only with trap
                 errorMask = 0x1000; // MMU trap - then fall thru
             case 2: // read-only
-                if (!(pdr & 0x80)) {
-                    CPU.mmuPDR[page] = pdr | 0x80; // Set A bit
-                }
                 if (accessMask & MMU_WRITE) {
                     errorMask = 0x2000; // read-only abort
                 }
+                CPU.mmuPDR[page] |= 0x80; // Set A bit
                 break;
             case 4: // read-write with read-write trap
                 errorMask = 0x1000; // MMU trap - then fall thru
@@ -590,14 +588,16 @@ function mapVirtualToPhysical(virtualAddress, accessMask) {
                     errorMask = 0x1000; // MMU trap - then fall thru
                 }
             case 6: // read-write
-                if ((pdr & 0xc0) !== 0xc0) { // if A & W already set skip
-                    CPU.mmuPDR[page] = pdr | (accessMask & MMU_WRITE ? 0xc0 : 0x80); // Set A & W bits
+                if (accessMask & MMU_WRITE) {
+                    CPU.mmuPDR[page] |= 0xc0; // Set A & W bits
+                } else {
+                    CPU.mmuPDR[page] |= 0x80; // Set A bit
                 }
                 break;
         }
         switch (pdr & 0x7f08) { // check page length
-            case 0x0008: // ignore full length downward page
             case 0x7f00: // ignore full length upward page
+            case 0x0008: // ignore full length downward page
                 break;
             default:
                 if (pdr & 0x8) { // page expands downwards
